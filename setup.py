@@ -13,6 +13,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
+    python_requires='>=3.5',
     install_requires=[
         'Flask-SQLAlchemy==2.3.2',
         'mitmproxy==4.0.4',

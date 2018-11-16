@@ -6,17 +6,17 @@ https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_m
 https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
+from datetime import datetime
 import hashlib
+import os
+import pathlib  # require python 3.5+
 import shutil
 import tempfile
-import os
-from datetime import datetime
 
 from flask import Flask
 from flask.cli import FlaskGroup
 from flask_sqlalchemy import SQLAlchemy
 from mitmproxy import ctx, http
-from mitmproxy.script import concurrent
 from PIL import Image  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
@@ -30,6 +30,7 @@ def chunks(l, n):
 
 
 def write_file(flow_item, ext):
+    folder = 'image'
     h = hashlib.sha256()
     block = 128*1024
     try:
@@ -40,7 +41,10 @@ def write_file(flow_item, ext):
                     h.update(b)
                     f.write(b)
             sha256_csum = h.hexdigest()
-            new_fname = '{}.{}'.format(sha256_csum, ext)
+            new_bname = '{}.{}'.format(sha256_csum, ext)
+            parent_folder = os.path.join(folder, sha256_csum[:2])
+            new_fname = os.path.join(parent_folder, new_bname)
+            pathlib.Path(parent_folder).mkdir(parents=True, exist_ok=True)
             shutil.move(temp_fname, new_fname)
         ctx.log.info('DONE:{}'.format(new_fname))
     except Exception as e:
