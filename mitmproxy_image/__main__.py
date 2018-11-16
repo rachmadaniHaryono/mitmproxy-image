@@ -16,12 +16,14 @@ import tempfile
 
 from flask import Flask
 from flask.cli import FlaskGroup
-from flask_sqlalchemy import SQLAlchemy
 from mitmproxy import ctx, http
 from PIL import Image
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, relationship, scoped_session, sessionmaker
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
 import click
+import sqlalchemy
 
 
 def chunks(l, n):
@@ -69,54 +71,83 @@ def process_flow(flow_item, ext):
     return res
 
 
+def get_database_uri():
+    abspath = os.path.abspath('mitmproxy_image.db')
+    return 'sqlite:///{}'.format(abspath)
+
+
 # MODEL
-db = SQLAlchemy()
+Base = declarative_base()
 
 
-class Base(db.Model):
+class BaseModel(Base):
     __abstract__ = True
-    id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(TIMESTAMP, default=datetime.now, nullable=False)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    created_at = sqlalchemy.Column(
+        TIMESTAMP, default=datetime.now, nullable=False)
 
 
-class Sha256Checksum(Base):
-    value = db.Column(db.String, unique=True)
-    ext = db.Column(db.String)
-    filesize = db.Column(db.Integer)
-    height = db.Column(db.Integer)
-    width = db.Column(db.Integer)
-    img_format = db.Column(db.String)
-    img_mode = db.Column(db.String)
-    urls = db.relationship('Url', lazy='subquery', backref='checksum')
-    trash = db.Column(db.Boolean, default=False)
+class Sha256Checksum(BaseModel):
+    __tablename__ = 'sha256_checksum'
+    value = sqlalchemy.Column(sqlalchemy.String, unique=True)
+    ext = sqlalchemy.Column(sqlalchemy.String)
+    filesize = sqlalchemy.Column(sqlalchemy.Integer)
+    height = sqlalchemy.Column(sqlalchemy.Integer)
+    width = sqlalchemy.Column(sqlalchemy.Integer)
+    img_format = sqlalchemy.Column(sqlalchemy.String)
+    img_mode = sqlalchemy.Column(sqlalchemy.String)
+    urls = relationship('Url', lazy='subquery', backref='checksum')
+    trash = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+
+    def __repr__(self):
+        templ = "<Sha256Checksum(id={}, value={}...)>"
+        return templ.format(self.id, self.value[:7])
 
 
-class Url(Base):
-    value = db.Column(URLType, unique=True, nullable=False)
-    sha256_checksum_id = db.Column(
-        db.Integer, db.ForeignKey('sha256_checksum.id'))
+class Url(BaseModel):
+    __tablename__ = 'url'
+    value = sqlalchemy.Column(URLType, unique=True, nullable=False)
+    sha256_checksum_id = sqlalchemy.Column(
+        sqlalchemy.Integer, sqlalchemy.ForeignKey('sha256_checksum.id'))
+
+
+def get_or_create(session, model, **kwargs):
+    """Creates an object or returns the object if exists."""
+    instance = session.query(model).filter_by(**kwargs).first()
+    created = False
+    if not instance:
+        instance = model(**kwargs)
+        session.add(instance)
+        created = True
+    return instance, created
 
 
 # FLASK
 def create_app(script_info=None):
     """create app."""
     app = Flask(__name__)
-    database_path = 'mitmproxy_image.db'
-    database_uri = 'sqlite:///' + database_path
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_uri # NOQA
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.urandom(24)
     app.config['WTF_CSRF_ENABLED'] = False
 
     # app and db
-    db.init_app(app)
+    #  db.init_app(app)
     app.app_context().push()
-    db.create_all()
+    #  db.create_all()
+
+    db_uri = get_database_uri()
+    #  print('db uri: {}'.format(db_uri))
+    engine = sqlalchemy.create_engine(db_uri)
+    db_session = scoped_session(sessionmaker(bind=engine))
+
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db_session.remove()
 
     @app.shell_context_processor
     def shell_context():
         return {
-            'app': app, 'db': db, 'session': db.session,
+            'app': app,
+            'db_session': db_session,
             'Sha256Checksum': Sha256Checksum, 'Url': Url,
         }
     return app
@@ -134,29 +165,40 @@ def echo_path():
     print(__file__)
 
 
-def save_info(info, url):
-    # TODO
-    pass
-
-
 class ImageProxy:
-
-    def __init___(self):
-        self.app = create_app()
 
     def response(self, flow: http.HTTPFlow) -> None:
         if 'content-type' in flow.response.headers:
             content_type = flow.response.headers['content-type']
             if content_type.startswith('image'):
+                # session
+                db_uri = \
+                    'sqlite:////home/q/git/mitmproxy_image/mitmproxy_image.db'
+                engine = sqlalchemy.create_engine(db_uri)
+                Base.metadata.create_all(engine)
+                session = Session(engine)
+
                 # check in database
                 url = flow.request.pretty_url
-                in_databse = Url.query.filter_by(value=url).first()
-                if not in_databse:
+                in_database = \
+                    session.query(Url).filter_by(value=url).first()
+                if not in_database:
                     ext = content_type.split('/')[1].split(';')[0]
                     invalid_exts = ['svg+xml', 'x-icon', 'gif']
                     if ext not in invalid_exts:
                         info = process_flow(flow, ext)
-                        save_info(info, url)
+                        url_m, _ = get_or_create(session, Url, value=url)
+                        with session.no_autoflush:
+                            checksum_m, _ = get_or_create(
+                                session, Sha256Checksum,
+                                value=info.pop('value'))
+                        for key, val in info.items():
+                            setattr(checksum_m, key, val)
+                        checksum_m.urls.append(url_m)
+                        session.add(checksum_m)
+                        session.commit()
+                else:
+                    ctx.log.info('SKIP: {}'.format(url))
 
 
 addons = [
