@@ -20,6 +20,10 @@ parts/
 sdist/
 var/
 wheels/
+<<<<<<< HEAD
+=======
+share/python-wheels/
+>>>>>>> new: dev: file from cookicutter
 *.egg-info/
 .installed.cfg
 *.egg
@@ -38,6 +42,10 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
+<<<<<<< HEAD
+=======
+.nox/
+>>>>>>> new: dev: file from cookicutter
 .coverage
 .coverage.*
 .cache
@@ -72,6 +80,13 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+<<<<<<< HEAD
+=======
+# IPython
+profile_default/
+ipython_config.py
+
+>>>>>>> new: dev: file from cookicutter
 # pyenv
 .python-version
 
@@ -102,3 +117,19 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+<<<<<<< HEAD
+=======
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# custom
+*.jpeg
+*.png
+mitmproxy_image.db
+note.md
+settings.cfg
+Makefile
+>>>>>>> new: dev: file from cookicutter

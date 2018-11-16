@@ -1,0 +1,2 @@
+recursive-include mitmproxy_image/templates *
+recursive-include mitmproxy_image/static *
