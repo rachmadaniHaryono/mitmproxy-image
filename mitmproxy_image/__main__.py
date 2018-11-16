@@ -111,6 +111,13 @@ def create_app(script_info=None):
     db.init_app(app)
     app.app_context().push()
     db.create_all()
+
+    @app.shell_context_processor
+    def shell_context():
+        return {
+            'app': app, 'db': db, 'session': db.session,
+            'Sha256Checksum': Sha256Checksum, 'Url': 'Url'
+        }
     return app
 
 
