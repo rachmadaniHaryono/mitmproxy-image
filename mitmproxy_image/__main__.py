@@ -26,23 +26,32 @@ import click
 import sqlalchemy
 
 
+APP_DIR = click.get_app_dir('mitmproxy_image')
+pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
+IMAGE_DIR = os.path.join(APP_DIR, 'image')
+
+
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
 
-def process_flow(flow_item, ext):
-    folder = 'image'
+def process_info(file_obj, ext, use_chunks=True):
+    folder = IMAGE_DIR
     h = hashlib.sha256()
     block = 128*1024
     s = BytesIO()
     res = {}
+    if use_chunks:
+        file_iter = chunks(file_obj, block)
+    else:
+        file_iter = iter(lambda: file_obj.read(block), b'')
     try:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             temp_fname = f.name
             with open(temp_fname, 'wb', buffering=0) as f:
-                for b in chunks(flow_item.response.content, block):
+                for b in file_iter:
                     h.update(b)
                     f.write(b)
                     s.write(b)
@@ -66,13 +75,12 @@ def process_flow(flow_item, ext):
             'img_mode': img.mode
         }
     except Exception as e:
-        ctx.log.error('url: {}'.format(flow_item.request.pretty_url))
         ctx.log.error('{}:{}'.format(type(e), e))
     return res
 
 
 def get_database_uri():
-    abspath = os.path.abspath('mitmproxy_image.db')
+    abspath = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
     return 'sqlite:///{}'.format(abspath)
 
 
@@ -172,8 +180,7 @@ class ImageProxy:
             content_type = flow.response.headers['content-type']
             if content_type.startswith('image'):
                 # session
-                db_uri = \
-                    'sqlite:////home/q/git/mitmproxy_image/mitmproxy_image.db'
+                db_uri = get_database_uri()
                 engine = sqlalchemy.create_engine(db_uri)
                 Base.metadata.create_all(engine)
                 session = Session(engine)
@@ -186,7 +193,7 @@ class ImageProxy:
                     ext = content_type.split('/')[1].split(';')[0]
                     invalid_exts = ['svg+xml', 'x-icon', 'gif']
                     if ext not in invalid_exts:
-                        info = process_flow(flow, ext)
+                        info = process_info(flow.response.content, ext)
                         url_m, _ = get_or_create(session, Url, value=url)
                         with session.no_autoflush:
                             checksum_m, _ = get_or_create(
