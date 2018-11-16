@@ -64,7 +64,10 @@ def process_info(file_obj, ext, use_chunks=True):
             new_fname = os.path.join(parent_folder, new_bname)
             pathlib.Path(parent_folder).mkdir(parents=True, exist_ok=True)
             shutil.move(temp_fname, new_fname)
-        ctx.log.info('DONE:{}'.format(new_fname))
+        if hasattr(ctx.log, 'info'):
+            ctx.log.info('DONE:{}'.format(new_fname))
+        else:
+            print('DONE:{}'.format(new_fname))
         res = {
             'value': sha256_csum,
             'filesize': filesize,
@@ -75,7 +78,10 @@ def process_info(file_obj, ext, use_chunks=True):
             'img_mode': img.mode
         }
     except Exception as e:
-        ctx.log.error('{}:{}'.format(type(e), e))
+        if hasattr(ctx.log, 'error'):
+            ctx.log.error('{}:{}'.format(type(e), e))
+        else:
+            raise e
     return res
 
 
@@ -171,6 +177,35 @@ def cli():
 def echo_path():
     'Echo path to script.'
     print(__file__)
+
+
+@cli.command('scan-image-folder')
+def scan_image_folder():
+    """Scan image folder.
+
+    This function find problems in image folder.
+    - empty filesize (trash)
+    - empty ext (process info, save if image)
+    - file not in database (process info, save  if image)
+    - file in database but not in image folder (set trash prop = True)
+    - file in db and folder, trash prop=true (set trash prop = False)
+    - file in database but empty filesize (trash)
+    """
+    im_data = {}
+    with click.progressbar(os.walk(IMAGE_DIR)) as bar:
+        for root, _, files in bar:
+            for ff in files:
+                im_data[ff] = {
+                    'exp_value': os.path.splitext(os.path.basename(ff))[0],
+                    'ext': os.path.splitext(ff)[1][1:],
+                }
+    db_uri = get_database_uri()
+    engine = sqlalchemy.create_engine(db_uri)
+    db_session = scoped_session(sessionmaker(bind=engine))  # NOQA
+    # TODO
+    # for item in im_data:
+    #     with open(item, 'rb') as f:
+    #         info = process_info(f, item['ext'], use_chunks=False)  # NOQA
 
 
 class ImageProxy:
