@@ -14,6 +14,7 @@ import pathlib  # require python 3.5+
 import shutil
 import tempfile
 
+from appdirs import user_data_dir
 from flask import Flask, send_from_directory, url_for, jsonify, request
 from flask.cli import FlaskGroup
 from flasgger import Swagger
@@ -27,7 +28,7 @@ import click
 import sqlalchemy
 
 
-APP_DIR = click.get_app_dir('mitmproxy_image')
+APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
 
