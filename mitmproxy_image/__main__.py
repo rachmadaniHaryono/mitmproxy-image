@@ -14,8 +14,9 @@ import pathlib  # require python 3.5+
 import shutil
 import tempfile
 
-from flask import Flask
+from flask import Flask, send_from_directory, url_for, jsonify, request
 from flask.cli import FlaskGroup
+from flasgger import Swagger
 from mitmproxy import ctx, http
 from PIL import Image
 from sqlalchemy.ext.declarative import declarative_base
@@ -140,6 +141,11 @@ def get_or_create(session, model, **kwargs):
 def create_app(script_info=None):
     """create app."""
     app = Flask(__name__)
+    app.config['SWAGGER'] = {
+        'title': 'Mitmproxy Image',
+        'uiversion': 2
+    }
+    swagger = Swagger(app)  # NOQA
     app.config['SECRET_KEY'] = os.urandom(24)
     app.config['WTF_CSRF_ENABLED'] = False
 
@@ -149,7 +155,6 @@ def create_app(script_info=None):
     #  db.create_all()
 
     db_uri = get_database_uri()
-    #  print('db uri: {}'.format(db_uri))
     engine = sqlalchemy.create_engine(db_uri)
     db_session = scoped_session(sessionmaker(bind=engine))
 
@@ -164,7 +169,51 @@ def create_app(script_info=None):
             'db_session': db_session,
             'Sha256Checksum': Sha256Checksum, 'Url': Url,
         }
+
+    app.add_url_rule(
+        '/api/sha256_checksum', 'sha256_checksum_list', sha256_checksum_list)
+    app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
     return app
+
+
+def sha256_checksum_list():
+    """Example endpoint returning a list of checksum by palette
+    ---
+    parameters:
+      - name: page
+        in: query
+        type: integer
+    responses:
+      200:
+        description: A list of sha256 checksum
+    """
+    db_uri = get_database_uri()
+    engine = sqlalchemy.create_engine(db_uri)
+    db_session = scoped_session(sessionmaker(bind=engine))
+    per_page = 50
+    page = int(request.args.get('page', 1))
+    input_query = request.args.get('q')
+    items = db_session.query(Sha256Checksum) \
+        .order_by(Sha256Checksum.created_at.desc()) \
+        .limit(per_page).offset((int(page) - 1) * per_page).all()
+    return jsonify({
+        'items': [{
+            'created_at': str(item.created_at),
+            'value': str(item.value),
+            'urls': [url.value for url in item.urls],
+            'img_url': url_for(
+                '.image_url', _external=True,
+                filename='{}.{}'.format(item.value, item.ext)),
+        } for item in items],
+        'next_page': url_for(
+            'sha256_checksum_list', page=page+1, q=input_query,
+            _external=True)
+    })
+
+
+def image_url(filename):
+    return send_from_directory(
+        IMAGE_DIR, os.path.join(filename[:2], filename))
 
 
 @click.group(cls=FlaskGroup, create_app=create_app)
