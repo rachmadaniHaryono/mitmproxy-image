@@ -270,27 +270,30 @@ class ImageProxy:
                 Base.metadata.create_all(engine)
                 session = Session(engine)
 
-                # check in database
-                url = flow.request.pretty_url
-                in_database = \
-                    session.query(Url).filter_by(value=url).first()
-                if not in_database:
-                    ext = content_type.split('/')[1].split(';')[0]
-                    invalid_exts = ['svg+xml', 'x-icon', 'gif']
-                    if ext not in invalid_exts:
-                        info = process_info(flow.response.content, ext)
-                        url_m, _ = get_or_create(session, Url, value=url)
-                        with session.no_autoflush:
-                            checksum_m, _ = get_or_create(
-                                session, Sha256Checksum,
-                                value=info.pop('value'))
-                        for key, val in info.items():
-                            setattr(checksum_m, key, val)
-                        checksum_m.urls.append(url_m)
-                        session.add(checksum_m)
-                        session.commit()
-                else:
-                    ctx.log.info('SKIP: {}'.format(url))
+                try:
+                    # check in database
+                    url = flow.request.pretty_url
+                    in_database = \
+                        session.query(Url).filter_by(value=url).first()
+                    if not in_database:
+                        ext = content_type.split('/')[1].split(';')[0]
+                        invalid_exts = ['svg+xml', 'x-icon', 'gif']
+                        if ext not in invalid_exts:
+                            info = process_info(flow.response.content, ext)
+                            url_m, _ = get_or_create(session, Url, value=url)
+                            with session.no_autoflush:
+                                checksum_m, _ = get_or_create(
+                                    session, Sha256Checksum,
+                                    value=info.pop('value'))
+                            for key, val in info.items():
+                                setattr(checksum_m, key, val)
+                            checksum_m.urls.append(url_m)
+                            session.add(checksum_m)
+                            session.commit()
+                    else:
+                        ctx.log.info('SKIP: {}'.format(url))
+                finally:
+                    session.remove()
 
 
 addons = [
