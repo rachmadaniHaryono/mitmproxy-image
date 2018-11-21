@@ -5,6 +5,13 @@ Download image using mitmproxy
 
 ## Quick Start
 
+To run it, set your browser for mitmproxy.
+Here are example command to run it on host `127.0.0.1` and port `5007`
+
+```console
+$ mitmproxy --listen-host 127.0.0.1 --listen-port 5007 -s $(mitmproxy-image echo-path)
+```
+
 To Run the application on host `127.0.0.1` and port `5012`, run following command:
 
 ```console
@@ -12,6 +19,8 @@ $ mitmproxy-image run -p 5012 --debugger
 ```
 
 And open it in the browser at [http://127.0.0.1:5012/](http://127.0.0.1:5000/)
+
+To use it with hydrus, run the server as stated above and import the downloaders script.
 
 
 ## Prerequisites
