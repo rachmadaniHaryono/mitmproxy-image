@@ -21,7 +21,7 @@ from flasgger import Swagger
 from mitmproxy import ctx, http
 from PIL import Image
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, relationship, scoped_session, sessionmaker
+from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
 import click
@@ -191,7 +191,7 @@ def sha256_checksum_list():
     db_uri = get_database_uri()
     engine = sqlalchemy.create_engine(db_uri)
     db_session = scoped_session(sessionmaker(bind=engine))
-    per_page = 50
+    per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', 200))
     page = int(request.args.get('page', 1))
     input_query = request.args.get('q')
     items = db_session.query(Sha256Checksum) \
