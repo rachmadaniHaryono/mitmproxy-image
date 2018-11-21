@@ -7,7 +7,7 @@ setup(
     long_description=__doc__,
     long_description_content_type="text/markdown",
     author='Rachmadani Haryono',
-    author_email='Rachmadani Haryono',
+    author_email='foreturiga@gmail.com',
     license='MIT',
     url='https://github.com/rachmadaniHaryono/mitmproxy-image',
     packages=find_packages(),
