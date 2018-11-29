@@ -277,7 +277,9 @@ class ImageProxy:
                         db_session.query(Url).filter_by(value=url).first()
                     if not in_database:
                         ext = content_type.split('/')[1].split(';')[0]
-                        invalid_exts = ['svg+xml', 'x-icon', 'gif']
+                        invalid_exts = [
+                            'svg+xml', 'x-icon', 'gif',
+                            'vnd.microsoft.icon', 'webp']
                         if ext not in invalid_exts:
                             info = process_info(flow.response.content, ext)
                             url_m, _ = get_or_create(
