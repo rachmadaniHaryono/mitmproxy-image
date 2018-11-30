@@ -9,10 +9,12 @@ https://stackoverflow.com/a/44873382/1766261
 from datetime import datetime
 from io import BytesIO
 import hashlib
+import logging
 import os
 import pathlib  # require python 3.5+
 import shutil
 import tempfile
+import sys
 
 from appdirs import user_data_dir
 from flask import Flask, send_from_directory, url_for, jsonify, request
@@ -241,6 +243,7 @@ def scan_image_folder():
     - file in db and folder, trash prop=true (set trash prop = False)
     - file in database but empty filesize (trash)
     """
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     im_data = {}
     with click.progressbar(os.walk(IMAGE_DIR)) as bar:
         for root, _, files in bar:
@@ -251,11 +254,32 @@ def scan_image_folder():
                 }
     db_uri = get_database_uri()
     engine = sqlalchemy.create_engine(db_uri)
-    db_session = scoped_session(sessionmaker(bind=engine))  # NOQA
-    # TODO
-    # for item in im_data:
-    #     with open(item, 'rb') as f:
-    #         info = process_info(f, item['ext'], use_chunks=False)  # NOQA
+    db_session = scoped_session(sessionmaker(bind=engine))
+
+    if not im_data:
+        mappings = []
+        i = 0
+        q_ = db_session.query(Sha256Checksum).filter_by(trash=False)
+        non_trash_count = q_.count()
+        for m in q_.all():
+            info = {'id': m.id, 'trash': True}
+            mappings.append(info)
+            i = i + 1
+            if i % 10000 == 0:
+                db_session.bulk_update_mappings(Sha256Checksum, mappings)
+                db_session.flush()
+                db_session.commit()
+                mappings[:] = []
+        db_session.bulk_update_mappings(Sha256Checksum, mappings)
+        logging.info(
+            '[non trash]before:{}, after:{}'.format(
+                non_trash_count,
+                db_session.query(Sha256Checksum)
+                .filter_by(trash=False).count()))
+        db_session.commit()
+    else:
+        #  TODO
+        raise NotImplementedError
 
 
 class ImageProxy:
