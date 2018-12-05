@@ -197,6 +197,7 @@ def sha256_checksum_list():
     page = int(request.args.get('page', 1))
     input_query = request.args.get('q')
     items = db_session.query(Sha256Checksum) \
+        .filter_by(trash=False) \
         .order_by(Sha256Checksum.created_at.desc()) \
         .limit(per_page).offset((int(page) - 1) * per_page).all()
     return jsonify({
