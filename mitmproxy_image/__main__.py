@@ -295,8 +295,39 @@ class ImageProxy:
             help="Server netloc for redirect.",
         )
 
+    def request(self, flow: http.HTTPFlow):
+        redirect_netloc = ctx.options.redirect_netloc
+        if not redirect_netloc:
+            return
+        # db session
+        db_uri = get_database_uri()
+        engine = sqlalchemy.create_engine(db_uri)
+        Base.metadata.create_all(engine)
+        db_session = scoped_session(sessionmaker(bind=engine))
+
+        try:
+            url = flow.request.pretty_url
+            url_m = db_session.query(Url).filter_by(value=url).first()
+            if url_m and not url_m.checksum.trash:
+                redirect_url = ParseResult(
+                    scheme='http', netloc=redirect_netloc,
+                    path='i/{}.{}'.format(
+                        url_m.checksum.value, url_m.checksum.ext),
+                    params='', query='', fragment=''
+                ).geturl()
+                flow.request.url = redirect_url
+                ctx.log.info('REDIRECT: {}\nTO: {}'.format(
+                    url, redirect_url))
+        finally:
+            db_session.remove()
+
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
+        redirect_netloc = ctx.options.redirect_netloc
+        if redirect_netloc and flow.request.pretty_host == redirect_netloc:
+            url = flow.request.pretty_url
+            ctx.log.info('SKIP REDIRECT SERVER: {}'.format(url))
+            return
         if 'content-type' in flow.response.headers:
             content_type = flow.response.headers['content-type']
             if content_type.startswith('image'):
@@ -305,20 +336,18 @@ class ImageProxy:
                 engine = sqlalchemy.create_engine(db_uri)
                 Base.metadata.create_all(engine)
                 db_session = scoped_session(sessionmaker(bind=engine))
-
-                redirect_netloc = ctx.options.redirect_netloc
                 try:
                     # check in database
                     url = flow.request.pretty_url
                     in_database = \
                         db_session.query(Url).filter_by(value=url).first()
-                    url_m = in_database
                     if not in_database:
                         ext = content_type.split('/')[1].split(';')[0]
                         invalid_exts = [
                             'svg+xml', 'x-icon', 'gif',
                             'vnd.microsoft.icon', 'webp']
                         if ext not in invalid_exts:
+                            ctx.log.info('URL: {}'.format(url))
                             info = process_info(flow.response.content, ext)
                             url_m, _ = get_or_create(
                                 db_session, Url, value=url)
@@ -331,16 +360,6 @@ class ImageProxy:
                             checksum_m.urls.append(url_m)
                             db_session.add(checksum_m)
                             db_session.commit()
-                    elif not url_m.checksum.trash and redirect_netloc:
-                        redirect_url = ParseResult(
-                            scheme='http', netloc=redirect_netloc,
-                            path='i/{}.{}'.format(
-                                url_m.checksum.value, url_m.checksum.ext),
-                            params='', query='', fragment=''
-                        ).geturl()
-                        flow.request.url = redirect_url
-                        ctx.log.info('REDIRECT: {}\nTO: {}'.format(
-                            url, redirect_url))
                     else:
                         ctx.log.info('SKIP: {}'.format(url))
                 finally:
