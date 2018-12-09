@@ -8,6 +8,7 @@ https://stackoverflow.com/a/44873382/1766261
 """
 from datetime import datetime
 from io import BytesIO
+from urllib.parse import ParseResult
 import hashlib
 import logging
 import os
@@ -28,6 +29,7 @@ from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
 import click
 import sqlalchemy
+import typing
 
 
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
@@ -285,7 +287,16 @@ def scan_image_folder():
 
 class ImageProxy:
 
+    def load(self, loader):
+        loader.add_option(
+            name="redirect_netloc",
+            typespec=typing.Optional[str],
+            default=None,
+            help="Server netloc for redirect.",
+        )
+
     def response(self, flow: http.HTTPFlow) -> None:
+        """Handle response."""
         if 'content-type' in flow.response.headers:
             content_type = flow.response.headers['content-type']
             if content_type.startswith('image'):
@@ -295,11 +306,13 @@ class ImageProxy:
                 Base.metadata.create_all(engine)
                 db_session = scoped_session(sessionmaker(bind=engine))
 
+                redirect_netloc = ctx.options.redirect_netloc
                 try:
                     # check in database
                     url = flow.request.pretty_url
                     in_database = \
                         db_session.query(Url).filter_by(value=url).first()
+                    url_m = in_database
                     if not in_database:
                         ext = content_type.split('/')[1].split(';')[0]
                         invalid_exts = [
@@ -318,6 +331,16 @@ class ImageProxy:
                             checksum_m.urls.append(url_m)
                             db_session.add(checksum_m)
                             db_session.commit()
+                    elif not url_m.checksum.trash and redirect_netloc:
+                        redirect_url = ParseResult(
+                            scheme='http', netloc=redirect_netloc,
+                            path='i/{}.{}'.format(
+                                url_m.checksum.value, url_m.checksum.ext),
+                            params='', query='', fragment=''
+                        ).geturl()
+                        flow.request.url = redirect_url
+                        ctx.log.info('REDIRECT: {}\nTO: {}'.format(
+                            url, redirect_url))
                     else:
                         ctx.log.info('SKIP: {}'.format(url))
                 finally:
