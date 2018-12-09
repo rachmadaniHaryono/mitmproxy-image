@@ -289,15 +289,22 @@ class ImageProxy:
 
     def load(self, loader):
         loader.add_option(
-            name="redirect_netloc",
+            name="redirect_host",
             typespec=typing.Optional[str],
             default=None,
-            help="Server netloc for redirect.",
+            help="Server host for redirect.",
+        )
+        loader.add_option(
+            name="redirect_port",
+            typespec=typing.Optional[int],
+            default=None,
+            help="Server port for redirect.",
         )
 
     def request(self, flow: http.HTTPFlow):
-        redirect_netloc = ctx.options.redirect_netloc
-        if not redirect_netloc:
+        redirect_host = ctx.options.redirect_host
+        redirect_port = ctx.options.redirect_port
+        if not redirect_host:
             return
         # db session
         db_uri = get_database_uri()
@@ -308,7 +315,15 @@ class ImageProxy:
         try:
             url = flow.request.pretty_url
             url_m = db_session.query(Url).filter_by(value=url).first()
-            if url_m and not url_m.checksum.trash:
+            if url_m and not url_m.checksum.trash and \
+                    flow.request.http_version == 'HTTP/2.0':
+                ctx.log.info('SKIP REDIRECT HTTP2: {}'.format(
+                    flow.request.url))
+                return
+            elif url_m and not url_m.checksum.trash:
+                redirect_netloc = \
+                    redirect_host if not redirect_port else \
+                    '{}:{}'.format(redirect_host, redirect_port)
                 redirect_url = ParseResult(
                     scheme='http', netloc=redirect_netloc,
                     path='i/{}.{}'.format(
@@ -323,8 +338,11 @@ class ImageProxy:
 
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        redirect_netloc = ctx.options.redirect_netloc
-        if redirect_netloc and flow.request.pretty_host == redirect_netloc:
+        redirect_host = ctx.options.redirect_host
+        redirect_port = ctx.options.redirect_port
+        if redirect_host and \
+                flow.request.host == redirect_host and \
+                flow.request.port == str(redirect_port):
             url = flow.request.pretty_url
             ctx.log.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
@@ -361,7 +379,7 @@ class ImageProxy:
                             db_session.add(checksum_m)
                             db_session.commit()
                     else:
-                        ctx.log.info('SKIP: {}'.format(url))
+                        ctx.log.info('SKIP TRASH: {}'.format(url))
                 finally:
                     db_session.remove()
 
