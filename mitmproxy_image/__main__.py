@@ -302,6 +302,8 @@ class ImageProxy:
         )
 
     def request(self, flow: http.HTTPFlow):
+        if flow.request.http_version == 'HTTP/2.0':
+            return
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         if not redirect_host:
@@ -315,7 +317,9 @@ class ImageProxy:
         try:
             url = flow.request.pretty_url
             url_m = db_session.query(Url).filter_by(value=url).first()
-            if url_m and not url_m.checksum.trash and \
+            if not url_m:
+                return
+            elif url_m and not url_m.checksum.trash and \
                     flow.request.http_version == 'HTTP/2.0':
                 ctx.log.info('SKIP REDIRECT HTTP2: {}'.format(
                     flow.request.url))
@@ -337,6 +341,10 @@ class ImageProxy:
                 flow.request.url = redirect_url
                 ctx.log.info('REDIRECT: {}\nTO: {}'.format(
                     url, redirect_url))
+            else:
+                ctx.log.info(
+                    'Unknown condition: url:{}, trash:{}'.format(
+                        url_m, url_m.trash if url_m else None))
         finally:
             db_session.remove()
 
