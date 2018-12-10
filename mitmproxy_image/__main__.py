@@ -320,6 +320,10 @@ class ImageProxy:
                 ctx.log.info('SKIP REDIRECT HTTP2: {}'.format(
                     flow.request.url))
                 return
+            elif url_m and url_m.checksum.trash:
+                ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
+                    flow.request.url))
+                return
             elif url_m and not url_m.checksum.trash:
                 redirect_netloc = \
                     redirect_host if not redirect_port else \
@@ -378,7 +382,7 @@ class ImageProxy:
                             checksum_m.urls.append(url_m)
                             db_session.add(checksum_m)
                             db_session.commit()
-                    else:
+                    elif not redirect_host:
                         ctx.log.info('SKIP TRASH: {}'.format(url))
                 finally:
                     db_session.remove()
