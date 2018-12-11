@@ -318,16 +318,14 @@ class ImageProxy:
             url = flow.request.pretty_url
             url_m = db_session.query(Url).filter_by(value=url).first()
             if not url_m:
-                return
+                pass
             elif url_m and not url_m.checksum.trash and \
                     flow.request.http_version == 'HTTP/2.0':
                 ctx.log.info('SKIP REDIRECT HTTP2: {}'.format(
                     flow.request.url))
-                return
             elif url_m and url_m.checksum.trash:
                 ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
                     flow.request.url))
-                return
             elif url_m and not url_m.checksum.trash:
                 redirect_netloc = \
                     redirect_host if not redirect_port else \
