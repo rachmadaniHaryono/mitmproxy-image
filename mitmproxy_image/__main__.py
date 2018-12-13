@@ -287,120 +287,115 @@ def scan_image_folder():
         raise NotImplementedError
 
 
-class ImageProxy:
-
-    def load(self, loader):
-        loader.add_option(
-            name="redirect_host",
-            typespec=typing.Optional[str],
-            default=None,
-            help="Server host for redirect.",
-        )
-        loader.add_option(
-            name="redirect_port",
-            typespec=typing.Optional[int],
-            default=None,
-            help="Server port for redirect.",
-        )
-
-    def request(self, flow: http.HTTPFlow):
-        redirect_host = ctx.options.redirect_host
-        redirect_port = ctx.options.redirect_port
-        if not redirect_host:
-            return
-        # db session
-        db_uri = get_database_uri()
-        engine = sqlalchemy.create_engine(db_uri)
-        Base.metadata.create_all(engine)
-        db_session = scoped_session(sessionmaker(bind=engine))
-
-        try:
-            url = flow.request.pretty_url
-            url_m = db_session.query(Url).filter_by(value=url).first()
-            redirect_netloc = \
-                redirect_host if not redirect_port else \
-                '{}:{}'.format(redirect_host, redirect_port)
-            redirect_url = ParseResult(
-                scheme='http', netloc=redirect_netloc,
-                path='i/{}.{}'.format(
-                    url_m.checksum.value, url_m.checksum.ext) if url_m else '',
-                params='', query='', fragment=''
-            ).geturl()
-            if not url_m:
-                pass
-            elif url_m and not url_m.checksum.trash and \
-                    flow.request.http_version == 'HTTP/2.0':
-                flow.response = HTTPResponse(
-                    'HTTP/1.1', 302, 'Found',
-                    Headers(Location=redirect_url, Content_Length='0'),
-                    b'')
-                ctx.log.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                    url, redirect_url))
-            elif url_m and url_m.checksum.trash:
-                ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
-                    flow.request.url))
-            elif url_m and not url_m.checksum.trash:
-                flow.request.url = redirect_url
-                ctx.log.info('REDIRECT: {}\nTO: {}'.format(
-                    url, redirect_url))
-            else:
-                ctx.log.info(
-                    'Unknown condition: url:{}, trash:{}'.format(
-                        url_m, url_m.trash if url_m else None))
-        finally:
-            db_session.remove()
-
-    def response(self, flow: http.HTTPFlow) -> None:
-        """Handle response."""
-        redirect_host = ctx.options.redirect_host
-        redirect_port = ctx.options.redirect_port
-        if redirect_host and \
-                flow.request.host == redirect_host and \
-                str(flow.request.port) == str(redirect_port):
-            url = flow.request.pretty_url
-            ctx.log.info('SKIP REDIRECT SERVER: {}'.format(url))
-            return
-        if 'content-type' in flow.response.headers:
-            content_type = flow.response.headers['content-type']
-            if content_type.startswith('image'):
-                # session
-                db_uri = get_database_uri()
-                engine = sqlalchemy.create_engine(db_uri)
-                Base.metadata.create_all(engine)
-                db_session = scoped_session(sessionmaker(bind=engine))
-                try:
-                    # check in database
-                    url = flow.request.pretty_url
-                    in_database = \
-                        db_session.query(Url).filter_by(value=url).first()
-                    if not in_database:
-                        ext = content_type.split('/')[1].split(';')[0]
-                        invalid_exts = [
-                            'svg+xml', 'x-icon', 'gif',
-                            'vnd.microsoft.icon', 'webp']
-                        if ext not in invalid_exts:
-                            ctx.log.info('URL: {}'.format(url))
-                            info = process_info(flow.response.content, ext)
-                            url_m, _ = get_or_create(
-                                db_session, Url, value=url)
-                            with db_session.no_autoflush:
-                                checksum_m, _ = get_or_create(
-                                    db_session, Sha256Checksum,
-                                    value=info.pop('value'))
-                            for key, val in info.items():
-                                setattr(checksum_m, key, val)
-                            checksum_m.urls.append(url_m)
-                            db_session.add(checksum_m)
-                            db_session.commit()
-                    elif not redirect_host:
-                        ctx.log.info('SKIP TRASH: {}'.format(url))
-                finally:
-                    db_session.remove()
+def load(loader):
+    loader.add_option(
+        name="redirect_host",
+        typespec=typing.Optional[str],
+        default=None,
+        help="Server host for redirect.",
+    )
+    loader.add_option(
+        name="redirect_port",
+        typespec=typing.Optional[int],
+        default=None,
+        help="Server port for redirect.",
+    )
 
 
-addons = [
-    ImageProxy()
-]
+def request(flow: http.HTTPFlow):
+    redirect_host = ctx.options.redirect_host
+    redirect_port = ctx.options.redirect_port
+    if not redirect_host:
+        return
+    # db session
+    db_uri = get_database_uri()
+    engine = sqlalchemy.create_engine(db_uri)
+    Base.metadata.create_all(engine)
+    db_session = scoped_session(sessionmaker(bind=engine))
+
+    try:
+        url = flow.request.pretty_url
+        url_m = db_session.query(Url).filter_by(value=url).first()
+        redirect_netloc = \
+            redirect_host if not redirect_port else \
+            '{}:{}'.format(redirect_host, redirect_port)
+        redirect_url = ParseResult(
+            scheme='http', netloc=redirect_netloc,
+            path='i/{}.{}'.format(
+                url_m.checksum.value, url_m.checksum.ext) if url_m else '',
+            params='', query='', fragment=''
+        ).geturl()
+        if not url_m:
+            pass
+        elif url_m and not url_m.checksum.trash and \
+                flow.request.http_version == 'HTTP/2.0':
+            flow.response = HTTPResponse(
+                'HTTP/1.1', 302, 'Found',
+                Headers(Location=redirect_url, Content_Length='0'),
+                b'')
+            ctx.log.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                url, redirect_url))
+        elif url_m and url_m.checksum.trash:
+            ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
+                flow.request.url))
+        elif url_m and not url_m.checksum.trash:
+            flow.request.url = redirect_url
+            ctx.log.info('REDIRECT: {}\nTO: {}'.format(
+                url, redirect_url))
+        else:
+            ctx.log.info(
+                'Unknown condition: url:{}, trash:{}'.format(
+                    url_m, url_m.trash if url_m else None))
+    finally:
+        db_session.remove()
+
+
+def response(flow: http.HTTPFlow) -> None:
+    """Handle response."""
+    redirect_host = ctx.options.redirect_host
+    redirect_port = ctx.options.redirect_port
+    if redirect_host and \
+            flow.request.host == redirect_host and \
+            str(flow.request.port) == str(redirect_port):
+        url = flow.request.pretty_url
+        ctx.log.info('SKIP REDIRECT SERVER: {}'.format(url))
+        return
+    if 'content-type' in flow.response.headers:
+        content_type = flow.response.headers['content-type']
+        if content_type.startswith('image'):
+            # session
+            db_uri = get_database_uri()
+            engine = sqlalchemy.create_engine(db_uri)
+            Base.metadata.create_all(engine)
+            db_session = scoped_session(sessionmaker(bind=engine))
+            try:
+                # check in database
+                url = flow.request.pretty_url
+                in_database = \
+                    db_session.query(Url).filter_by(value=url).first()
+                if not in_database:
+                    ext = content_type.split('/')[1].split(';')[0]
+                    invalid_exts = [
+                        'svg+xml', 'x-icon', 'gif',
+                        'vnd.microsoft.icon', 'webp']
+                    if ext not in invalid_exts:
+                        ctx.log.info('URL: {}'.format(url))
+                        info = process_info(flow.response.content, ext)
+                        url_m, _ = get_or_create(
+                            db_session, Url, value=url)
+                        with db_session.no_autoflush:
+                            checksum_m, _ = get_or_create(
+                                db_session, Sha256Checksum,
+                                value=info.pop('value'))
+                        for key, val in info.items():
+                            setattr(checksum_m, key, val)
+                        checksum_m.urls.append(url_m)
+                        db_session.add(checksum_m)
+                        db_session.commit()
+                elif not redirect_host:
+                    ctx.log.info('SKIP TRASH: {}'.format(url))
+            finally:
+                db_session.remove()
 
 
 if __name__ == '__main__':
