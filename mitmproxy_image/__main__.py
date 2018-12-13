@@ -18,10 +18,12 @@ import tempfile
 import sys
 
 from appdirs import user_data_dir
+from flasgger import Swagger
 from flask import Flask, send_from_directory, url_for, jsonify, request
 from flask.cli import FlaskGroup
-from flasgger import Swagger
 from mitmproxy import ctx, http
+from mitmproxy.http import HTTPResponse
+from mitmproxy.net.http.headers import Headers
 from PIL import Image
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -302,8 +304,6 @@ class ImageProxy:
         )
 
     def request(self, flow: http.HTTPFlow):
-        if flow.request.http_version == 'HTTP/2.0':
-            return
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         if not redirect_host:
@@ -317,25 +317,29 @@ class ImageProxy:
         try:
             url = flow.request.pretty_url
             url_m = db_session.query(Url).filter_by(value=url).first()
+            redirect_netloc = \
+                redirect_host if not redirect_port else \
+                '{}:{}'.format(redirect_host, redirect_port)
+            redirect_url = ParseResult(
+                scheme='http', netloc=redirect_netloc,
+                path='i/{}.{}'.format(
+                    url_m.checksum.value, url_m.checksum.ext) if url_m else '',
+                params='', query='', fragment=''
+            ).geturl()
             if not url_m:
                 pass
             elif url_m and not url_m.checksum.trash and \
                     flow.request.http_version == 'HTTP/2.0':
-                ctx.log.info('SKIP REDIRECT HTTP2: {}'.format(
-                    flow.request.url))
+                flow.response = HTTPResponse(
+                    'HTTP/1.1', 302, 'Found',
+                    Headers(Location=redirect_url, Content_Length='0'),
+                    b'')
+                ctx.log.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                    url, redirect_url))
             elif url_m and url_m.checksum.trash:
                 ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
                     flow.request.url))
             elif url_m and not url_m.checksum.trash:
-                redirect_netloc = \
-                    redirect_host if not redirect_port else \
-                    '{}:{}'.format(redirect_host, redirect_port)
-                redirect_url = ParseResult(
-                    scheme='http', netloc=redirect_netloc,
-                    path='i/{}.{}'.format(
-                        url_m.checksum.value, url_m.checksum.ext),
-                    params='', query='', fragment=''
-                ).geturl()
                 flow.request.url = redirect_url
                 ctx.log.info('REDIRECT: {}\nTO: {}'.format(
                     url, redirect_url))
@@ -352,7 +356,7 @@ class ImageProxy:
         redirect_port = ctx.options.redirect_port
         if redirect_host and \
                 flow.request.host == redirect_host and \
-                flow.request.port == str(redirect_port):
+                str(flow.request.port) == str(redirect_port):
             url = flow.request.pretty_url
             ctx.log.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
