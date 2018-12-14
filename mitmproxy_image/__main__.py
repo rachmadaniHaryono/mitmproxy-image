@@ -105,6 +105,12 @@ def get_database_uri():
     return 'sqlite:///{}'.format(abspath)
 
 
+def get_db_session():
+    db_uri = get_database_uri()
+    engine = sqlalchemy.create_engine(db_uri)
+    return scoped_session(sessionmaker(bind=engine))
+
+
 # MODEL
 Base = declarative_base()
 
@@ -168,9 +174,7 @@ def create_app(script_info=None):
     app.app_context().push()
     #  db.create_all()
 
-    db_uri = get_database_uri()
-    engine = sqlalchemy.create_engine(db_uri)
-    db_session = scoped_session(sessionmaker(bind=engine))
+    db_session = get_db_session()
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
@@ -206,9 +210,7 @@ def sha256_checksum_list():
       200:
         description: A list of sha256 checksum
     """
-    db_uri = get_database_uri()
-    engine = sqlalchemy.create_engine(db_uri)
-    db_session = scoped_session(sessionmaker(bind=engine))
+    db_session = get_db_session()
     per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', 200))
     page = int(flask_request.args.get('page', 1))
     input_query = flask_request.args.get('q')
@@ -269,9 +271,7 @@ def scan_image_folder():
                     'exp_value': os.path.splitext(os.path.basename(ff))[0],
                     'ext': os.path.splitext(ff)[1][1:],
                 }
-    db_uri = get_database_uri()
-    engine = sqlalchemy.create_engine(db_uri)
-    db_session = scoped_session(sessionmaker(bind=engine))
+    db_session = get_db_session()
 
     if not im_data:
         mappings = []
@@ -320,10 +320,8 @@ def request(flow: http.HTTPFlow):
     if not redirect_host:
         return
     # db session
-    db_uri = get_database_uri()
-    engine = sqlalchemy.create_engine(db_uri)
-    Base.metadata.create_all(engine)
-    db_session = scoped_session(sessionmaker(bind=engine))
+    Base.metadata.create_all(sqlalchemy.create_engine(get_database_uri()))
+    db_session = get_db_session()
 
     try:
         url = flow.request.pretty_url
@@ -376,10 +374,9 @@ def response(flow: http.HTTPFlow) -> None:
         content_type = flow.response.headers['content-type']
         if content_type.startswith('image'):
             # session
-            db_uri = get_database_uri()
-            engine = sqlalchemy.create_engine(db_uri)
-            Base.metadata.create_all(engine)
-            db_session = scoped_session(sessionmaker(bind=engine))
+            Base.metadata.create_all(
+                sqlalchemy.create_engine(get_database_uri()))
+            db_session = get_db_session()
             try:
                 # check in database
                 url = flow.request.pretty_url
