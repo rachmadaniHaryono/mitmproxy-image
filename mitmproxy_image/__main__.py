@@ -145,6 +145,10 @@ class Url(BaseModel):
     sha256_checksum_id = sqlalchemy.Column(
         sqlalchemy.Integer, sqlalchemy.ForeignKey('sha256_checksum.id'))
 
+    def __repr__(self):
+        templ = "<Url(id={}, value={}, checksum={})>"
+        return templ.format(self.id, self.value, self.checksum)
+
 
 def get_or_create(session, model, **kwargs):
     """Creates an object or returns the object if exists."""
