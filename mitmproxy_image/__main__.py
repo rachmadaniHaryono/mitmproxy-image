@@ -19,7 +19,6 @@ import sys
 
 from appdirs import user_data_dir
 from flasgger import Swagger
-from flask import Flask, send_from_directory, url_for, jsonify, request
 from flask.cli import FlaskGroup
 from mitmproxy import ctx, http
 from mitmproxy.http import HTTPResponse
@@ -29,6 +28,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
+from flask import (
+    Flask,
+    jsonify,
+    request as flask_request,
+    send_from_directory,
+    url_for,
+)
 import click
 import sqlalchemy
 import typing
@@ -198,8 +204,8 @@ def sha256_checksum_list():
     engine = sqlalchemy.create_engine(db_uri)
     db_session = scoped_session(sessionmaker(bind=engine))
     per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', 200))
-    page = int(request.args.get('page', 1))
-    input_query = request.args.get('q')
+    page = int(flask_request.args.get('page', 1))
+    input_query = flask_request.args.get('q')
     items = db_session.query(Sha256Checksum) \
         .filter_by(trash=False) \
         .order_by(Sha256Checksum.created_at.desc()) \
