@@ -17,6 +17,7 @@ setup(
     install_requires=[
         'appdirs>=1.4.3',
         'flasgger>=0.9.2',
+        'Flask-Admin>=1.5.2',
         'Flask>=1.0.2',
         'mitmproxy>=4.0.4',
         'Pillow>=5.3.0',

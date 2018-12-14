@@ -20,6 +20,7 @@ import sys
 from appdirs import user_data_dir
 from flasgger import Swagger
 from flask.cli import FlaskGroup
+from flask_admin import Admin, AdminIndexView
 from mitmproxy import ctx, http
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
@@ -186,6 +187,11 @@ def create_app(script_info=None):
     app.add_url_rule(
         '/api/sha256_checksum', 'sha256_checksum_list', sha256_checksum_list)
     app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
+
+    Admin(
+        app, name='Mitmproxy-Image', template_mode='bootstrap3',
+        index_view=AdminIndexView(name='Home', url='/')
+    )
     return app
 
 
