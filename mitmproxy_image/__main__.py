@@ -27,6 +27,7 @@ from mitmproxy.net.http.headers import Headers
 from PIL import Image
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
 from flask import (
@@ -144,6 +145,12 @@ class Url(BaseModel):
     value = sqlalchemy.Column(URLType, unique=True, nullable=False)
     sha256_checksum_id = sqlalchemy.Column(
         sqlalchemy.Integer, sqlalchemy.ForeignKey('sha256_checksum.id'))
+    redirect_counter = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    check_counter = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    last_redirect = sqlalchemy.Column(
+        sqlalchemy.DateTime, server_default=func.now())
+    last_check = sqlalchemy.Column(
+        sqlalchemy.DateTime, server_default=func.now())
 
     def __repr__(self):
         templ = "<Url(id={}, value={}, checksum={})>"
