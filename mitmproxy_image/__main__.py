@@ -356,13 +356,16 @@ def request(flow: http.HTTPFlow):
                 b'')
             ctx.log.info('REDIRECT HTTP2: {}\nTO: {}'.format(
                 url, redirect_url))
+            url_m.redirect_counter += 1
         elif url_m and url_m.checksum.trash:
             ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
                 flow.request.url))
+            url_m.check_counter += 1
         elif url_m and not url_m.checksum.trash:
             flow.request.url = redirect_url
             ctx.log.info('REDIRECT: {}\nTO: {}'.format(
                 url, redirect_url))
+            url_m.redirect_counter += 1
         else:
             ctx.log.info(
                 'Unknown condition: url:{}, trash:{}'.format(
@@ -391,9 +394,9 @@ def response(flow: http.HTTPFlow) -> None:
             try:
                 # check in database
                 url = flow.request.pretty_url
-                in_database = \
+                url_m = \
                     db_session.query(Url).filter_by(value=url).first()
-                if not in_database:
+                if not url_m:
                     ext = content_type.split('/')[1].split(';')[0]
                     invalid_exts = [
                         'svg+xml', 'x-icon', 'gif',
@@ -412,7 +415,7 @@ def response(flow: http.HTTPFlow) -> None:
                         checksum_m.urls.append(url_m)
                         db_session.add(checksum_m)
                         db_session.commit()
-                elif not redirect_host:
+                elif url_m and url_m.trash and not redirect_host:
                     ctx.log.info('SKIP TRASH: {}'.format(url))
             finally:
                 db_session.remove()
