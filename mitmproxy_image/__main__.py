@@ -346,6 +346,10 @@ def request(flow: http.HTTPFlow):
                 url_m.checksum.value, url_m.checksum.ext) if url_m else '',
             params='', query='', fragment=''
         ).geturl()
+        if url_m and url_m.redirect_counter is None:
+            url_m.redirect_counter = 0
+        if url_m and url_m.check_counter is None:
+            url_m.check_counter = 0
         if not url_m:
             pass
         elif url_m and not url_m.checksum.trash and \
@@ -357,19 +361,28 @@ def request(flow: http.HTTPFlow):
             ctx.log.info('REDIRECT HTTP2: {}\nTO: {}'.format(
                 url, redirect_url))
             url_m.redirect_counter += 1
+            url_m.last_redirect = datetime.now()
+            ctx.log.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
         elif url_m and url_m.checksum.trash:
             ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
                 flow.request.url))
             url_m.check_counter += 1
+            url_m.last_check = datetime.now()
+            ctx.log.info('CHECK COUNT: {}'.format(url_m.check_counter))
         elif url_m and not url_m.checksum.trash:
             flow.request.url = redirect_url
             ctx.log.info('REDIRECT: {}\nTO: {}'.format(
                 url, redirect_url))
             url_m.redirect_counter += 1
+            url_m.last_redirect = datetime.now()
+            ctx.log.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
         else:
             ctx.log.info(
                 'Unknown condition: url:{}, trash:{}'.format(
-                    url_m, url_m.trash if url_m else None))
+                    url_m, url_m.checksum.trash if url_m else None))
+        if url_m:
+            db_session.add(url_m)
+            db_session.commit()
     finally:
         db_session.remove()
 
@@ -415,7 +428,7 @@ def response(flow: http.HTTPFlow) -> None:
                         checksum_m.urls.append(url_m)
                         db_session.add(checksum_m)
                         db_session.commit()
-                elif url_m and url_m.trash and not redirect_host:
+                elif url_m and url_m.checksum.trash and not redirect_host:
                     ctx.log.info('SKIP TRASH: {}'.format(url))
             finally:
                 db_session.remove()
