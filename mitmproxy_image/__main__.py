@@ -45,6 +45,14 @@ import typing
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
+LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
+
+
+def log_info(text):
+    try:
+        ctx.log.info(text)
+    except RuntimeError:
+        logging.info(text)
 
 
 def chunks(l, n):
@@ -81,7 +89,7 @@ def process_info(file_obj, ext, use_chunks=True):
             pathlib.Path(parent_folder).mkdir(parents=True, exist_ok=True)
             shutil.move(temp_fname, new_fname)
         if hasattr(ctx.log, 'info'):
-            ctx.log.info('DONE:{}'.format(new_fname))
+            log_info('DONE:{}'.format(new_fname))
         else:
             print('DONE:{}'.format(new_fname))
         res = {
@@ -94,8 +102,8 @@ def process_info(file_obj, ext, use_chunks=True):
             'img_mode': img.mode
         }
     except Exception as e:
-        if hasattr(ctx.log, 'error'):
-            ctx.log.error('{}:{}'.format(type(e), e))
+        if hasattr(ctx.log, 'info'):
+            log_info('{}:{}'.format(type(e), e))
         else:
             raise e
     return res
@@ -358,26 +366,26 @@ def request(flow: http.HTTPFlow):
                 'HTTP/1.1', 302, 'Found',
                 Headers(Location=redirect_url, Content_Length='0'),
                 b'')
-            ctx.log.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+            log_info('REDIRECT HTTP2: {}\nTO: {}'.format(
                 url, redirect_url))
             url_m.redirect_counter += 1
             url_m.last_redirect = datetime.now()
-            ctx.log.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
+            log_info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
         elif url_m and url_m.checksum.trash:
-            ctx.log.info('SKIP REDIRECT TRASH: {}'.format(
+            log_info('SKIP REDIRECT TRASH: {}'.format(
                 flow.request.url))
             url_m.check_counter += 1
             url_m.last_check = datetime.now()
-            ctx.log.info('CHECK COUNT: {}'.format(url_m.check_counter))
+            log_info('CHECK COUNT: {}'.format(url_m.check_counter))
         elif url_m and not url_m.checksum.trash:
             flow.request.url = redirect_url
-            ctx.log.info('REDIRECT: {}\nTO: {}'.format(
+            log_info('REDIRECT: {}\nTO: {}'.format(
                 url, redirect_url))
             url_m.redirect_counter += 1
             url_m.last_redirect = datetime.now()
-            ctx.log.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
+            log_info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
         else:
-            ctx.log.info(
+            log_info(
                 'Unknown condition: url:{}, trash:{}'.format(
                     url_m, url_m.checksum.trash if url_m else None))
         if url_m:
@@ -395,7 +403,7 @@ def response(flow: http.HTTPFlow) -> None:
             flow.request.host == redirect_host and \
             str(flow.request.port) == str(redirect_port):
         url = flow.request.pretty_url
-        ctx.log.info('SKIP REDIRECT SERVER: {}'.format(url))
+        log_info('SKIP REDIRECT SERVER: {}'.format(url))
         return
     if 'content-type' in flow.response.headers:
         content_type = flow.response.headers['content-type']
@@ -415,7 +423,7 @@ def response(flow: http.HTTPFlow) -> None:
                         'svg+xml', 'x-icon', 'gif',
                         'vnd.microsoft.icon', 'webp']
                     if ext not in invalid_exts:
-                        ctx.log.info('URL: {}'.format(url))
+                        log_info('URL: {}'.format(url))
                         info = process_info(flow.response.content, ext)
                         url_m, _ = get_or_create(
                             db_session, Url, value=url)
@@ -429,7 +437,7 @@ def response(flow: http.HTTPFlow) -> None:
                         db_session.add(checksum_m)
                         db_session.commit()
                 elif url_m and url_m.checksum.trash and not redirect_host:
-                    ctx.log.info('SKIP TRASH: {}'.format(url))
+                    log_info('SKIP TRASH: {}'.format(url))
             finally:
                 db_session.remove()
 
