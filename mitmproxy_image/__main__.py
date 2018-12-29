@@ -6,7 +6,7 @@ https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_m
 https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
-from datetime import datetime
+from datetime import datetime, date
 from io import BytesIO
 from urllib.parse import ParseResult
 import hashlib
@@ -230,13 +230,36 @@ def sha256_checksum_list():
         description: A list of sha256 checksum
     """
     db_session = get_db_session()
-    per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', 200))
-    page = int(flask_request.args.get('page', 1))
     input_query = flask_request.args.get('q')
-    items = db_session.query(Sha256Checksum) \
+    qs_dict = {}
+    if input_query is not None:
+        for item in input_query.split():
+            if ':' not in item:
+                continue
+            parts = item.split(':', 1)
+            qs_dict[parts[0]] = parts[1]
+    #  initial value
+    per_page = 200
+    created_at = None
+    # per_page
+    per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', per_page))
+    per_page = int(flask_request.args.get('per_page', per_page))
+    per_page = int(qs_dict.get('per_page', per_page))
+    # created_at
+    created_at = flask_request.args.get('created_at', created_at)
+    created_at = qs_dict.get('created_at', created_at)
+    # other args
+    page = int(flask_request.args.get('page', 1))
+    dsq = db_session.query(Sha256Checksum) \
         .filter_by(trash=False) \
-        .order_by(Sha256Checksum.created_at.desc()) \
-        .limit(per_page).offset((int(page) - 1) * per_page).all()
+        .order_by(Sha256Checksum.created_at.desc())
+    if created_at is not None and created_at == 'today':
+        dsq = dsq.filter(
+            func.DATE(Sha256Checksum.created_at) == date.today()
+        )
+    if per_page > 0:
+        dsq = dsq.limit(per_page).offset((int(page) - 1) * per_page)
+    items = dsq.all()
     return jsonify({
         'items': [{
             'created_at': str(item.created_at),
