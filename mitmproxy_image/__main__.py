@@ -239,6 +239,18 @@ def sha256_checksum_list():
         description: A list of sha256 checksum
     """
     db_session = get_db_session()
+    if flask_request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in flask_request.files:
+            return jsonify({'error': 'No file part'})
+        file_ = flask_request.files['file']
+        # if user does not select file, browser also
+        # submit an empty part without filename
+        if file_.filename == '':
+            return jsonify({'error': 'No selected file'})
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            file_.save(f.name)
+        raise NotImplementedError
     input_query = flask_request.args.get('q')
     qs_dict = {}
     if input_query is not None:
