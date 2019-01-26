@@ -24,6 +24,7 @@ from flask_admin import Admin, AdminIndexView
 from mitmproxy import ctx, http
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
+from mitmproxy.script import concurrent
 from PIL import Image
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -46,13 +47,9 @@ APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
 LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
-
-
-def log_info(text):
-    try:
-        ctx.log.info(text)
-    except RuntimeError:
-        logging.info(text)
+logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.DEBUG)
+logging.getLogger("hpack.hpack").setLevel(logging.INFO)
+logging.getLogger("hpack.table").setLevel(logging.INFO)
 
 
 def chunks(l, n):
@@ -61,7 +58,17 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def process_info(file_obj, ext, use_chunks=True):
+def process_info(file_obj, ext=None, use_chunks=True):
+    """Process info.
+
+    >>> # example using mitmproxy `flow`
+    >>> process_info(flow.response.content)
+    {...}
+    >>> # use file object
+    >>> with open(image, 'rb') as f:
+    >>>     process_info(f, use_chunks=False)
+    {...}
+    """
     folder = IMAGE_DIR
     h = hashlib.sha256()
     block = 128*1024
@@ -83,15 +90,15 @@ def process_info(file_obj, ext, use_chunks=True):
             s.seek(0, os.SEEK_END)
             filesize = s.tell()
             sha256_csum = h.hexdigest()
-            new_bname = '{}.{}'.format(sha256_csum, ext)
+            if ext:
+                new_bname = '{}.{}'.format(sha256_csum, ext)
+            else:
+                new_bname = '{}.{}'.format(sha256_csum, img.format.lower())
             parent_folder = os.path.join(folder, sha256_csum[:2])
             new_fname = os.path.join(parent_folder, new_bname)
             pathlib.Path(parent_folder).mkdir(parents=True, exist_ok=True)
             shutil.move(temp_fname, new_fname)
-        if hasattr(ctx.log, 'info'):
-            log_info('DONE:{}'.format(new_fname))
-        else:
-            print('DONE:{}'.format(new_fname))
+        logging.info('DONE:{}'.format(new_fname))
         res = {
             'value': sha256_csum,
             'filesize': filesize,
@@ -102,10 +109,8 @@ def process_info(file_obj, ext, use_chunks=True):
             'img_mode': img.mode
         }
     except Exception as e:
-        if hasattr(ctx.log, 'info'):
-            log_info('{}:{}'.format(type(e), e))
-        else:
-            raise e
+        logging.error('{}:{}'.format(type(e), e))
+        raise e
     return res
 
 
@@ -114,9 +119,12 @@ def get_database_uri():
     return 'sqlite:///{}'.format(abspath)
 
 
-def get_db_session():
+def get_db_session(connect_args=None):
     db_uri = get_database_uri()
-    engine = sqlalchemy.create_engine(db_uri)
+    if not connect_args:
+        engine = sqlalchemy.create_engine(db_uri)
+    else:
+        engine = sqlalchemy.create_engine(db_uri, connect_args=connect_args)
     return scoped_session(sessionmaker(bind=engine))
 
 
@@ -208,7 +216,8 @@ def create_app(script_info=None):
         }
 
     app.add_url_rule(
-        '/api/sha256_checksum', 'sha256_checksum_list', sha256_checksum_list)
+        '/api/sha256_checksum', 'sha256_checksum_list',
+        sha256_checksum_list, methods=['GET', 'POST'])
     app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
 
     Admin(
@@ -356,6 +365,10 @@ def load(loader):
     )
 
 
+mitm_db_session = get_db_session({'check_same_thread': False})
+
+
+@concurrent
 def request(flow: http.HTTPFlow):
     redirect_host = ctx.options.redirect_host
     redirect_port = ctx.options.redirect_port
@@ -363,7 +376,7 @@ def request(flow: http.HTTPFlow):
         return
     # db session
     Base.metadata.create_all(sqlalchemy.create_engine(get_database_uri()))
-    db_session = get_db_session()
+    db_session = mitm_db_session
 
     try:
         url = flow.request.pretty_url
@@ -389,35 +402,36 @@ def request(flow: http.HTTPFlow):
                 'HTTP/1.1', 302, 'Found',
                 Headers(Location=redirect_url, Content_Length='0'),
                 b'')
-            log_info('REDIRECT HTTP2: {}\nTO: {}'.format(
+            logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
                 url, redirect_url))
             url_m.redirect_counter += 1
             url_m.last_redirect = datetime.now()
-            log_info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
+            logging.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
         elif url_m and url_m.checksum.trash:
-            log_info('SKIP REDIRECT TRASH: {}'.format(
+            logging.info('SKIP REDIRECT TRASH: {}'.format(
                 flow.request.url))
             url_m.check_counter += 1
             url_m.last_check = datetime.now()
-            log_info('CHECK COUNT: {}'.format(url_m.check_counter))
+            logging.info('CHECK COUNT: {}'.format(url_m.check_counter))
         elif url_m and not url_m.checksum.trash:
             flow.request.url = redirect_url
-            log_info('REDIRECT: {}\nTO: {}'.format(
+            logging.info('REDIRECT: {}\nTO: {}'.format(
                 url, redirect_url))
             url_m.redirect_counter += 1
             url_m.last_redirect = datetime.now()
-            log_info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
+            logging.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
         else:
-            log_info(
+            logging.info(
                 'Unknown condition: url:{}, trash:{}'.format(
                     url_m, url_m.checksum.trash if url_m else None))
         if url_m:
             db_session.add(url_m)
             db_session.commit()
     finally:
-        db_session.remove()
+        pass
 
 
+@concurrent
 def response(flow: http.HTTPFlow) -> None:
     """Handle response."""
     redirect_host = ctx.options.redirect_host
@@ -426,7 +440,7 @@ def response(flow: http.HTTPFlow) -> None:
             flow.request.host == redirect_host and \
             str(flow.request.port) == str(redirect_port):
         url = flow.request.pretty_url
-        log_info('SKIP REDIRECT SERVER: {}'.format(url))
+        logging.info('SKIP REDIRECT SERVER: {}'.format(url))
         return
     if 'content-type' in flow.response.headers:
         content_type = flow.response.headers['content-type']
@@ -434,7 +448,8 @@ def response(flow: http.HTTPFlow) -> None:
             # session
             Base.metadata.create_all(
                 sqlalchemy.create_engine(get_database_uri()))
-            db_session = get_db_session()
+            db_session = mitm_db_session
+
             try:
                 # check in database
                 url = flow.request.pretty_url
@@ -446,7 +461,7 @@ def response(flow: http.HTTPFlow) -> None:
                         'svg+xml', 'x-icon', 'gif',
                         'vnd.microsoft.icon', 'webp']
                     if ext not in invalid_exts:
-                        log_info('URL: {}'.format(url))
+                        logging.info('URL: {}'.format(url))
                         info = process_info(flow.response.content, ext)
                         url_m, _ = get_or_create(
                             db_session, Url, value=url)
@@ -460,9 +475,9 @@ def response(flow: http.HTTPFlow) -> None:
                         db_session.add(checksum_m)
                         db_session.commit()
                 elif url_m and url_m.checksum.trash and not redirect_host:
-                    log_info('SKIP TRASH: {}'.format(url))
+                    logging.info('SKIP TRASH: {}'.format(url))
             finally:
-                db_session.remove()
+                pass
 
 
 if __name__ == '__main__':
