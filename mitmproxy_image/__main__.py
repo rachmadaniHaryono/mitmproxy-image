@@ -108,9 +108,9 @@ def process_info(file_obj, ext=None, use_chunks=True):
             'img_format': img.format,
             'img_mode': img.mode
         }
-    except Exception as e:
-        logging.error('{}:{}'.format(type(e), e))
-        raise e
+    except Exception as err:
+        logging.error('{}:{}'.format(type(err), err))
+        raise err
     return res
 
 
@@ -351,7 +351,7 @@ def scan_image_folder():
                 db_session.commit()
                 mappings[:] = []
         db_session.bulk_update_mappings(Sha256Checksum, mappings)
-        logging.info(
+        print(
             '[non trash]before:{}, after:{}'.format(
                 non_trash_count,
                 db_session.query(Sha256Checksum)
@@ -439,8 +439,9 @@ def request(flow: http.HTTPFlow):
         if url_m:
             db_session.add(url_m)
             db_session.commit()
-    finally:
-        pass
+    except Exception as err:
+        logging.error('{}: {}'.format(type(err), err))
+        raise err
 
 
 @concurrent
@@ -488,8 +489,9 @@ def response(flow: http.HTTPFlow) -> None:
                         db_session.commit()
                 elif url_m and url_m.checksum.trash and not redirect_host:
                     logging.info('SKIP TRASH: {}'.format(url))
-            finally:
-                pass
+            except Exception as err:
+                logging.error('{}: {}'.format(type(err), err))
+                raise err
 
 
 if __name__ == '__main__':
