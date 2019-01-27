@@ -50,6 +50,7 @@ LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
 logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.DEBUG)
 logging.getLogger("hpack.hpack").setLevel(logging.INFO)
 logging.getLogger("hpack.table").setLevel(logging.INFO)
+logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
 
 
 def chunks(l, n):
