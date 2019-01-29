@@ -15,6 +15,7 @@ import os
 import pathlib  # require python 3.5+
 import shutil
 import tempfile
+import traceback
 import sys
 
 from appdirs import user_data_dir
@@ -475,7 +476,7 @@ def request(flow: http.HTTPFlow):
             db_session.commit()
     except Exception as err:
         logging.error('{}: {}'.format(type(err), err))
-        raise err
+        logging.error(traceback.format_exc())
 
 
 @concurrent
