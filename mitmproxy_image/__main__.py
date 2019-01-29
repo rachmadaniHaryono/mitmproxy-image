@@ -59,7 +59,7 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def process_info(file_obj, ext=None, use_chunks=True):
+def process_info(file_obj, ext=None, use_chunks=True, move_file=True):
     """Process info.
 
     >>> # example using mitmproxy `flow`
@@ -68,6 +68,10 @@ def process_info(file_obj, ext=None, use_chunks=True):
     >>> # use file object
     >>> with open(image, 'rb') as f:
     >>>     process_info(f, use_chunks=False)
+    {...}
+    >>> # to only calculate the file set `move_file` to `False`
+    >>> with open(image, 'rb') as f:
+    >>>     process_info(f, use_chunks=False, move_file=False)
     {...}
     """
     folder = IMAGE_DIR
@@ -91,15 +95,17 @@ def process_info(file_obj, ext=None, use_chunks=True):
             s.seek(0, os.SEEK_END)
             filesize = s.tell()
             sha256_csum = h.hexdigest()
-            if ext:
+            if not ext:
+                ext = img.format.lower()
+            if move_file:
                 new_bname = '{}.{}'.format(sha256_csum, ext)
+                parent_folder = os.path.join(folder, sha256_csum[:2])
+                new_fname = os.path.join(parent_folder, new_bname)
+                pathlib.Path(parent_folder).mkdir(parents=True, exist_ok=True)
+                shutil.move(temp_fname, new_fname)
+                logging.info('DONE:{}'.format(new_fname))
             else:
-                new_bname = '{}.{}'.format(sha256_csum, img.format.lower())
-            parent_folder = os.path.join(folder, sha256_csum[:2])
-            new_fname = os.path.join(parent_folder, new_bname)
-            pathlib.Path(parent_folder).mkdir(parents=True, exist_ok=True)
-            shutil.move(temp_fname, new_fname)
-        logging.info('DONE:{}'.format(new_fname))
+                logging.info('ANALYZED:{}'.format(sha256_csum))
         res = {
             'value': sha256_csum,
             'filesize': filesize,
@@ -327,14 +333,15 @@ def scan_image_folder():
     - file in database but empty filesize (trash)
     """
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    im_data = {}
+    im_data = []
     with click.progressbar(os.walk(IMAGE_DIR)) as bar:
         for root, _, files in bar:
             for ff in files:
-                im_data[ff] = {
-                    'exp_value': os.path.splitext(os.path.basename(ff))[0],
+                im_data.append({
+                    'basename': ff,
+                    'value': os.path.splitext(os.path.basename(ff))[0],
                     'ext': os.path.splitext(ff)[1][1:],
-                }
+                })
     db_session = get_db_session()
 
     if not im_data:
@@ -359,8 +366,34 @@ def scan_image_folder():
                 .filter_by(trash=False).count()))
         db_session.commit()
     else:
-        #  TODO
-        raise NotImplementedError
+        existing_items, missing_items = [], []
+        q_ = db_session.query(Sha256Checksum).filter_by(trash=False)
+        db_items = q_.all()
+        with click.progressbar(im_data) as pg_im_data:
+            for x in pg_im_data:
+                (missing_items, existing_items)[
+                    any(getattr(d, 'value') == x['value'] for d in db_items)
+                ].append(x)
+        if q_.count() != len(existing_items):
+            # TODO set non non existing_items to trash
+            raise NotImplementedError
+        with click.progressbar(missing_items) as pg_missing_items:
+            for item in pg_missing_items:
+                file_path = os.path.join(
+                    IMAGE_DIR, item['value'][:2], item['basename'])
+                with open(file_path, 'rb') as f:
+                    info = process_info(f, use_chunks=False, move_file=False)
+                    if info['value'] != item['value']:
+                        # TODO move file
+                        raise ValueError
+                    with db_session.no_autoflush:
+                        checksum_m, _ = get_or_create(
+                            db_session, Sha256Checksum,
+                            value=info.pop('value'))
+                    for key, val in info.items():
+                        setattr(checksum_m, key, val)
+                    db_session.add(checksum_m)
+                    db_session.commit()
 
 
 def load(loader):
