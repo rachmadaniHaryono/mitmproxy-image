@@ -454,9 +454,8 @@ def store_flow_content(flow, redirect_host, redirect_port):
             with open(f.name, 'wb') as ff:
                 ff.write(flow.response.content)
             files = {'file': open(f.name, 'rb')}
-            r = requests.post(
+            requests.post(
                 checksum_api_endpoint, files=files, data={'url': url})
-            logging.debug('CLIENT POST: {}'.format(r.status_code))
 
 
 def load(loader):
