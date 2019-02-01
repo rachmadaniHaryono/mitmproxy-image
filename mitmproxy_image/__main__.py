@@ -33,6 +33,7 @@ from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
 from flask import (
+    abort,
     Flask,
     jsonify,
     request as flask_request,
@@ -40,6 +41,7 @@ from flask import (
     url_for,
 )
 import click
+import requests
 import sqlalchemy
 import typing
 
@@ -66,7 +68,7 @@ def process_info(file_obj, ext=None, use_chunks=True, move_file=True):
     >>> # example using mitmproxy `flow`
     >>> process_info(flow.response.content)
     {...}
-    >>> # use file object
+    >>> # use file object and move the file into `IMAGE_DIR` folder
     >>> with open(image, 'rb') as f:
     >>>     process_info(f, use_chunks=False)
     {...}
@@ -226,6 +228,9 @@ def create_app(script_info=None):
     app.add_url_rule(
         '/api/sha256_checksum', 'sha256_checksum_list',
         sha256_checksum_list, methods=['GET', 'POST'])
+    app.add_url_rule(
+        '/api/url', 'url_list',
+        url_list, methods=['GET', 'POST'])
     app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
 
     Admin(
@@ -233,6 +238,27 @@ def create_app(script_info=None):
         index_view=AdminIndexView(name='Home', url='/')
     )
     return app
+
+
+def url_list():
+    db_session = get_db_session()
+    url_value = flask_request.args.get('value', None)
+    if url_value is None:
+        abort(404)
+        return
+    url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
+    if url_m is None:
+        abort(404)
+        return
+    return jsonify({
+        'id': url_m.id,
+        'checksum_value': url_m.checksum.value,
+        'checksum_trash': url_m.checksum.trash,
+        'checksum_id': url_m.checksum.id,
+        'img_url': url_for(
+            '.image_url', _external=True,
+            filename='{}.{}'.format(url_m.checksum.value, url_m.checksum.ext)),
+    })
 
 
 def sha256_checksum_list():
@@ -258,7 +284,26 @@ def sha256_checksum_list():
             return jsonify({'error': 'No selected file'})
         with tempfile.NamedTemporaryFile(delete=False) as f:
             file_.save(f.name)
-        raise NotImplementedError
+            url = flask_request.form.get('url', None)
+            url_m = None
+            if url is not None:
+                url_m, _ = get_or_create(db_session, Url, value=url)
+            with open(f.name, 'rb') as f:
+                info = process_info(f, use_chunks=False)
+                with db_session.no_autoflush:
+                    checksum_m, _ = get_or_create(
+                        db_session, Sha256Checksum,
+                        value=info.pop('value'))
+                for key, val in info.items():
+                    setattr(checksum_m, key, val)
+                if url_m is not None:
+                    checksum_m.urls.append(url_m)
+                db_session.add(checksum_m)
+                logging.debug('SERVER POST:\nurl: {}\nchecksum: {}'.format(
+                    url_m.value, checksum_m.value
+                ))
+                db_session.commit()
+        return jsonify({'status': 'success'})
     input_query = flask_request.args.get('q')
     qs_dict = {}
     if input_query is not None:
@@ -397,6 +442,25 @@ def scan_image_folder():
                     db_session.commit()
 
 
+def store_flow_content(flow, redirect_host, redirect_port):
+    # check in database
+    url = flow.request.pretty_url
+
+    url_api_endpoint = 'http://{}:{}/api/url'.format(
+        redirect_host, redirect_port)
+    checksum_api_endpoint = 'http://{}:{}/api/sha256_checksum'.format(
+        redirect_host, redirect_port)
+    g_resp = requests.get(url_api_endpoint, data={'value': url})
+    if g_resp.status_code == 404:
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            with open(f.name, 'wb') as ff:
+                ff.write(flow.response.content)
+            files = {'file': open(f.name, 'rb')}
+            r = requests.post(
+                checksum_api_endpoint, files=files, data={'url': url})
+            logging.debug('CLIENT POST: {}'.format(r.status_code))
+
+
 def load(loader):
     loader.add_option(
         name="redirect_host",
@@ -492,23 +556,22 @@ def response(flow: http.HTTPFlow) -> None:
         return
     if 'content-type' in flow.response.headers:
         content_type = flow.response.headers['content-type']
-        if content_type.startswith('image'):
-            # session
-            Base.metadata.create_all(
-                sqlalchemy.create_engine(get_database_uri()))
-            db_session = mitm_db_session
-
+        ext = content_type.split('/')[1].split(';')[0]
+        invalid_exts = [
+            'svg+xml', 'x-icon', 'gif',
+            'vnd.microsoft.icon', 'webp']
+        if content_type.startswith('image') and ext not in invalid_exts:
             try:
-                # check in database
-                url = flow.request.pretty_url
-                url_m = \
-                    db_session.query(Url).filter_by(value=url).first()
-                if not url_m:
-                    ext = content_type.split('/')[1].split(';')[0]
-                    invalid_exts = [
-                        'svg+xml', 'x-icon', 'gif',
-                        'vnd.microsoft.icon', 'webp']
-                    if ext not in invalid_exts:
+                if redirect_host:
+                    store_flow_content(
+                        flow, redirect_host, redirect_port)
+                else:
+                    db_session = mitm_db_session
+                    # check in database
+                    url = flow.request.pretty_url
+                    url_m = \
+                        db_session.query(Url).filter_by(value=url).first()
+                    if not url_m:
                         logging.info('URL: {}'.format(url))
                         info = process_info(flow.response.content, ext)
                         url_m, _ = get_or_create(
@@ -522,10 +585,11 @@ def response(flow: http.HTTPFlow) -> None:
                         checksum_m.urls.append(url_m)
                         db_session.add(checksum_m)
                         db_session.commit()
-                elif url_m and url_m.checksum.trash and not redirect_host:
-                    logging.info('SKIP TRASH: {}'.format(url))
+                    elif url_m and url_m.checksum.trash and not redirect_host:
+                        logging.info('SKIP TRASH: {}'.format(url))
             except Exception as err:
                 logging.error('{}: {}'.format(type(err), err))
+                logging.error(traceback.format_exc())
                 raise err
 
 
