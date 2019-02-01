@@ -258,6 +258,8 @@ def url_list():
         'img_url': url_for(
             '.image_url', _external=True,
             filename='{}.{}'.format(url_m.checksum.value, url_m.checksum.ext)),
+        'redirect_counter': url_m.redirect_counter,
+        'check_counter': url_m.check_counter,
     })
 
 
@@ -476,38 +478,25 @@ def load(loader):
     )
 
 
-mitm_db_session = get_db_session({'check_same_thread': False})
-
-
 @concurrent
 def request(flow: http.HTTPFlow):
     redirect_host = ctx.options.redirect_host
     redirect_port = ctx.options.redirect_port
     if not redirect_host:
         return
-    # db session
-    Base.metadata.create_all(sqlalchemy.create_engine(get_database_uri()))
-    db_session = mitm_db_session
-
+    url = flow.request.pretty_url
     try:
-        url = flow.request.pretty_url
-        url_m = db_session.query(Url).filter_by(value=url).first()
-        redirect_netloc = \
-            redirect_host if not redirect_port else \
-            '{}:{}'.format(redirect_host, redirect_port)
-        redirect_url = ParseResult(
-            scheme='http', netloc=redirect_netloc,
-            path='i/{}.{}'.format(
-                url_m.checksum.value, url_m.checksum.ext) if url_m else '',
-            params='', query='', fragment=''
-        ).geturl()
-        if url_m and url_m.redirect_counter is None:
-            url_m.redirect_counter = 0
-        if url_m and url_m.check_counter is None:
-            url_m.check_counter = 0
-        if not url_m:
-            pass
-        elif url_m and not url_m.checksum.trash and \
+        url_api_endpoint = 'http://{}:{}/api/url'.format(
+            redirect_host, redirect_port)
+        g_resp = requests.get(url_api_endpoint, data={'value': url})
+        if g_resp.status_code == 404:
+            return
+        json_resp = g_resp.json()
+        redirect_url = json_resp['img_url']
+        checksum_trash = json_resp['checksum_trash']
+        redirect_counter = json_resp['redirect_counter']
+        check_counter = json_resp['check_counter']
+        if not checksum_trash and \
                 flow.request.http_version == 'HTTP/2.0':
             flow.response = HTTPResponse(
                 'HTTP/1.1', 302, 'Found',
@@ -515,29 +504,24 @@ def request(flow: http.HTTPFlow):
                 b'')
             logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
                 url, redirect_url))
-            url_m.redirect_counter += 1
-            url_m.last_redirect = datetime.now()
-            logging.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
-        elif url_m and url_m.checksum.trash:
+            # TODO  url_m.redirect_counter += 1
+            logging.info('REDIRECT COUNT: {}'.format(redirect_counter))
+        elif checksum_trash:
             logging.info('SKIP REDIRECT TRASH: {}'.format(
                 flow.request.url))
-            url_m.check_counter += 1
-            url_m.last_check = datetime.now()
-            logging.info('CHECK COUNT: {}'.format(url_m.check_counter))
-        elif url_m and not url_m.checksum.trash:
+            # TODO url_m.check_counter += 1
+            logging.info('CHECK COUNT: {}'.format(check_counter))
+        elif not checksum_trash:
             flow.request.url = redirect_url
             logging.info('REDIRECT: {}\nTO: {}'.format(
                 url, redirect_url))
-            url_m.redirect_counter += 1
-            url_m.last_redirect = datetime.now()
-            logging.info('REDIRECT COUNT: {}'.format(url_m.redirect_counter))
+            # TODO url_m.redirect_counter += 1
+            logging.info('REDIRECT COUNT: {}'.format(redirect_counter))
         else:
             logging.info(
                 'Unknown condition: url:{}, trash:{}'.format(
-                    url_m, url_m.checksum.trash if url_m else None))
-        if url_m:
-            db_session.add(url_m)
-            db_session.commit()
+                    url, checksum_trash))
+        return
     except Exception as err:
         logging.error('{}: {}'.format(type(err), err))
         logging.error(traceback.format_exc())
@@ -566,7 +550,7 @@ def response(flow: http.HTTPFlow) -> None:
                     store_flow_content(
                         flow, redirect_host, redirect_port)
                 else:
-                    db_session = mitm_db_session
+                    db_session = get_db_session({'check_same_thread': False})
                     # check in database
                     url = flow.request.pretty_url
                     url_m = \
