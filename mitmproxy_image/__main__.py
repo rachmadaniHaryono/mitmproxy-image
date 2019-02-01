@@ -50,10 +50,6 @@ APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
 LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
-logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.DEBUG)
-logging.getLogger("hpack.hpack").setLevel(logging.INFO)
-logging.getLogger("hpack.table").setLevel(logging.INFO)
-logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
 
 
 def chunks(l, n):
@@ -476,6 +472,10 @@ def load(loader):
         default=None,
         help="Server port for redirect.",
     )
+    logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.DEBUG)
+    logging.getLogger("hpack.hpack").setLevel(logging.INFO)
+    logging.getLogger("hpack.table").setLevel(logging.INFO)
+    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
 
 
 @concurrent
