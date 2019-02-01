@@ -21,6 +21,7 @@ setup(
         'Flask>=1.0.2',
         'mitmproxy>=4.0.4',
         'Pillow>=5.3.0',
+        'requests>=2.21.0',
         'SQLAlchemy-Utils>=0.33.6',
         'SQLAlchemy>=1.2.14',
     ],
