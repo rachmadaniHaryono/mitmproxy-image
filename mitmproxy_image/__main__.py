@@ -272,7 +272,11 @@ def sha256_checksum_list():
             if url is not None:
                 url_m, _ = get_or_create(db_session, Url, value=url)
             with open(f_temp.name, 'rb') as ff:
-                info = process_info(ff, use_chunks=False)
+                try:
+                    info = process_info(ff, use_chunks=False)
+                except OSError as err:
+                    logging.error('URL FAILED:{}\nERROR:{}'.format(url, err))
+                    abort(404)
                 with db_session.no_autoflush:
                     checksum_m, _ = get_or_create(
                         db_session, Sha256Checksum,
