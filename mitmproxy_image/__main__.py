@@ -47,6 +47,8 @@ APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
 LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
+DB_PATH = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
+DB_URI = 'sqlite:///{}'.format(DB_PATH)
 
 
 def chunks(l, n):
@@ -117,11 +119,6 @@ def process_info(file_obj, ext=None, use_chunks=True, move_file=True):
     return res
 
 
-def get_database_uri():
-    abspath = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
-    return 'sqlite:///{}'.format(abspath)
-
-
 # MODEL
 DB = SQLAlchemy()
 
@@ -179,7 +176,7 @@ def get_or_create(session, model, **kwargs):
 
 
 # FLASK
-def create_app(script_info=None):
+def create_app(script_info=None, db_uri=DB_URI):
     """create app.
 
     >>> app = create_app()
@@ -192,9 +189,10 @@ def create_app(script_info=None):
     swagger = Swagger(app)  # NOQA
     app.config['SECRET_KEY'] = os.urandom(24)
     app.config['WTF_CSRF_ENABLED'] = False
-    app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    DB.init_app(app)
     app.app_context().push()
 
     @app.shell_context_processor
