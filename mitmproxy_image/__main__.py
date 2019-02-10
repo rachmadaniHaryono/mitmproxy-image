@@ -84,12 +84,16 @@ def process_info(file_obj, ext=None, use_chunks=True, move_file=True):
     try:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             temp_fname = f.name
-            with open(temp_fname, 'wb', buffering=0) as f:
+            with open(temp_fname, 'wb', buffering=0) as f_temp:
                 for b in file_iter:
                     h.update(b)
-                    f.write(b)
+                    f_temp.write(b)
                     s.write(b)
-                img = Image.open(s)
+                try:
+                    img = Image.open(s)
+                except OSError:
+                    s.seek(0, os.SEEK_END)
+                    img = Image.open(s)
             s.seek(0, os.SEEK_END)
             filesize = s.tell()
             sha256_csum = h.hexdigest()
@@ -261,14 +265,14 @@ def sha256_checksum_list():
         # submit an empty part without filename
         if file_.filename == '':
             return jsonify({'error': 'No selected file'})
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            file_.save(f.name)
+        with tempfile.NamedTemporaryFile(delete=False) as f_temp:
+            file_.save(f_temp.name)
             url = flask_request.form.get('url', None)
             url_m = None
             if url is not None:
                 url_m, _ = get_or_create(db_session, Url, value=url)
-            with open(f.name, 'rb') as f:
-                info = process_info(f, use_chunks=False)
+            with open(f_temp.name, 'rb') as ff:
+                info = process_info(ff, use_chunks=False)
                 with db_session.no_autoflush:
                     checksum_m, _ = get_or_create(
                         db_session, Sha256Checksum,
