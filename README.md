@@ -6,26 +6,21 @@ Download image using mitmproxy
 ## Quick Start
 
 To run it, set your browser for mitmproxy.
-Here are example command to run it on host `127.0.0.1` and port `5007`:
+
+To Run application server on host `127.0.0.1` and port `5012`, run following command:
 
 ```console
-$ mitmproxy --listen-host 127.0.0.1 --listen-port 5007 -s $(mitmproxy-image echo-path)
+$ mitmproxy-image run -p 5012
 ```
 
-To Run the application on host `127.0.0.1` and port `5012`, run following command:
+After the server is running, run mitmproxy with this script.
+
+Example command to run it on 
+host `127.0.0.1` and port `5007` with redirect host `127.0.0.1` and redirect port `5012`:
 
 ```console
-$ mitmproxy-image run -p 5012 --debugger
-```
-
-And open it in the browser at [http://127.0.0.1:5012/](http://127.0.0.1:5000/)
-
-
-To redirect your browser to downloaded image on your self hosted server,
-add `redirect_host` and `redirect_port` arguments. Example for above configuration:
-
-```console
-$ mitmproxy --listen-host 127.0.0.1 --listen-port 5007 -s $(mitmproxy-image echo-path) --set redirect_host=127.0.0.1 --set redirect_port=5012
+$ mitmproxy --listen-host 127.0.0.1 --listen-port 5007 -s $(mitmproxy-image echo-path) \
+$ --set redirect_host=127.0.0.1 --set redirect_port=5012
 ```
 
 To use it with hydrus, run the server as stated above and import the downloaders script.
