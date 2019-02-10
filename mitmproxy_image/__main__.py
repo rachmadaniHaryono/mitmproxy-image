@@ -8,7 +8,6 @@ https://stackoverflow.com/a/44873382/1766261
 """
 from datetime import datetime, date
 from io import BytesIO
-from urllib.parse import ParseResult
 import hashlib
 import logging
 import os
@@ -27,8 +26,7 @@ from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
 from PIL import Image
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
@@ -42,7 +40,6 @@ from flask import (
 )
 import click
 import requests
-import sqlalchemy
 import typing
 
 
@@ -61,17 +58,17 @@ def chunks(l, n):
 def process_info(file_obj, ext=None, use_chunks=True, move_file=True):
     """Process info.
 
-    >>> # example using mitmproxy `flow`
-    >>> process_info(flow.response.content)
-    {...}
-    >>> # use file object and move the file into `IMAGE_DIR` folder
-    >>> with open(image, 'rb') as f:
-    >>>     process_info(f, use_chunks=False)
-    {...}
-    >>> # to only calculate the file set `move_file` to `False`
-    >>> with open(image, 'rb') as f:
-    >>>     process_info(f, use_chunks=False, move_file=False)
-    {...}
+    Example using mitmproxy `flow`:
+    >>> process_info(flow.response.content)  # doctest: +SKIP
+
+    Use file object and move the file into `IMAGE_DIR` folder:
+    >>> with open(image, 'rb') as f:  # doctest: +SKIP
+    >>>     process_info(f, use_chunks=False)  # doctest: +SKIP
+
+    To only calculate the file set `move_file` to `False`:
+    >>> with open(image, 'rb') as f:  # doctest: +SKIP
+    >>>     process_info(  # doctest: +SKIP
+    >>>         f, use_chunks=False, move_file=False)   # doctest: +SKIP
     """
     folder = IMAGE_DIR
     h = hashlib.sha256()
@@ -125,37 +122,28 @@ def get_database_uri():
     return 'sqlite:///{}'.format(abspath)
 
 
-def get_db_session(connect_args=None):
-    db_uri = get_database_uri()
-    if not connect_args:
-        engine = sqlalchemy.create_engine(db_uri)
-    else:
-        engine = sqlalchemy.create_engine(db_uri, connect_args=connect_args)
-    return scoped_session(sessionmaker(bind=engine))
-
-
 # MODEL
-Base = declarative_base()
+DB = SQLAlchemy()
 
 
-class BaseModel(Base):
+class BaseModel(DB.Model):
     __abstract__ = True
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-    created_at = sqlalchemy.Column(
+    id = DB.Column(DB.Integer, primary_key=True)
+    created_at = DB.Column(
         TIMESTAMP, default=datetime.now, nullable=False)
 
 
 class Sha256Checksum(BaseModel):
     __tablename__ = 'sha256_checksum'
-    value = sqlalchemy.Column(sqlalchemy.String, unique=True)
-    ext = sqlalchemy.Column(sqlalchemy.String)
-    filesize = sqlalchemy.Column(sqlalchemy.Integer)
-    height = sqlalchemy.Column(sqlalchemy.Integer)
-    width = sqlalchemy.Column(sqlalchemy.Integer)
-    img_format = sqlalchemy.Column(sqlalchemy.String)
-    img_mode = sqlalchemy.Column(sqlalchemy.String)
-    urls = relationship('Url', lazy='subquery', backref='checksum')
-    trash = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
+    value = DB.Column(DB.String, unique=True)
+    ext = DB.Column(DB.String)
+    filesize = DB.Column(DB.Integer)
+    height = DB.Column(DB.Integer)
+    width = DB.Column(DB.Integer)
+    img_format = DB.Column(DB.String)
+    img_mode = DB.Column(DB.String)
+    urls = DB.relationship('Url', lazy='subquery', backref='checksum')
+    trash = DB.Column(DB.Boolean, default=False)
 
     def __repr__(self):
         templ = "<Sha256Checksum(id={}, value={}...)>"
@@ -164,15 +152,15 @@ class Sha256Checksum(BaseModel):
 
 class Url(BaseModel):
     __tablename__ = 'url'
-    value = sqlalchemy.Column(URLType, unique=True, nullable=False)
-    sha256_checksum_id = sqlalchemy.Column(
-        sqlalchemy.Integer, sqlalchemy.ForeignKey('sha256_checksum.id'))
-    redirect_counter = sqlalchemy.Column(sqlalchemy.Integer, default=0)
-    check_counter = sqlalchemy.Column(sqlalchemy.Integer, default=0)
-    last_redirect = sqlalchemy.Column(
-        sqlalchemy.DateTime, server_default=func.now())
-    last_check = sqlalchemy.Column(
-        sqlalchemy.DateTime, server_default=func.now())
+    value = DB.Column(URLType, unique=True, nullable=False)
+    sha256_checksum_id = DB.Column(
+        DB.Integer, DB.ForeignKey('sha256_checksum.id'))
+    redirect_counter = DB.Column(DB.Integer, default=0)
+    check_counter = DB.Column(DB.Integer, default=0)
+    last_redirect = DB.Column(
+        DB.DateTime, server_default=func.now())
+    last_check = DB.Column(
+        DB.DateTime, server_default=func.now())
 
     def __repr__(self):
         templ = "<Url(id={}, value={}, checksum={})>"
@@ -192,7 +180,10 @@ def get_or_create(session, model, **kwargs):
 
 # FLASK
 def create_app(script_info=None):
-    """create app."""
+    """create app.
+
+    >>> app = create_app()
+    """
     app = Flask(__name__)
     app.config['SWAGGER'] = {
         'title': 'Mitmproxy Image',
@@ -201,23 +192,15 @@ def create_app(script_info=None):
     swagger = Swagger(app)  # NOQA
     app.config['SECRET_KEY'] = os.urandom(24)
     app.config['WTF_CSRF_ENABLED'] = False
+    app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # app and db
-    #  db.init_app(app)
     app.app_context().push()
-    #  db.create_all()
-
-    db_session = get_db_session()
-
-    @app.teardown_appcontext
-    def shutdown_session(exception=None):
-        db_session.remove()
 
     @app.shell_context_processor
     def shell_context():
         return {
-            'app': app,
-            'db_session': db_session,
+            'app': app, 'DB': DB,
             'Sha256Checksum': Sha256Checksum, 'Url': Url,
         }
 
@@ -237,7 +220,7 @@ def create_app(script_info=None):
 
 
 def url_list():
-    db_session = get_db_session()
+    db_session = DB.session
     url_value = flask_request.args.get('value', None)
     if url_value is None:
         abort(404)
@@ -270,7 +253,7 @@ def sha256_checksum_list():
       200:
         description: A list of sha256 checksum
     """
-    db_session = get_db_session()
+    db_session = DB.session
     if flask_request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in flask_request.files:
@@ -386,7 +369,7 @@ def scan_image_folder():
                     'value': os.path.splitext(os.path.basename(ff))[0],
                     'ext': os.path.splitext(ff)[1][1:],
                 })
-    db_session = get_db_session()
+    db_session = DB.session
 
     if not im_data:
         mappings = []
@@ -441,6 +424,10 @@ def scan_image_folder():
 
 
 def store_flow_content(flow, redirect_host, redirect_port):
+    """Store flow content by post it to server.
+
+    >>> store_flow_content(flow, '127.0.0.1', 5012)  # doctest: +SKIP
+    """
     # check in database
     url = flow.request.pretty_url
 
@@ -448,13 +435,14 @@ def store_flow_content(flow, redirect_host, redirect_port):
         redirect_host, redirect_port)
     checksum_api_endpoint = 'http://{}:{}/api/sha256_checksum'.format(
         redirect_host, redirect_port)
-    g_resp = requests.get(url_api_endpoint, data={'value': url})
+    s = requests.Session()
+    g_resp = s.get(url_api_endpoint, data={'value': url})
     if g_resp.status_code == 404:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             with open(f.name, 'wb') as ff:
                 ff.write(flow.response.content)
             files = {'file': open(f.name, 'rb')}
-            requests.post(
+            return s.post(
                 checksum_api_endpoint, files=files, data={'url': url})
 
 
@@ -475,6 +463,7 @@ def load(loader):
     logging.getLogger("hpack.hpack").setLevel(logging.INFO)
     logging.getLogger("hpack.table").setLevel(logging.INFO)
     logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
 
 @concurrent
@@ -546,30 +535,13 @@ def response(flow: http.HTTPFlow) -> None:
         if content_type.startswith('image') and ext not in invalid_exts:
             try:
                 if redirect_host:
-                    store_flow_content(
+                    resp = store_flow_content(
                         flow, redirect_host, redirect_port)
+                    if resp.status_code == 200:
+                        logging.info('URL DONE:{}'.format(
+                            flow.request.pretty_url))
                 else:
-                    db_session = get_db_session({'check_same_thread': False})
-                    # check in database
-                    url = flow.request.pretty_url
-                    url_m = \
-                        db_session.query(Url).filter_by(value=url).first()
-                    if not url_m:
-                        logging.info('URL: {}'.format(url))
-                        info = process_info(flow.response.content, ext)
-                        url_m, _ = get_or_create(
-                            db_session, Url, value=url)
-                        with db_session.no_autoflush:
-                            checksum_m, _ = get_or_create(
-                                db_session, Sha256Checksum,
-                                value=info.pop('value'))
-                        for key, val in info.items():
-                            setattr(checksum_m, key, val)
-                        checksum_m.urls.append(url_m)
-                        db_session.add(checksum_m)
-                        db_session.commit()
-                    elif url_m and url_m.checksum.trash and not redirect_host:
-                        logging.info('SKIP TRASH: {}'.format(url))
+                    logging.debug('No redirect host.\nUrl: {}'.format(url))
             except Exception as err:
                 logging.error('{}: {}'.format(type(err), err))
                 logging.error(traceback.format_exc())
