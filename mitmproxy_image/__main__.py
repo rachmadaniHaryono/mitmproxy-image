@@ -394,7 +394,8 @@ def scan_image_folder():
     """
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     im_data = []
-    with click.progressbar(os.walk(IMAGE_DIR)) as bar:
+    label = 'Getting all files'
+    with click.progressbar(os.walk(IMAGE_DIR), label=label) as bar:
         for root, _, files in bar:
             for ff in files:
                 im_data.append({
@@ -429,7 +430,8 @@ def scan_image_folder():
         existing_items, missing_items = [], []
         q_ = db_session.query(Sha256Checksum).filter_by(trash=False)
         db_items = q_.all()
-        with click.progressbar(im_data) as pg_im_data:
+        label = 'Differentiate missing/existing items'
+        with click.progressbar(im_data, label=label) as pg_im_data:
             for x in pg_im_data:
                 (missing_items, existing_items)[
                     any(getattr(d, 'value') == x['value'] for d in db_items)
@@ -437,7 +439,12 @@ def scan_image_folder():
         if q_.count() != len(existing_items):
             # TODO set non non existing_items to trash
             raise NotImplementedError
-        with click.progressbar(missing_items) as pg_missing_items:
+        csm_ms = []
+        if not missing_items:
+            print('All item are on database.')
+            return
+        label = 'Processing missing items'
+        with click.progressbar(missing_items, label=label) as pg_missing_items:
             for item in pg_missing_items:
                 file_path = os.path.join(
                     IMAGE_DIR, item['value'][:2], item['basename'])
@@ -446,14 +453,15 @@ def scan_image_folder():
                     if info['value'] != item['value']:
                         # TODO move file
                         raise ValueError
-                    with db_session.no_autoflush:
-                        checksum_m, _ = get_or_create(
-                            db_session, Sha256Checksum,
-                            value=info.pop('value'))
+                    checksum_m, _ = get_or_create(
+                        db_session, Sha256Checksum,
+                        value=info.pop('value'))
                     for key, val in info.items():
                         setattr(checksum_m, key, val)
-                    db_session.add(checksum_m)
-                    db_session.commit()
+                    checksum_m.trash = False
+                    csm_ms.append(checksum_m)
+        db_session.add_all(csm_ms)
+        db_session.commit()
 
 
 def store_flow_content(flow, redirect_host, redirect_port):
