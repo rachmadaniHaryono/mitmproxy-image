@@ -32,6 +32,7 @@ from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
 from flask import (
     abort,
+    current_app,
     Flask,
     jsonify,
     request as flask_request,
@@ -223,7 +224,10 @@ def create_app(script_info=None, db_uri=DB_URI):
 
 def url_list():
     db_session = DB.session
-    url_value = flask_request.args.get('value', None)
+    if flask_request.method == 'POST':
+        url_value = flask_request.form.get('value', None)
+    else:
+        url_value = flask_request.args.get('value', None)
     if url_value is None:
         abort(404)
         return
@@ -231,6 +235,27 @@ def url_list():
     if url_m is None:
         abort(404)
         return
+    if flask_request.method == 'POST':
+        redirect_counter = flask_request.form.get('redirect_counter', None)
+        check_counter = flask_request.form.get('check_counter', None)
+        if redirect_counter and redirect_counter == '+1':
+            if url_m.redirect_counter is None:
+                url_m.redirect_counter = 1
+            else:
+                url_m.redirect_counter += 1
+        elif redirect_counter:
+            current_app.logger.error('Unknown input:{}:{}'.format(
+                'redirect_counter', redirect_counter))
+        if check_counter and check_counter == '+1':
+            if url_m.check_counter is None:
+                url_m.check_counter = 1
+            else:
+                url_m.check_counter += 1
+        elif check_counter:
+            current_app.logger.error('Unknown input:{}:{}'.format(
+                'check_counter', check_counter))
+        db_session.add(url_m)
+        db_session.commit()
     return jsonify({
         'id': url_m.id,
         'checksum_value': url_m.checksum.value,
@@ -275,7 +300,8 @@ def sha256_checksum_list():
                 try:
                     info = process_info(ff, use_chunks=False)
                 except OSError as err:
-                    logging.error('URL FAILED:{}\nERROR:{}'.format(url, err))
+                    current_app.logger.error(
+                        'URL FAILED:{}\nERROR:{}'.format(url, err))
                     abort(404)
                 with db_session.no_autoflush:
                     checksum_m, _ = get_or_create(
@@ -286,9 +312,10 @@ def sha256_checksum_list():
                 if url_m is not None:
                     checksum_m.urls.append(url_m)
                 db_session.add(checksum_m)
-                logging.debug('SERVER POST:\nurl: {}\nchecksum: {}'.format(
-                    url_m.value, checksum_m.value
-                ))
+                current_app.logger.debug(
+                    'SERVER POST:\nurl: {}\nchecksum: {}'.format(
+                        url_m.value, checksum_m.value)
+                )
                 db_session.commit()
         return jsonify({'status': 'success'})
     input_query = flask_request.args.get('q')
@@ -482,7 +509,7 @@ def request(flow: http.HTTPFlow):
     try:
         url_api_endpoint = 'http://{}:{}/api/url'.format(
             redirect_host, redirect_port)
-        g_resp = requests.get(url_api_endpoint, data={'value': url})
+        g_resp = requests.get(url_api_endpoint, params={'value': url})
         if g_resp.status_code == 404:
             return
         json_resp = g_resp.json()
@@ -498,18 +525,36 @@ def request(flow: http.HTTPFlow):
                 b'')
             logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
                 url, redirect_url))
-            # TODO  url_m.redirect_counter += 1
+            res = requests.post(
+                url_api_endpoint,
+                data={'value': url, "redirect_counter": '+1'})
+            if res.status_code == 200:
+                redirect_counter = res.json().get('redirect_counter', None)
+            else:
+                redirect_counter = '?'
             logging.info('REDIRECT COUNT: {}'.format(redirect_counter))
         elif checksum_trash:
             logging.info('SKIP REDIRECT TRASH: {}'.format(
                 flow.request.url))
-            # TODO url_m.check_counter += 1
+            res = requests.post(
+                url_api_endpoint,
+                data={'value': url, "check_counter": '+1'})
+            if res.status_code == 200:
+                check_counter = res.json().get('check_counter', None)
+            else:
+                check_counter = '?'
             logging.info('CHECK COUNT: {}'.format(check_counter))
         elif not checksum_trash:
             flow.request.url = redirect_url
             logging.info('REDIRECT: {}\nTO: {}'.format(
                 url, redirect_url))
-            # TODO url_m.redirect_counter += 1
+            res = requests.post(
+                url_api_endpoint,
+                data={'value': url, "redirect_counter": '+1'})
+            if res.status_code == 200:
+                redirect_counter = res.json().get('redirect_counter', None)
+            else:
+                redirect_counter = '?'
             logging.info('REDIRECT COUNT: {}'.format(redirect_counter))
         else:
             logging.info(
