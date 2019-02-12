@@ -506,61 +506,47 @@ def request(flow: http.HTTPFlow):
     if not redirect_host:
         return
     url = flow.request.pretty_url
+    url_api_endpoint = 'http://{}:{}/api/url'.format(
+        redirect_host, redirect_port)
     try:
-        url_api_endpoint = 'http://{}:{}/api/url'.format(
-            redirect_host, redirect_port)
         g_resp = requests.get(url_api_endpoint, params={'value': url})
         if g_resp.status_code == 404:
             return
         json_resp = g_resp.json()
         redirect_url = json_resp['img_url']
         checksum_trash = json_resp['checksum_trash']
-        redirect_counter = json_resp['redirect_counter']
-        check_counter = json_resp['check_counter']
-        if not checksum_trash and \
-                flow.request.http_version == 'HTTP/2.0':
-            flow.response = HTTPResponse(
-                'HTTP/1.1', 302, 'Found',
-                Headers(Location=redirect_url, Content_Length='0'),
-                b'')
-            logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                url, redirect_url))
-            res = requests.post(
-                url_api_endpoint,
-                data={'value': url, "redirect_counter": '+1'})
-            if res.status_code == 200:
-                redirect_counter = res.json().get('redirect_counter', None)
+        data_dict = {'value': url}
+        json_kw = None
+        log_header = None
+        if not checksum_trash:
+            if flow.request.http_version == 'HTTP/2.0':
+                flow.response = HTTPResponse(
+                    'HTTP/1.1', 302, 'Found',
+                    Headers(Location=redirect_url, Content_Length='0'),
+                    b'')
+                logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                    url, redirect_url))
             else:
-                redirect_counter = '?'
-            logging.info('REDIRECT COUNT: {}'.format(redirect_counter))
+                flow.request.url = redirect_url
+                logging.info('REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+            json_kw = 'redirect_counter'
+            log_header = 'REDIRECT COUNT'
         elif checksum_trash:
-            logging.info('SKIP REDIRECT TRASH: {}'.format(
-                flow.request.url))
-            res = requests.post(
-                url_api_endpoint,
-                data={'value': url, "check_counter": '+1'})
-            if res.status_code == 200:
-                check_counter = res.json().get('check_counter', None)
-            else:
-                check_counter = '?'
-            logging.info('CHECK COUNT: {}'.format(check_counter))
-        elif not checksum_trash:
-            flow.request.url = redirect_url
-            logging.info('REDIRECT: {}\nTO: {}'.format(
-                url, redirect_url))
-            res = requests.post(
-                url_api_endpoint,
-                data={'value': url, "redirect_counter": '+1'})
-            if res.status_code == 200:
-                redirect_counter = res.json().get('redirect_counter', None)
-            else:
-                redirect_counter = '?'
-            logging.info('REDIRECT COUNT: {}'.format(redirect_counter))
+            logging.info('SKIP REDIRECT TRASH: {}'.format(flow.request.url))
+            json_kw = 'check_counter'
+            log_header = 'CHECK COUNT'
         else:
             logging.info(
-                'Unknown condition: url:{}, trash:{}'.format(
-                    url, checksum_trash))
-        return
+                '{}: url:{}, trash:{}'.format(
+                    'Unknown condition', url, checksum_trash))
+        if json_kw:
+            data_dict[json_kw] = '+1'
+            res = requests.post(url_api_endpoint, data=data_dict)
+            if res.status_code == 200:
+                json_res = res.json().get(json_kw, None)
+            else:
+                json_res = '?'
+            logging.info('{}:{}:{}'.format(log_header, json_res, url))
     except Exception as err:
         logging.error('{}: {}'.format(type(err), err))
         logging.error(traceback.format_exc())
