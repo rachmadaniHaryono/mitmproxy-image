@@ -325,11 +325,17 @@ def sha256_checksum_list():
                 if url_m is not None:
                     checksum_m.urls.append(url_m)
                 db_session.add(checksum_m)
-                current_app.logger.debug(
-                    'SERVER POST:\nurl: {}\nchecksum: {}'.format(
-                        url_m.value, checksum_m.value)
-                )
-                db_session.commit()
+                try:
+                    db_session.commit()
+                    current_app.logger.debug(
+                        'SERVER POST:\nurl: {}\nchecksum: {}'.format(
+                            url_m.value, checksum_m.value)
+                    )
+                except OperationalError as err:
+                    current_app.logger.error('{}:{}'.format(
+                        type(err), err))
+                    abort(500)
+                    return
         return jsonify({'status': 'success'})
     input_query = flask_request.args.get('q')
     qs_dict = {}
