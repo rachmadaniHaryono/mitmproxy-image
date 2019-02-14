@@ -241,6 +241,17 @@ def url_list():
     if url_m is None:
         abort(404)
         return
+    res = {
+        'id': url_m.id,
+        'checksum_value': url_m.checksum.value,
+        'checksum_trash': url_m.checksum.trash,
+        'checksum_id': url_m.checksum.id,
+        'img_url': url_for(
+            '.image_url', _external=True,
+            filename='{}.{}'.format(url_m.checksum.value, url_m.checksum.ext)),
+        'redirect_counter': url_m.redirect_counter,
+        'check_counter': url_m.check_counter,
+    }
     if flask_request.method == 'POST':
         redirect_counter = flask_request.form.get('redirect_counter', None)
         check_counter = flask_request.form.get('check_counter', None)
@@ -260,19 +271,15 @@ def url_list():
         elif check_counter:
             current_app.logger.error('Unknown input:{}:{}'.format(
                 'check_counter', check_counter))
-        db_session.add(url_m)
-        db_session.commit()
-    return jsonify({
-        'id': url_m.id,
-        'checksum_value': url_m.checksum.value,
-        'checksum_trash': url_m.checksum.trash,
-        'checksum_id': url_m.checksum.id,
-        'img_url': url_for(
-            '.image_url', _external=True,
-            filename='{}.{}'.format(url_m.checksum.value, url_m.checksum.ext)),
-        'redirect_counter': url_m.redirect_counter,
-        'check_counter': url_m.check_counter,
-    })
+        try:
+            db_session.add(url_m)
+            db_session.commit()
+            res['redirect_counter'] = url_m.redirect_counter
+            res['check_counter'] = url_m.check_counter
+        except OperationalError as err:
+            logging.error('{}:{}\n{}:{}'.format(
+                type(err), err, 'URL', url_value))
+    return jsonify(res)
 
 
 def sha256_checksum_list():
