@@ -526,100 +526,119 @@ def load(loader):
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
 
-@concurrent
-def request(flow: http.HTTPFlow):
-    redirect_host = ctx.options.redirect_host
-    redirect_port = ctx.options.redirect_port
-    if not redirect_host:
-        return
-    url = flow.request.pretty_url
-    url_api_endpoint = 'http://{}:{}/api/url'.format(
-        redirect_host, redirect_port)
-    try:
-        g_resp = requests.get(url_api_endpoint, params={'value': url})
-        if g_resp.status_code in (404, 500):
-            logging.error('{}:{}\n{}:{}'.format(
-                'status code', g_resp.status_code, 'URL', url))
-            return
-        try:
-            json_resp = g_resp.json()
-        except JSONDecodeError as err:
-            logging.error('{}:{}\n{}:{}\n{}:{}'.format(
-                type(err), err,
-                'status code', g_resp.status_code,
-                'content', g_resp.content
-            ))
-            return
-        redirect_url = json_resp['img_url']
-        checksum_trash = json_resp['checksum_trash']
-        data_dict = {'value': url}
-        json_kw = None
-        log_header = None
-        if not checksum_trash:
-            if flow.request.http_version == 'HTTP/2.0':
-                flow.response = HTTPResponse(
-                    'HTTP/1.1', 302, 'Found',
-                    Headers(Location=redirect_url, Content_Length='0'),
-                    b'')
-                logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                    url, redirect_url))
-            else:
-                flow.request.url = redirect_url
-                logging.info('REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-            json_kw = 'redirect_counter'
-            log_header = 'REDIRECT COUNT'
-        elif checksum_trash:
-            logging.info('SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-            json_kw = 'check_counter'
-            log_header = 'CHECK COUNT'
-        else:
-            logging.info(
-                '{}: url:{}, trash:{}'.format(
-                    'Unknown condition', url, checksum_trash))
-        if json_kw:
-            data_dict[json_kw] = '+1'
-            res = requests.post(url_api_endpoint, data=data_dict)
-            if res.status_code == 200:
-                json_res = res.json().get(json_kw, None)
-            else:
-                json_res = '?'
-            logging.info('{}:{}:{}'.format(log_header, json_res, url))
-    except Exception as err:
-        logging.error('{}: {}'.format(type(err), err))
-        logging.error(traceback.format_exc())
+class MitmImage:
 
+    def __init__(self):
+        self.non_img_urls = []
 
-@concurrent
-def response(flow: http.HTTPFlow) -> None:
-    """Handle response."""
-    redirect_host = ctx.options.redirect_host
-    redirect_port = ctx.options.redirect_port
-    if redirect_host and \
-            flow.request.host == redirect_host and \
-            str(flow.request.port) == str(redirect_port):
+    @concurrent
+    def request(self, flow: http.HTTPFlow):
+        redirect_host = ctx.options.redirect_host
+        redirect_port = ctx.options.redirect_port
+        if not redirect_host:
+            return
         url = flow.request.pretty_url
-        logging.info('SKIP REDIRECT SERVER: {}'.format(url))
-        return
-    if 'content-type' in flow.response.headers:
-        content_type = flow.response.headers['content-type']
-        ext = content_type.split('/')[1].split(';')[0]
-        invalid_exts = [
-            'svg+xml', 'x-icon', 'gif',
-            'vnd.microsoft.icon', 'webp']
-        if content_type.startswith('image') and ext not in invalid_exts:
+        if url in self.non_img_urls:
+            logging.info('NON IMAGE LIST:{}'.format(url))
+            return
+        url_api_endpoint = 'http://{}:{}/api/url'.format(
+            redirect_host, redirect_port)
+        try:
+            g_resp = requests.get(url_api_endpoint, params={'value': url})
             try:
-                if redirect_host:
-                    resp = store_flow_content(
-                        flow, redirect_host, redirect_port)
-                    if resp.status_code == 200:
-                        logging.info('URL DONE:{}'.format(
-                            flow.request.pretty_url))
+                if g_resp.status_code in (404, 500):
+                    raise ValueError("status code error")
+                json_resp = g_resp.json()
+            except JSONDecodeError as err:
+                logging.error('{}:{}\n{}:{}\n{}:{}\n{}:{}'.format(
+                    type(err), err,
+                    'URL', url,
+                    'status code', g_resp.status_code,
+                    'content', g_resp.content
+                ))
+                return
+            except ValueError:
+                logging.error('{}:{}:{}'.format(
+                    'STATUS CODE ERROR', g_resp.status_code, url))
+                return
+            redirect_url = json_resp['img_url']
+            checksum_trash = json_resp['checksum_trash']
+            data_dict = {'value': url}
+            json_kw = None
+            log_header = None
+            if not checksum_trash:
+                if flow.request.http_version == 'HTTP/2.0':
+                    flow.response = HTTPResponse(
+                        'HTTP/1.1', 302, 'Found',
+                        Headers(Location=redirect_url, Content_Length='0'),
+                        b'')
+                    logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                        url, redirect_url))
                 else:
-                    logging.debug('No redirect host.\nUrl: {}'.format(url))
-            except Exception as err:
-                logging.error('{}: {}'.format(type(err), err))
-                logging.error(traceback.format_exc())
-                raise err
+                    flow.request.url = redirect_url
+                    logging.info(
+                        'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+                json_kw = 'redirect_counter'
+                log_header = 'REDIRECT COUNT'
+            elif checksum_trash:
+                logging.info(
+                    'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
+                json_kw = 'check_counter'
+                log_header = 'CHECK COUNT'
+            else:
+                logging.info(
+                    '{}: url:{}, trash:{}'.format(
+                        'Unknown condition', url, checksum_trash))
+            if json_kw:
+                data_dict[json_kw] = '+1'
+                res = requests.post(url_api_endpoint, data=data_dict)
+                if res.status_code == 200:
+                    json_res = res.json().get(json_kw, None)
+                else:
+                    json_res = '?'
+                logging.info('{}:{}:{}'.format(log_header, json_res, url))
+        except Exception as err:
+            logging.error('{}: {}'.format(type(err), err))
+            logging.error(traceback.format_exc())
+
+    @concurrent
+    def response(self, flow: http.HTTPFlow) -> None:
+        """Handle response."""
+        redirect_host = ctx.options.redirect_host
+        redirect_port = ctx.options.redirect_port
+        url = flow.request.pretty_url
+        if redirect_host and \
+                flow.request.host == redirect_host and \
+                str(flow.request.port) == str(redirect_port):
+            logging.info('SKIP REDIRECT SERVER: {}'.format(url))
+            return
+        if 'content-type' in flow.response.headers:
+            content_type = flow.response.headers['content-type']
+            ext = content_type.split('/')[1].split(';')[0]
+            invalid_exts = [
+                'svg+xml', 'x-icon', 'gif',
+                'vnd.microsoft.icon', 'webp']
+            if content_type.startswith('image') and ext not in invalid_exts:
+                try:
+                    if redirect_host:
+                        resp = store_flow_content(
+                            flow, redirect_host, redirect_port)
+                        if resp.status_code == 200:
+                            logging.info('URL DONE:{}'.format(
+                                flow.request.pretty_url))
+                    else:
+                        logging.debug('No redirect host.\nUrl: {}'.format(url))
+                except Exception as err:
+                    logging.error('{}: {}'.format(type(err), err))
+                    logging.error(traceback.format_exc())
+                    raise err
+                return
+        self.non_img_urls.append(url)
+
+
+addons = [
+    MitmImage()
+]
 
 
 if __name__ == '__main__':
