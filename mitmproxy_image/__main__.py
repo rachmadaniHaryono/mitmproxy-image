@@ -537,9 +537,19 @@ def request(flow: http.HTTPFlow):
         redirect_host, redirect_port)
     try:
         g_resp = requests.get(url_api_endpoint, params={'value': url})
-        if g_resp.status_code == 404:
+        if g_resp.status_code in (404, 500):
+            logging.error('{}:{}\n{}:{}'.format(
+                'status code', g_resp.status_code, 'URL', url))
             return
-        json_resp = g_resp.json()
+        try:
+            json_resp = g_resp.json()
+        except JSONDecodeError as err:
+            logging.error('{}:{}\n{}:{}\n{}:{}'.format(
+                type(err), err,
+                'status code', g_resp.status_code,
+                'content', g_resp.content
+            ))
+            return
         redirect_url = json_resp['img_url']
         checksum_trash = json_resp['checksum_trash']
         data_dict = {'value': url}
