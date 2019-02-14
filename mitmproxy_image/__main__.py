@@ -8,6 +8,8 @@ https://stackoverflow.com/a/44873382/1766261
 """
 from datetime import datetime, date
 from io import BytesIO
+from json.decoder import JSONDecodeError
+from logging.handlers import TimedRotatingFileHandler
 import hashlib
 import logging
 import os
@@ -27,6 +29,7 @@ from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
@@ -48,6 +51,7 @@ APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
 LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
+SERVER_LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image_server.log')
 DB_PATH = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
 DB_URI = 'sqlite:///{}'.format(DB_PATH)
 
@@ -186,7 +190,9 @@ def create_app(script_info=None, db_uri=DB_URI):
 
     >>> app = create_app()
     """
+    trf_hdlr = TimedRotatingFileHandler(SERVER_LOG_FILE, when='D', interval=30)
     app = Flask(__name__)
+    app.logger.addHandler(trf_hdlr)
     app.config['SWAGGER'] = {
         'title': 'Mitmproxy Image',
         'uiversion': 2
