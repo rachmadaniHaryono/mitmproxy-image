@@ -10,6 +10,7 @@ from datetime import datetime, date
 from io import BytesIO
 from json.decoder import JSONDecodeError
 from logging.handlers import TimedRotatingFileHandler
+from queue import Queue
 import hashlib
 import logging
 import os
@@ -488,22 +489,29 @@ def store_flow_content(flow, redirect_host, redirect_port):
 
     >>> store_flow_content(flow, '127.0.0.1', 5012)  # doctest: +SKIP
     """
-    # check in database
+    # check url in database
     url = flow.request.pretty_url
-
     url_api_endpoint = 'http://{}:{}/api/url'.format(
         redirect_host, redirect_port)
     checksum_api_endpoint = 'http://{}:{}/api/sha256_checksum'.format(
         redirect_host, redirect_port)
     s = requests.Session()
-    g_resp = s.get(url_api_endpoint, data={'value': url})
-    if g_resp.status_code == 404:
+    try:
+        g_resp = s.get(url_api_endpoint, data={'value': url})
+        if g_resp.status_code != 404:
+            return
         with tempfile.NamedTemporaryFile(delete=False) as f:
             with open(f.name, 'wb') as ff:
                 ff.write(flow.response.content)
             files = {'file': open(f.name, 'rb')}
-            return s.post(
+            post_resp = s.post(
                 checksum_api_endpoint, files=files, data={'url': url})
+            if post_resp.status_code == 200:
+                logging.info('URL DONE:{}'.format(flow.request.pretty_url))
+    except Exception as err:
+        logging.error('{}: {}'.format(type(err), err))
+        logging.error(traceback.format_exc())
+        raise err
 
 
 def load(loader):
@@ -530,6 +538,77 @@ class MitmImage:
 
     def __init__(self):
         self.non_img_urls = []
+        self.url_dict = {}
+        self.highp_queue = Queue()
+        self.mediump_queue = Queue()
+        self.lowp_queue = Queue()
+
+    def worker(self):
+        while True:
+            if not self.highp_queue.empty():
+                c_queue = self.highp_queue
+            elif not self.mediump_queue.empty():
+                c_queue = self.mediump_queue
+            elif not self.lowp_queue.empty():
+                c_queue = self.lowp_queue
+            else:
+                break
+            func_item = c_queue.get()
+            try:
+                func_item()
+            except Exception as err:
+                logging.error('{}: {}'.format(type(err), err))
+                logging.error(traceback.format_exc())
+            c_queue.task_done()
+
+    def get_url_model(self, url):
+        """Get url model and save it to self.url_dict."""
+        redirect_host = ctx.options.redirect_host
+        redirect_port = ctx.options.redirect_port
+        url_api_endpoint = 'http://{}:{}/api/url'.format(
+            redirect_host, redirect_port)
+        if not redirect_host:
+            return
+        g_resp = requests.get(url_api_endpoint, params={'value': url})
+        try:
+            if g_resp.status_code in (404, 500):
+                raise ValueError("status code error")
+            json_resp = g_resp.json()
+            self.url_dict[url] = json_resp
+        except JSONDecodeError as err:
+            logging.error('{}:{}\n{}:{}\n{}:{}\n{}:{}'.format(
+                type(err), err,
+                'URL', url,
+                'status code', g_resp.status_code,
+                'content', g_resp.content
+            ))
+            return
+        except ValueError:
+            logging.error('{}:{}:{}'.format(
+                'STATUS CODE ERROR', g_resp.status_code, url))
+            return
+
+    def increase_counter(self, data_dict, log_header):
+        """increate url model by send POST."""
+        redirect_host = ctx.options.redirect_host
+        redirect_port = ctx.options.redirect_port
+        url_api_endpoint = 'http://{}:{}/api/url'.format(
+            redirect_host, redirect_port)
+        for key in data_dict:
+            if key == 'value':
+                url = data_dict[key]
+            else:
+                json_kw = key
+        res = requests.post(url_api_endpoint, data=data_dict)
+        if res.status_code == 200:
+            json_res = res.json().get(json_kw, None)
+            try:
+                self.url_dict[url][json_kw] += 1
+            except TypeError:
+                self.url_dict[url][json_kw] = 1
+        else:
+            json_res = '?'
+        logging.info('{}:{}:{}'.format(log_header, json_res, url))
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
@@ -541,26 +620,18 @@ class MitmImage:
         if url in self.non_img_urls:
             logging.info('NON IMAGE LIST:{}'.format(url))
             return
-        url_api_endpoint = 'http://{}:{}/api/url'.format(
-            redirect_host, redirect_port)
+        if redirect_host and \
+                flow.request.host == redirect_host and \
+                str(flow.request.port) == str(redirect_port):
+            logging.info('SKIP REDIRECT SERVER: {}'.format(url))
+            return
+        if url in self.url_dict:
+            json_resp = self.url_dict[url]
+        else:
+            self.mediump_queue.put(lambda: self.get_url_model(url))
+            self.worker()
+            return
         try:
-            g_resp = requests.get(url_api_endpoint, params={'value': url})
-            try:
-                if g_resp.status_code in (404, 500):
-                    raise ValueError("status code error")
-                json_resp = g_resp.json()
-            except JSONDecodeError as err:
-                logging.error('{}:{}\n{}:{}\n{}:{}\n{}:{}'.format(
-                    type(err), err,
-                    'URL', url,
-                    'status code', g_resp.status_code,
-                    'content', g_resp.content
-                ))
-                return
-            except ValueError:
-                logging.error('{}:{}:{}'.format(
-                    'STATUS CODE ERROR', g_resp.status_code, url))
-                return
             redirect_url = json_resp['img_url']
             checksum_trash = json_resp['checksum_trash']
             data_dict = {'value': url}
@@ -591,12 +662,8 @@ class MitmImage:
                         'Unknown condition', url, checksum_trash))
             if json_kw:
                 data_dict[json_kw] = '+1'
-                res = requests.post(url_api_endpoint, data=data_dict)
-                if res.status_code == 200:
-                    json_res = res.json().get(json_kw, None)
-                else:
-                    json_res = '?'
-                logging.info('{}:{}:{}'.format(log_header, json_res, url))
+                self.lowp_queue.put(
+                    lambda: self.increase_counter(data_dict, log_header))
         except Exception as err:
             logging.error('{}: {}'.format(type(err), err))
             logging.error(traceback.format_exc())
@@ -607,6 +674,8 @@ class MitmImage:
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
+        if not redirect_host:
+            logging.debug('No redirect host.\nUrl: {}'.format(url))
         if redirect_host and \
                 flow.request.host == redirect_host and \
                 str(flow.request.port) == str(redirect_port):
@@ -619,19 +688,10 @@ class MitmImage:
                 'svg+xml', 'x-icon', 'gif',
                 'vnd.microsoft.icon', 'webp']
             if content_type.startswith('image') and ext not in invalid_exts:
-                try:
-                    if redirect_host:
-                        resp = store_flow_content(
-                            flow, redirect_host, redirect_port)
-                        if resp.status_code == 200:
-                            logging.info('URL DONE:{}'.format(
-                                flow.request.pretty_url))
-                    else:
-                        logging.debug('No redirect host.\nUrl: {}'.format(url))
-                except Exception as err:
-                    logging.error('{}: {}'.format(type(err), err))
-                    logging.error(traceback.format_exc())
-                    raise err
+                self.highp_queue.put(
+                    lambda: store_flow_content(
+                        flow, redirect_host, redirect_port))
+                self.worker()
                 return
         self.non_img_urls.append(url)
 
