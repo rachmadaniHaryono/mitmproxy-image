@@ -17,6 +17,7 @@ import os
 import pathlib  # require python 3.5+
 import shutil
 import tempfile
+import time
 import traceback
 import sys
 
@@ -124,6 +125,7 @@ def process_info(file_obj, ext=None, use_chunks=True, move_file=True):
             'img_mode': img.mode
         }
     except Exception as err:
+        logging.error(traceback.format_exc())
         logging.error('{}:{}'.format(type(err), err))
         raise err
     return res
@@ -238,48 +240,54 @@ def url_list():
     if url_value is None:
         abort(404)
         return
-    url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
-    if url_m is None:
-        abort(404)
-        return
-    res = {
-        'id': url_m.id,
-        'checksum_value': url_m.checksum.value,
-        'checksum_trash': url_m.checksum.trash,
-        'checksum_id': url_m.checksum.id,
-        'img_url': url_for(
-            '.image_url', _external=True,
-            filename='{}.{}'.format(url_m.checksum.value, url_m.checksum.ext)),
-        'redirect_counter': url_m.redirect_counter,
-        'check_counter': url_m.check_counter,
-    }
-    if flask_request.method == 'POST':
-        redirect_counter = flask_request.form.get('redirect_counter', None)
-        check_counter = flask_request.form.get('check_counter', None)
-        if redirect_counter and redirect_counter == '+1':
-            if url_m.redirect_counter is None:
-                url_m.redirect_counter = 1
-            else:
-                url_m.redirect_counter += 1
-        elif redirect_counter:
-            current_app.logger.error('Unknown input:{}:{}'.format(
-                'redirect_counter', redirect_counter))
-        if check_counter and check_counter == '+1':
-            if url_m.check_counter is None:
-                url_m.check_counter = 1
-            else:
-                url_m.check_counter += 1
-        elif check_counter:
-            current_app.logger.error('Unknown input:{}:{}'.format(
-                'check_counter', check_counter))
-        try:
+    res = {}
+    try:
+        url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
+        if url_m is None:
+            abort(404)
+            return
+        res = {
+            'id': url_m.id,
+            'checksum_value': url_m.checksum.value,
+            'checksum_trash': url_m.checksum.trash,
+            'checksum_id': url_m.checksum.id,
+            'img_url': url_for(
+                '.image_url', _external=True, filename='{}.{}'.format(
+                    url_m.checksum.value, url_m.checksum.ext)),
+            'redirect_counter': url_m.redirect_counter,
+            'check_counter': url_m.check_counter,
+        }
+        if flask_request.method == 'POST':
+            redirect_counter = flask_request.form.get('redirect_counter', None)
+            check_counter = flask_request.form.get('check_counter', None)
+            if redirect_counter and redirect_counter == '+1':
+                if url_m.redirect_counter is None:
+                    url_m.redirect_counter = 1
+                else:
+                    url_m.redirect_counter += 1
+            elif redirect_counter:
+                current_app.logger.error('Unknown input:{}:{}'.format(
+                    'redirect_counter', redirect_counter))
+            if check_counter and check_counter == '+1':
+                if url_m.check_counter is None:
+                    url_m.check_counter = 1
+                else:
+                    url_m.check_counter += 1
+            elif check_counter:
+                current_app.logger.error('Unknown input:{}:{}'.format(
+                    'check_counter', check_counter))
             db_session.add(url_m)
             db_session.commit()
             res['redirect_counter'] = url_m.redirect_counter
             res['check_counter'] = url_m.check_counter
-        except OperationalError as err:
-            logging.error('{}:{}\n{}:{}'.format(
-                type(err), err, 'URL', url_value))
+    except OperationalError as err:
+        logging.error(traceback.format_exc())
+        logging.error('{}:{}\n{}:{}'.format(
+            type(err), err, 'URL', url_value))
+        res['error'] = str(err)
+        db_session.rollback()
+    finally:
+        db_session.close()
     return jsonify(res)
 
 
@@ -308,35 +316,39 @@ def sha256_checksum_list():
             file_.save(f_temp.name)
             url = flask_request.form.get('url', None)
             url_m = None
-            if url is not None:
-                url_m, _ = get_or_create(db_session, Url, value=url)
-            with open(f_temp.name, 'rb') as ff:
-                try:
-                    info = process_info(ff, use_chunks=False)
-                except OSError as err:
-                    current_app.logger.error(
-                        'URL FAILED:{}\nERROR:{}'.format(url, err))
-                    abort(404)
-                with db_session.no_autoflush:
-                    checksum_m, _ = get_or_create(
-                        db_session, Sha256Checksum,
-                        value=info.pop('value'))
-                for key, val in info.items():
-                    setattr(checksum_m, key, val)
-                if url_m is not None:
-                    checksum_m.urls.append(url_m)
-                db_session.add(checksum_m)
-                try:
+            try:
+                if url is not None:
+                    url_m, _ = get_or_create(db_session, Url, value=url)
+                with open(f_temp.name, 'rb') as ff:
+                    try:
+                        info = process_info(ff, use_chunks=False)
+                    except OSError as err:
+                        logging.error(traceback.format_exc())
+                        current_app.logger.error(
+                            'URL FAILED:{}\nERROR:{}'.format(url, err))
+                        abort(404)
+                    with db_session.no_autoflush:
+                        checksum_m, _ = get_or_create(
+                            db_session, Sha256Checksum,
+                            value=info.pop('value'))
+                    for key, val in info.items():
+                        setattr(checksum_m, key, val)
+                    if url_m is not None:
+                        checksum_m.urls.append(url_m)
+                    db_session.add(checksum_m)
                     db_session.commit()
                     current_app.logger.debug(
                         'SERVER POST:\nurl: {}\nchecksum: {}'.format(
                             url_m.value, checksum_m.value)
                     )
-                except OperationalError as err:
-                    current_app.logger.error('{}:{}'.format(
-                        type(err), err))
-                    abort(500)
-                    return
+            except OperationalError as err:
+                db_session.rollback()
+                current_app.logger.error('{}:{}'.format(
+                    type(err), err))
+                abort(500)
+                return
+            finally:
+                db_session.remove()
         return jsonify({'status': 'success'})
     input_query = flask_request.args.get('q')
     qs_dict = {}
@@ -358,29 +370,34 @@ def sha256_checksum_list():
     created_at = qs_dict.get('created_at', created_at)
     # other args
     page = int(flask_request.args.get('page', 1))
-    dsq = db_session.query(Sha256Checksum) \
-        .filter_by(trash=False) \
-        .order_by(Sha256Checksum.created_at.desc())
-    if created_at is not None and created_at == 'today':
-        dsq = dsq.filter(
-            func.DATE(Sha256Checksum.created_at) == date.today()
-        )
-    if per_page > 0:
-        dsq = dsq.limit(per_page).offset((int(page) - 1) * per_page)
-    items = dsq.all()
-    return jsonify({
-        'items': [{
-            'created_at': str(item.created_at),
-            'value': str(item.value),
-            'urls': [url.value for url in item.urls],
-            'img_url': url_for(
-                '.image_url', _external=True,
-                filename='{}.{}'.format(item.value, item.ext)),
-        } for item in items],
-        'next_page': url_for(
-            'sha256_checksum_list', page=page+1, q=input_query,
-            _external=True)
-    })
+    res = {}
+    try:
+        dsq = db_session.query(Sha256Checksum) \
+            .filter_by(trash=False) \
+            .order_by(Sha256Checksum.created_at.desc())
+        if created_at is not None and created_at == 'today':
+            dsq = dsq.filter(
+                func.DATE(Sha256Checksum.created_at) == date.today()
+            )
+        if per_page > 0:
+            dsq = dsq.limit(per_page).offset((int(page) - 1) * per_page)
+        items = dsq.all()
+        res = {
+            'items': [{
+                'created_at': str(item.created_at),
+                'value': str(item.value),
+                'urls': [url.value for url in item.urls],
+                'img_url': url_for(
+                    '.image_url', _external=True,
+                    filename='{}.{}'.format(item.value, item.ext)),
+            } for item in items],
+            'next_page': url_for(
+                'sha256_checksum_list', page=page+1, q=input_query,
+                _external=True)
+        }
+    finally:
+        db_session.remove()
+    return jsonify(res)
 
 
 def image_url(filename):
@@ -538,6 +555,7 @@ class MitmImage:
 
     def __init__(self):
         self.non_img_urls = []
+        self.img_urls = []
         self.url_dict = {}
         self.highp_queue = Queue()
         self.mediump_queue = Queue()
@@ -556,6 +574,7 @@ class MitmImage:
             func_item = c_queue.get()
             try:
                 func_item()
+                time.sleep(5)
             except Exception as err:
                 logging.error('{}: {}'.format(type(err), err))
                 logging.error(traceback.format_exc())
@@ -619,6 +638,9 @@ class MitmImage:
         url = flow.request.pretty_url
         if url in self.non_img_urls:
             logging.info('NON IMAGE LIST:{}'.format(url))
+            return
+        if url not in self.img_urls:
+            logging.info('NOT IN IMAGE LIST:{}'.format(url))
             return
         if redirect_host and \
                 flow.request.host == redirect_host and \
@@ -688,6 +710,7 @@ class MitmImage:
                 'svg+xml', 'x-icon', 'gif',
                 'vnd.microsoft.icon', 'webp']
             if content_type.startswith('image') and ext not in invalid_exts:
+                self.img_urls.append(url)
                 self.highp_queue.put(
                     lambda: store_flow_content(
                         flow, redirect_host, redirect_port))
