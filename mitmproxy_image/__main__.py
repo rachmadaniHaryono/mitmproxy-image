@@ -554,7 +554,6 @@ def load(loader):
 class MitmImage:
 
     def __init__(self):
-        self.non_img_urls = []
         self.img_urls = []
         self.url_dict = {}
         self.highp_queue = Queue()
@@ -636,11 +635,8 @@ class MitmImage:
         if not redirect_host:
             return
         url = flow.request.pretty_url
-        if url in self.non_img_urls:
-            logging.info('NON IMAGE LIST:{}'.format(url))
-            return
         if url not in self.img_urls:
-            logging.info('NOT IN IMAGE LIST:{}'.format(url))
+            logging.debug('NOT IN IMAGE LIST:{}'.format(url))
             return
         if redirect_host and \
                 flow.request.host == redirect_host and \
@@ -710,13 +706,13 @@ class MitmImage:
                 'svg+xml', 'x-icon', 'gif',
                 'vnd.microsoft.icon', 'webp']
             if content_type.startswith('image') and ext not in invalid_exts:
-                self.img_urls.append(url)
+                if url not in self.img_urls:
+                    self.img_urls.append(url)
                 self.highp_queue.put(
                     lambda: store_flow_content(
                         flow, redirect_host, redirect_port))
                 self.worker()
                 return
-        self.non_img_urls.append(url)
 
 
 addons = [
