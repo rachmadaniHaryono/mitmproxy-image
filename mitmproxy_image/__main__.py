@@ -281,8 +281,8 @@ def url_list():
             res['redirect_counter'] = url_m.redirect_counter
             res['check_counter'] = url_m.check_counter
     except OperationalError as err:
-        logging.error(traceback.format_exc())
-        logging.error('{}:{}\n{}:{}'.format(
+        current_app.error(traceback.format_exc())
+        current_app.error('{}:{}\n{}:{}'.format(
             type(err), err, 'URL', url_value))
         res['error'] = str(err)
         db_session.rollback()
@@ -323,7 +323,7 @@ def sha256_checksum_list():
                     try:
                         info = process_info(ff, use_chunks=False)
                     except OSError as err:
-                        logging.error(traceback.format_exc())
+                        current_app.error(traceback.format_exc())
                         current_app.logger.error(
                             'URL FAILED:{}\nERROR:{}'.format(url, err))
                         abort(404)
@@ -343,6 +343,7 @@ def sha256_checksum_list():
                     )
             except OperationalError as err:
                 db_session.rollback()
+                current_app.logger.error(traceback.format_exc())
                 current_app.logger.error('{}:{}'.format(
                     type(err), err))
                 abort(500)
@@ -544,7 +545,7 @@ def load(loader):
         default=None,
         help="Server port for redirect.",
     )
-    logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.DEBUG)
+    logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.INFO)
     logging.getLogger("hpack.hpack").setLevel(logging.INFO)
     logging.getLogger("hpack.table").setLevel(logging.INFO)
     logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
