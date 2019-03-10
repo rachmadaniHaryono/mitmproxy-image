@@ -536,13 +536,13 @@ def load(loader):
     loader.add_option(
         name="redirect_host",
         typespec=typing.Optional[str],
-        default=None,
+        default='127.0.0.1',
         help="Server host for redirect.",
     )
     loader.add_option(
         name="redirect_port",
         typespec=typing.Optional[int],
-        default=None,
+        default=5012,
         help="Server port for redirect.",
     )
     logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.INFO)
@@ -704,8 +704,7 @@ class MitmImage:
             content_type = flow.response.headers['content-type']
             ext = content_type.split('/')[1].split(';')[0]
             invalid_exts = [
-                'svg+xml', 'x-icon', 'gif',
-                'vnd.microsoft.icon', 'webp']
+                'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon']
             if content_type.startswith('image') and ext not in invalid_exts:
                 if url not in self.img_urls:
                     self.img_urls.append(url)
