@@ -704,7 +704,7 @@ class MitmImage:
             content_type = flow.response.headers['content-type']
             ext = content_type.split('/')[1].split(';')[0]
             invalid_exts = [
-                'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon']
+                'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
             if content_type.startswith('image') and ext not in invalid_exts:
                 if url not in self.img_urls:
                     self.img_urls.append(url)
