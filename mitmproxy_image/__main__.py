@@ -281,8 +281,8 @@ def url_list():
             res['redirect_counter'] = url_m.redirect_counter
             res['check_counter'] = url_m.check_counter
     except OperationalError as err:
-        current_app.error(traceback.format_exc())
-        current_app.error('{}:{}\n{}:{}'.format(
+        current_app.logger.error(traceback.format_exc())
+        current_app.logger.error('{}:{}\n{}:{}'.format(
             type(err), err, 'URL', url_value))
         res['error'] = str(err)
         db_session.rollback()
@@ -323,7 +323,7 @@ def sha256_checksum_list():
                     try:
                         info = process_info(ff, use_chunks=False)
                     except OSError as err:
-                        current_app.error(traceback.format_exc())
+                        current_app.logger.error(traceback.format_exc())
                         current_app.logger.error(
                             'URL FAILED:{}\nERROR:{}'.format(url, err))
                         abort(404)
