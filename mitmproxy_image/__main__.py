@@ -312,44 +312,31 @@ def url_list():
     else:
         url_value = flask_request.args.get('value', None)
     if url_value is None:
-        abort(404)
-        return
+        return jsonify([x.to_dict() for x in db_session.query(Url).all()])
     res = {}
     try:
         url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
-        if url_m is None:
+        if url_m is None and flask_request.method == 'POST':
+            url_m = Url.get_or_created(value=url_value, session=db_session)[0]
+            db_session.commit()
+        elif url_m is None:
             abort(404)
             return
-        res = {
-            'id': url_m.id,
-            'checksum_value': url_m.checksum.value,
-            'checksum_trash': url_m.checksum.trash,
-            'checksum_id': url_m.checksum.id,
-            'img_url': url_for(
-                '.image_url', _external=True, filename='{}.{}'.format(
-                    url_m.checksum.value, url_m.checksum.ext)),
-            'redirect_counter': url_m.redirect_counter,
-            'check_counter': url_m.check_counter,
-        }
+        res = url_m.to_dict()
+        if url_m.checksum:
+            res['checksum_value'] = url_m.checksum_value
+            res['checksum_trash'] = url_m.checksum_trash
         if flask_request.method == 'POST':
-            redirect_counter = flask_request.form.get('redirect_counter', None)
-            check_counter = flask_request.form.get('check_counter', None)
-            if redirect_counter and redirect_counter == '+1':
-                if url_m.redirect_counter is None:
-                    url_m.redirect_counter = 1
-                else:
-                    url_m.redirect_counter += 1
-            elif redirect_counter:
-                current_app.logger.error('Unknown input:{}:{}'.format(
-                    'redirect_counter', redirect_counter))
-            if check_counter and check_counter == '+1':
-                if url_m.check_counter is None:
-                    url_m.check_counter = 1
-                else:
-                    url_m.check_counter += 1
-            elif check_counter:
-                current_app.logger.error('Unknown input:{}:{}'.format(
-                    'check_counter', check_counter))
+            for key in ('redirect_counter''check_counter'):
+                var = flask_request.form.get(key, None)
+                if var and var == '+1':
+                    if getattr(url_m, key, None) is None:
+                        setattr(url_m, key)
+                    else:
+                        setattr(url_m, key, getattr(url_m, key) + 1)
+                elif var:
+                    current_app.logger.error('Unknown input:{}:{}'.format(
+                        key, var))
             db_session.add(url_m)
             db_session.commit()
             res['redirect_counter'] = url_m.redirect_counter
