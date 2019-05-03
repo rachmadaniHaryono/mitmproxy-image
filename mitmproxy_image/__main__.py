@@ -250,7 +250,11 @@ def get_or_create(
 
 
 # FLASK
-def create_app(script_info=None, db_uri=DB_URI):
+def create_app(
+        db_uri=DB_URI,
+        debug: Optional[bool] = None,
+        testing: Optional[bool] = False
+) -> Flask:
     """create app.
 
     >>> app = create_app()
@@ -267,9 +271,18 @@ def create_app(script_info=None, db_uri=DB_URI):
     app.config['WTF_CSRF_ENABLED'] = False
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if debug:
+        app.config['DEBUG'] = debug
+    if testing:
+        app.config['TESTING'] = testing
 
     DB.init_app(app)
     app.app_context().push()
+    if \
+            not database_exists(db_uri) or \
+            not DB.engine.dialect.has_table(DB.engine, 'url'):
+        DB.create_all()
+        logging.debug('database created')
 
     @app.shell_context_processor
     def shell_context():
@@ -282,8 +295,7 @@ def create_app(script_info=None, db_uri=DB_URI):
         '/api/sha256_checksum', 'sha256_checksum_list',
         sha256_checksum_list, methods=['GET', 'POST'])
     app.add_url_rule(
-        '/api/url', 'url_list',
-        url_list, methods=['GET', 'POST'])
+        '/api/url', 'url_list', url_list, methods=['GET', 'POST'])
     app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
 
     Admin(
