@@ -596,21 +596,22 @@ def store_flow_content(flow, redirect_host, redirect_port):
 def load(loader):
     loader.add_option(
         name="redirect_host",
-        typespec=typing.Optional[str],
+        typespec=Optional[str],
         default='127.0.0.1',
         help="Server host for redirect.",
     )
     loader.add_option(
         name="redirect_port",
-        typespec=typing.Optional[int],
+        typespec=Optional[int],
         default=5012,
         help="Server port for redirect.",
     )
-    logging.basicConfig(filename=LOG_FILE, filemode='a', level=logging.INFO)
-    logging.getLogger("hpack.hpack").setLevel(logging.INFO)
-    logging.getLogger("hpack.table").setLevel(logging.INFO)
-    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
-    logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+    loader.add_option(
+        name="debug",
+        typespec=Optional[bool],
+        default=False,
+        help="Turn on debugging.",
+    )
 
 
 class MitmImage:
@@ -621,6 +622,15 @@ class MitmImage:
         self.highp_queue = Queue()
         self.mediump_queue = Queue()
         self.lowp_queue = Queue()
+        debug = ctx.options.debug
+        level = logging.DEBUG if debug else logging.INFO
+        logging.basicConfig(
+            filename=LOG_FILE, filemode='a', level=level)
+        logging.getLogger("hpack.hpack").setLevel(logging.INFO)
+        logging.getLogger("hpack.table").setLevel(logging.INFO)
+        logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+        logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+        logging.debug('MitmImage initiated')
 
     def worker(self):
         while True:
