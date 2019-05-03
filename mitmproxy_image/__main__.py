@@ -172,6 +172,21 @@ class Sha256Checksum(BaseModel):
         templ = "<Sha256Checksum(id={}, value={}...)>"
         return templ.format(self.id, self.value[:7])
 
+    def to_dict(self, include_urls=True):
+        res = {}
+        keys = [
+            'value', 'ext', 'filesize', 'height', 'width', 'img_format',
+            'img_mode', 'trash']
+        if include_urls:
+            keys.append('urls')
+        for k in keys:
+            if k == 'urls':
+                res[k] = [x.to_dict(
+                    include_checksum=False) for x in getattr(self, k, [])]
+            else:
+                res[k] = getattr(self, k)
+        return res
+
 
 class Url(BaseModel):
     __tablename__ = 'url'
@@ -189,8 +204,41 @@ class Url(BaseModel):
         templ = "<Url(id={}, value={}, checksum={})>"
         return templ.format(self.id, self.value, self.checksum)
 
+    def to_dict(self, include_checksum=True):
+        res = {}
+        keys = [
+            'id', 'value', 'redirect_counter',  'check_counter',
+            'last_redirect', 'last_check']
+        if include_checksum:
+            keys.append('checksum')
+        for k in keys:
+            if k == 'checksum' and self.checksum:
+                res[k] = self.checksum.to_dict(include_urls=False)
+            if k == 'checksum':
+                pass
+            else:
+                res[k] = str(getattr(self, k))
+        if self.checksum:
+            img_url = url_for(
+                '.image_url', _external=True, filename='{}.{}'.format(
+                    self.checksum.value, self.checksum.ext)),
+            res['img_url'] = img_url
+        return res
 
-def get_or_create(session, model, **kwargs):
+    @staticmethod
+    def get_or_create(
+            value: str,
+            session: Optional[scoped_session] = DB.session
+    ) -> Tuple[UrlVar, bool]:
+        instance, created = get_or_create(session, Url, value=value)
+        return instance, created
+
+
+def get_or_create(
+        session: scoped_session,
+        model: Any,
+        **kwargs
+) -> Tuple[Any, bool]:
     """Creates an object or returns the object if exists."""
     instance = session.query(model).filter_by(**kwargs).first()
     created = False
