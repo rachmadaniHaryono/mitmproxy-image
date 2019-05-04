@@ -30,6 +30,7 @@ from mitmproxy import ctx, http
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
+from hashfile import hash_file
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import OperationalError
@@ -58,6 +59,7 @@ LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
 SERVER_LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image_server.log')
 DB_PATH = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
 DB_URI = 'sqlite:///{}'.format(DB_PATH)
+Sha256ChecksumVar = TypeVar('Sha256ChecksumVar', bound='Sha256Checksum')
 UrlVar = TypeVar('UrlVar', bound='Url')
 
 
@@ -187,6 +189,36 @@ class Sha256Checksum(BaseModel):
                 res[k] = getattr(self, k)
         return res
 
+    @staticmethod
+    def get_or_create(
+            filepath: str,
+            url: Optional[str] = None,
+            session: Optional[scoped_session] = None,
+            image_dir: Optional[str] = IMAGE_DIR
+    ) -> Tuple[Sha256ChecksumVar, bool]:
+        hash_value = hash_file(filepath, 'sha256')
+        instance, created = get_or_create(
+            session, Sha256Checksum, value=hash_value)
+        if url:
+            url_m = get_or_create(session, Url, value=url)[0]
+            instance.urls.append(url_m)
+        if created:
+            instance.filesize = os.path.getsize(filepath)
+            pil_img = Image.open(filepath)
+            instance.ext = pil_img.format.lower()
+            instance.width, instance.height = pil_img.size
+            instance.img_format = pil_img.format
+            instance.img_mode = pil_img.mode
+            instance.trash = False
+        if not instance.trash:
+            new_filepath = os.path.join(
+                image_dir, hash_value[2],
+                hash_value + '.{}'.format(instance.ext))
+            pathlib.Path(os.path.dirname(
+                new_filepath)).mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(filepath, new_filepath)
+        return instance, created
+
 
 class Url(BaseModel):
     __tablename__ = 'url'
@@ -219,10 +251,13 @@ class Url(BaseModel):
             else:
                 res[k] = str(getattr(self, k))
         if self.checksum:
-            img_url = url_for(
-                '.image_url', _external=True, filename='{}.{}'.format(
-                    self.checksum.value, self.checksum.ext)),
-            res['img_url'] = img_url
+            try:
+                img_url = url_for(
+                    '.image_url', _external=True, filename='{}.{}'.format(
+                        self.checksum.value, self.checksum.ext)),
+                res['img_url'] = img_url
+            except RuntimeError as err:
+                logging.warning('{}:{}'.format(type(err), err))
         return res
 
     @staticmethod
@@ -317,7 +352,7 @@ def url_list():
     try:
         url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
         if url_m is None and flask_request.method == 'POST':
-            url_m = Url.get_or_created(value=url_value, session=db_session)[0]
+            url_m = Url.get_or_create(value=url_value, session=db_session)[0]
             db_session.commit()
         elif url_m is None:
             abort(404)
@@ -622,7 +657,7 @@ class MitmImage:
         self.highp_queue = Queue()
         self.mediump_queue = Queue()
         self.lowp_queue = Queue()
-        debug = ctx.options.debug
+        debug = ctx.options.debug if ctx.options else False
         level = logging.DEBUG if debug else logging.INFO
         logging.basicConfig(
             filename=LOG_FILE, filemode='a', level=level)

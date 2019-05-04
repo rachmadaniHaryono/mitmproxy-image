@@ -20,6 +20,7 @@ setup(
         'Flask-Admin>=1.5.2',
         'Flask-SQLAlchemy>=2.3.2',
         'Flask>=1.0.2',
+        'hashfile>=2.1.5',
         'mitmproxy>=4.0.4',
         'Pillow>=5.3.0',
         'requests>=2.21.0',

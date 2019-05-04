@@ -1,9 +1,16 @@
 import unittest
 
+from PIL import Image
 from sqlalchemy_utils import database_exists
 import pytest
 
-from mitmproxy_image.__main__ import create_app, process_info, DB, Url
+from mitmproxy_image.__main__ import (
+    create_app,
+    process_info,
+    DB,
+    Sha256Checksum,
+    Url,
+)
 
 
 class Mitmproxy_imageTestCase(unittest.TestCase):
@@ -27,21 +34,58 @@ class Mitmproxy_imageTestCase(unittest.TestCase):
 
 
 def test_get_or_create_url_model():
-    app = create_app(db_uri='sqlite://', debug=True, testing=True)
+    db_uri = 'sqlite://'
+    app = create_app(db_uri=db_uri, debug=True, testing=True)
+    url_value = 'http://example.com/1.html'
     session = DB.session
     with app.app_context():
-        m, created = Url.get_or_create('http://example.com', session)
+        m, created = Url.get_or_create(url_value, session)
         session.commit()
         assert created
         m_dict = m.to_dict()
         m_dict.pop('last_redirect')
         m_dict.pop('last_check')
+        m_dict.pop('id')
         assert m_dict == {
             'check_counter': '0',
-            'id': '1',
             'redirect_counter': '0',
-            'value': 'http://example.com'
+            'value': url_value
         }
+
+
+def test_get_or_create_sha256checksum_model(tmp_path):
+    app = create_app(db_uri='sqlite://', debug=True, testing=True)
+    url = 'http://example.com/1.jpeg'
+    session = DB.session
+    img = Image.new('RGB', (60, 30), color='red')
+    test_img = tmp_path / 'test.jpg'
+    test_dir = tmp_path / 'test_dir'
+    test_dir.mkdir()
+    img.save(test_img)
+    with app.app_context():
+        m, created = Sha256Checksum.get_or_create(
+            test_img.as_posix(), url, session, tmp_path.as_posix())
+        session.commit()
+        assert created
+        m_dict = m.to_dict()
+        m_dict['urls'][0].pop('last_check')
+        m_dict['urls'][0].pop('last_redirect')
+        m_dict['urls'][0].pop('redirect_counter')
+        assert m_dict == {
+            'ext': 'jpeg',
+            'filesize': 661,
+            'height': 30,
+            'img_format': 'JPEG',
+            'img_mode': 'RGB',
+            'trash': False,
+            'urls': [{
+                'check_counter': '0',
+                'id': '1',
+                'value': 'http://example.com/1.jpeg'}],
+            'value':
+                '71bfa82'
+                '54d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe',
+            'width': 60}
 
 
 def test_process_info(tmp_path):
