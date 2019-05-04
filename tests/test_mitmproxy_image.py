@@ -24,13 +24,22 @@ class Mitmproxy_imageTestCase(unittest.TestCase):
         self.assertIn('Mitmproxy-Image', rv.data.decode())
 
     def test_url_list(self):
+        url_value = 'http://example.com'
         assert DB.engine.dialect.has_table(DB.engine, 'url')
         rv = self.app.get('/api/url')
         jv = rv.get_json()
         assert not jv
-        rv = self.app.post('/api/url', data={'value': 'http://example.com'})
+        #  rv = self.app.get('/api/url', data={'value': url_value})
+        #  assert rv.status_code == 404
+        rv = self.app.post('/api/url', data={'value': url_value})
         jv = rv.get_json()
-        #  assert jv
+        jv.pop('last_check')
+        jv.pop('last_redirect')
+        assert jv == {
+            'check_counter': 0,
+            'id': '1',
+            'redirect_counter': 0,
+            'value': 'http://example.com'}
 
 
 def test_get_or_create_url_model():
