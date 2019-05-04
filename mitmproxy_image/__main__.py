@@ -346,8 +346,11 @@ def url_list():
         url_value = flask_request.form.get('value', None)
     else:
         url_value = flask_request.args.get('value', None)
-    if url_value is None:
+    if url_value is None and flask_request == 'GET':
         return jsonify([x.to_dict() for x in db_session.query(Url).all()])
+    if url_value is None and flask_request == 'POST':
+        abort(404)
+        return
     res = {}
     try:
         url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
