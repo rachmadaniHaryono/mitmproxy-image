@@ -687,6 +687,16 @@ class MitmImage:
             app = create_app(root_path=__file__)
             session = DB.session
             with app.app_context():
+                u_m = Url.get_or_create(url, session)[0]
+                if u_m.checksum and u_m.checksum.trash:
+                    self.trash_urls.append(url)
+                    logger.info(
+                        'SKIP TRASH: {}'.format(flow.request.url))
+                    return
+                if u_m.checksum and not u_m.checksum.trash:
+                    sc_m = u_m.checksum
+                    self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
+                        redirect_host, redirect_port, sc_m.value, sc_m.ext)
                 sc_m = Sha256Checksum.get_or_create(f.name, url, session)[0]
                 session.commit()
                 if sc_m.trash and url not in self.trash_urls:
