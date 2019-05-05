@@ -133,7 +133,10 @@ class Sha256Checksum(BaseModel):
                 hash_value + '.{}'.format(instance.ext))
             pathlib.Path(os.path.dirname(
                 new_filepath)).mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(filepath, new_filepath)
+            if filepath != new_filepath:
+                shutil.copyfile(filepath, new_filepath)
+            else:
+                logging.debug('Same file: {}'.format(filepath))
         return instance, created
 
 
