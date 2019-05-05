@@ -309,7 +309,7 @@ def url_list():
 
 
 def sha256_checksum_list():
-    """Example endpoint returning a list of checksum by palette
+    """Example endpoint returning a list of checksum
     ---
     parameters:
       - name: page
@@ -336,28 +336,19 @@ def sha256_checksum_list():
             try:
                 if url is not None:
                     url_m, _ = get_or_create(db_session, Url, value=url)
-                with open(f_temp.name, 'rb') as ff:
-                    try:
-                        info = process_info(ff, use_chunks=False)
-                    except OSError as err:
-                        current_app.logger.error(traceback.format_exc())
-                        current_app.logger.error(
-                            'URL FAILED:{}\nERROR:{}'.format(url, err))
-                        abort(404)
-                    with db_session.no_autoflush:
-                        checksum_m, _ = get_or_create(
-                            db_session, Sha256Checksum,
-                            value=info.pop('value'))
-                    for key, val in info.items():
-                        setattr(checksum_m, key, val)
-                    if url_m is not None:
-                        checksum_m.urls.append(url_m)
-                    db_session.add(checksum_m)
-                    db_session.commit()
-                    current_app.logger.debug(
-                        'SERVER POST:\nurl: {}\nchecksum: {}'.format(
-                            url_m.value, checksum_m.value)
-                    )
+                # TODO
+                raise NotImplementedError
+                with db_session.no_autoflush:
+                    checksum_m = Sha256Checksum.get_or_create(
+                        f_temp.name, session=db_session)[0]
+                if url_m is not None:
+                    checksum_m.urls.append(url_m)
+                db_session.add(checksum_m)
+                db_session.commit()
+                current_app.logger.debug(
+                    'SERVER POST:\nurl: {}\nchecksum: {}'.format(
+                        url_m.value, checksum_m.value)
+                )
             except OperationalError as err:
                 db_session.rollback()
                 current_app.logger.error(traceback.format_exc())
