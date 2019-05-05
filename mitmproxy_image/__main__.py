@@ -589,50 +589,50 @@ class MitmImage:
             logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
         session = DB.session
-        app = create_app(root_path=__file__)
-        if url in self.trash_urls:
-            logger.info(
-                'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-            with app.app_context():
-                u_m = Url.get_or_create(flow.request.url, session)[0]
-                if u_m.check_counter is None:
-                    u_m.check_counter = 1
-                else:
-                    u_m.check_counter += 1
-                session.add(u_m)
-                session.commit()
-            return
-        u_m = None
-        if url in self.url_dict:
-            redirect_url = self.url_dict[url]
-        else:
-            with app.app_context():
-                u_m = Url.get_or_create(flow.request.url, session)[0]
-                sc_m = u_m.checksum
-                redirect_url = 'http://{}:{}/i/{}.{}'.format(
-                    redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                self.url_dict[url]
         try:
-            if flow.request.http_version == 'HTTP/2.0':
-                flow.response = HTTPResponse(
-                    'HTTP/1.1', 302, 'Found',
-                    Headers(Location=redirect_url, Content_Length='0'),
-                    b'')
-                logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                    url, redirect_url))
-            else:
-                flow.request.url = redirect_url
+            app = create_app(root_path=__file__)
+            if url in self.trash_urls:
                 logger.info(
-                    'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-            with app.app_context():
-                if u_m is None:
+                    'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
+                with app.app_context():
                     u_m = Url.get_or_create(flow.request.url, session)[0]
-                if u_m.redirect_counter is None:
-                    u_m.redirect_counter = 1
+                    if u_m.check_counter is None:
+                        u_m.check_counter = 1
+                    else:
+                        u_m.check_counter += 1
+                    session.add(u_m)
+                    session.commit()
+                return
+            u_m = None
+            if url in self.url_dict:
+                redirect_url = self.url_dict[url]
+            else:
+                with app.app_context():
+                    u_m = Url.get_or_create(flow.request.url, session)[0]
+                    sc_m = u_m.checksum
+                    redirect_url = 'http://{}:{}/i/{}.{}'.format(
+                        redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                    self.url_dict[url]
+                if flow.request.http_version == 'HTTP/2.0':
+                    flow.response = HTTPResponse(
+                        'HTTP/1.1', 302, 'Found',
+                        Headers(Location=redirect_url, Content_Length='0'),
+                        b'')
+                    logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                        url, redirect_url))
                 else:
-                    u_m.redirect_counter += 1
-                session.add(u_m)
-                session.commit()
+                    flow.request.url = redirect_url
+                    logger.info(
+                        'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+                with app.app_context():
+                    if u_m is None:
+                        u_m = Url.get_or_create(flow.request.url, session)[0]
+                    if u_m.redirect_counter is None:
+                        u_m.redirect_counter = 1
+                    else:
+                        u_m.redirect_counter += 1
+                    session.add(u_m)
+                    session.commit()
         except Exception as err:
             logger.error('{}: {}'.format(type(err), err))
             logger.error(traceback.format_exc())
@@ -644,51 +644,58 @@ class MitmImage:
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
-        if url in self.trash_urls:
-            logger.debug('Url on trash: {}'.format(url))
-            return
-        if not redirect_host:
-            logger.debug('No redirect host.\nUrl: {}'.format(url))
-        if redirect_host and \
-                flow.request.host == redirect_host and \
-                str(flow.request.port) == str(redirect_port):
-            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
-            return
-        if 'content-type' not in flow.response.headers:
-            logger.debug('Unknown content-type: {}'.format(url))
-            return
-        content_type = flow.response.headers['content-type']
-        ext = content_type.split('/')[1].split(';')[0]
-        invalid_exts = [
-            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
-        if not(content_type.startswith('image') and ext not in invalid_exts):
-            return
-        if url not in self.img_urls:
-            self.img_urls.append(url)
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            with open(f.name, 'wb') as ff:
-                ff.write(flow.response.content)
-            app = create_app(root_path=__file__)
-            session = DB.session
-            with app.app_context():
-                u_m = Url.get_or_create(url, session)[0]
-                if u_m.checksum and u_m.checksum.trash:
-                    self.trash_urls.append(url)
-                    logger.info(
-                        'SKIP TRASH: {}'.format(flow.request.url))
-                    return
-                if u_m.checksum and not u_m.checksum.trash:
-                    sc_m = u_m.checksum
-                    self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
-                        redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                sc_m = Sha256Checksum.get_or_create(f.name, url, session)[0]
-                session.commit()
-                if sc_m.trash and url not in self.trash_urls:
-                    self.trash_urls.append(url)
-                if not sc_m.trash:
-                    self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
-                        redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                logger.info('Url: {}'.format(url))
+        try:
+            if url in self.trash_urls:
+                logger.debug('Url on trash: {}'.format(url))
+                return
+            if not redirect_host:
+                logger.debug('No redirect host.\nUrl: {}'.format(url))
+            if redirect_host and \
+                    flow.request.host == redirect_host and \
+                    str(flow.request.port) == str(redirect_port):
+                logger.info('SKIP REDIRECT SERVER: {}'.format(url))
+                return
+            if 'content-type' not in flow.response.headers:
+                logger.debug('Unknown content-type: {}'.format(url))
+                return
+            content_type = flow.response.headers['content-type']
+            ext = content_type.split('/')[1].split(';')[0]
+            invalid_exts = [
+                'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
+            if not(
+                    content_type.startswith('image') and
+                    ext not in invalid_exts):
+                return
+            if url not in self.img_urls:
+                self.img_urls.append(url)
+            with tempfile.NamedTemporaryFile(delete=False) as f:
+                with open(f.name, 'wb') as ff:
+                    ff.write(flow.response.content)
+                app = create_app(root_path=__file__)
+                session = DB.session
+                with app.app_context():
+                    u_m = Url.get_or_create(url, session)[0]
+                    if u_m.checksum and u_m.checksum.trash:
+                        self.trash_urls.append(url)
+                        logger.info(
+                            'SKIP TRASH: {}'.format(flow.request.url))
+                        return
+                    if u_m.checksum and not u_m.checksum.trash:
+                        sc_m = u_m.checksum
+                        self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
+                            redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                    sc_m = Sha256Checksum.get_or_create(
+                        f.name, u_m, session)[0]
+                    session.commit()
+                    if sc_m.trash and url not in self.trash_urls:
+                        self.trash_urls.append(url)
+                    if not sc_m.trash:
+                        self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
+                            redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                    logger.info('Url: {}'.format(url))
+        except Exception as err:
+            logger.error('{}: {}'.format(type(err), err))
+            logger.error(traceback.format_exc())
 
 
 addons = [
