@@ -212,7 +212,7 @@ class Sha256Checksum(BaseModel):
             instance.trash = False
         if not instance.trash:
             new_filepath = os.path.join(
-                image_dir, hash_value[2],
+                image_dir, hash_value[:2],
                 hash_value + '.{}'.format(instance.ext))
             pathlib.Path(os.path.dirname(
                 new_filepath)).mkdir(parents=True, exist_ok=True)
@@ -288,14 +288,16 @@ def get_or_create(
 def create_app(
         db_uri=DB_URI,
         debug: Optional[bool] = None,
-        testing: Optional[bool] = False
+        testing: Optional[bool] = False,
+        root_path: Optional[str] = None
 ) -> Flask:
     """create app.
 
     >>> app = create_app()
     """
     trf_hdlr = TimedRotatingFileHandler(SERVER_LOG_FILE, when='D', interval=30)
-    app = Flask(__name__)
+    kwargs = {'root_path': root_path} if root_path else {}
+    app = Flask(__name__) if not kwargs else Flask(__name__, **kwargs)
     app.logger.addHandler(trf_hdlr)
     app.config['SWAGGER'] = {
         'title': 'Mitmproxy Image',
@@ -657,171 +659,124 @@ class MitmImage:
     def __init__(self):
         self.img_urls = []
         self.url_dict = {}
-        self.highp_queue = Queue()
-        self.mediump_queue = Queue()
-        self.lowp_queue = Queue()
-        debug = ctx.options.debug if ctx.options else False
-        level = logging.DEBUG if debug else logging.INFO
-        logging.basicConfig(
-            filename=LOG_FILE, filemode='a', level=level)
-        logging.getLogger("hpack.hpack").setLevel(logging.INFO)
-        logging.getLogger("hpack.table").setLevel(logging.INFO)
-        logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
-        logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
-        logging.debug('MitmImage initiated')
-
-    def worker(self):
-        while True:
-            if not self.highp_queue.empty():
-                c_queue = self.highp_queue
-            elif not self.mediump_queue.empty():
-                c_queue = self.mediump_queue
-            elif not self.lowp_queue.empty():
-                c_queue = self.lowp_queue
-            else:
-                break
-            func_item = c_queue.get()
-            try:
-                func_item()
-                time.sleep(5)
-            except Exception as err:
-                logging.error('{}: {}'.format(type(err), err))
-                logging.error(traceback.format_exc())
-            c_queue.task_done()
-
-    def get_url_model(self, url):
-        """Get url model and save it to self.url_dict."""
-        redirect_host = ctx.options.redirect_host
-        redirect_port = ctx.options.redirect_port
-        url_api_endpoint = 'http://{}:{}/api/url'.format(
-            redirect_host, redirect_port)
-        if not redirect_host:
-            return
-        g_resp = requests.get(url_api_endpoint, params={'value': url})
-        try:
-            if g_resp.status_code in (404, 500):
-                raise ValueError("status code error")
-            json_resp = g_resp.json()
-            self.url_dict[url] = json_resp
-        except JSONDecodeError as err:
-            logging.error('{}:{}\n{}:{}\n{}:{}\n{}:{}'.format(
-                type(err), err,
-                'URL', url,
-                'status code', g_resp.status_code,
-                'content', g_resp.content
-            ))
-            return
-        except ValueError:
-            logging.error('{}:{}:{}'.format(
-                'STATUS CODE ERROR', g_resp.status_code, url))
-            return
-
-    def increase_counter(self, data_dict, log_header):
-        """increate url model by send POST."""
-        redirect_host = ctx.options.redirect_host
-        redirect_port = ctx.options.redirect_port
-        url_api_endpoint = 'http://{}:{}/api/url'.format(
-            redirect_host, redirect_port)
-        for key in data_dict:
-            if key == 'value':
-                url = data_dict[key]
-            else:
-                json_kw = key
-        res = requests.post(url_api_endpoint, data=data_dict)
-        if res.status_code == 200:
-            json_res = res.json().get(json_kw, None)
-            try:
-                self.url_dict[url][json_kw] += 1
-            except TypeError:
-                self.url_dict[url][json_kw] = 1
-        else:
-            json_res = '?'
-        logging.info('{}:{}:{}'.format(log_header, json_res, url))
+        self.trash_urls = []
+        debug = ctx.options.debug \
+            if ctx.options and hasattr(ctx.options, 'debug') else None
+        if debug is not None:
+            level = logging.DEBUG if debug else logging.INFO
+            logging.basicConfig(
+                filename=LOG_FILE, filemode='a', level=level)
+            logging.getLogger("hpack.hpack").setLevel(logging.INFO)
+            logging.getLogger("hpack.table").setLevel(logging.INFO)
+            logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+            logging.getLogger("PIL.Image").setLevel(logging.INFO)
+            logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+            logging.debug('MitmImage initiated')
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
+        logger = logging.getLogger('request')
         if not redirect_host:
             return
         url = flow.request.pretty_url
         if url not in self.img_urls:
-            logging.debug('NOT IN IMAGE LIST:{}'.format(url))
             return
         if redirect_host and \
                 flow.request.host == redirect_host and \
                 str(flow.request.port) == str(redirect_port):
-            logging.info('SKIP REDIRECT SERVER: {}'.format(url))
+            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
+            return
+        session = DB.session
+        app = create_app(root_path=__file__)
+        if url in self.trash_urls:
+            logger.info(
+                'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
+            with app.app_context():
+                u_m = Url.get_or_create(flow.request.url, session)[0]
+                if u_m.check_counter is None:
+                    u_m.check_counter = 1
+                else:
+                    u_m.check_counter += 1
+                session.add(u_m)
+                session.commit()
             return
         if url in self.url_dict:
-            json_resp = self.url_dict[url]
+            redirect_url = self.url_dict[url]
         else:
-            self.mediump_queue.put(lambda: self.get_url_model(url))
-            self.worker()
-            return
+            with app.app_context():
+                u_m = Url.get_or_create(flow.request.url, session)[0]
+                sc_m = u_m.checksum
+                redirect_url = 'http://{}:{}/i/{}.{}'.format(
+                    redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                self.url_dict[url]
         try:
-            redirect_url = json_resp['img_url']
-            checksum_trash = json_resp['checksum_trash']
-            data_dict = {'value': url}
-            json_kw = None
-            log_header = None
-            if not checksum_trash:
-                if flow.request.http_version == 'HTTP/2.0':
-                    flow.response = HTTPResponse(
-                        'HTTP/1.1', 302, 'Found',
-                        Headers(Location=redirect_url, Content_Length='0'),
-                        b'')
-                    logging.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                        url, redirect_url))
-                else:
-                    flow.request.url = redirect_url
-                    logging.info(
-                        'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-                json_kw = 'redirect_counter'
-                log_header = 'REDIRECT COUNT'
-            elif checksum_trash:
-                logging.info(
-                    'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-                json_kw = 'check_counter'
-                log_header = 'CHECK COUNT'
+            if flow.request.http_version == 'HTTP/2.0':
+                flow.response = HTTPResponse(
+                    'HTTP/1.1', 302, 'Found',
+                    Headers(Location=redirect_url, Content_Length='0'),
+                    b'')
+                logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                    url, redirect_url))
             else:
-                logging.info(
-                    '{}: url:{}, trash:{}'.format(
-                        'Unknown condition', url, checksum_trash))
-            if json_kw:
-                data_dict[json_kw] = '+1'
-                self.lowp_queue.put(
-                    lambda: self.increase_counter(data_dict, log_header))
+                flow.request.url = redirect_url
+                logger.info(
+                    'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+            with app.app_context():
+                u_m = Url.get_or_create(flow.request.url, session)[0]
+                if u_m.redirect_counter is None:
+                    u_m.redirect_counter = 1
+                else:
+                    u_m.redirect_counter += 1
+                session.add(u_m)
+                session.commit()
         except Exception as err:
-            logging.error('{}: {}'.format(type(err), err))
-            logging.error(traceback.format_exc())
+            logger.error('{}: {}'.format(type(err), err))
+            logger.error(traceback.format_exc())
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
+        logger = logging.getLogger('response')
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
+        if url in self.trash_urls:
+            logger.debug('Url on trash: {}'.format(url))
+            return
         if not redirect_host:
-            logging.debug('No redirect host.\nUrl: {}'.format(url))
+            logger.debug('No redirect host.\nUrl: {}'.format(url))
         if redirect_host and \
                 flow.request.host == redirect_host and \
                 str(flow.request.port) == str(redirect_port):
-            logging.info('SKIP REDIRECT SERVER: {}'.format(url))
+            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
-        if 'content-type' in flow.response.headers:
-            content_type = flow.response.headers['content-type']
-            ext = content_type.split('/')[1].split(';')[0]
-            invalid_exts = [
-                'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
-            if content_type.startswith('image') and ext not in invalid_exts:
-                if url not in self.img_urls:
-                    self.img_urls.append(url)
-                self.highp_queue.put(
-                    lambda: store_flow_content(
-                        flow, redirect_host, redirect_port))
-                self.worker()
-                return
+        if 'content-type' not in flow.response.headers:
+            logger.debug('Unknown content-type: {}'.format(url))
+            return
+        content_type = flow.response.headers['content-type']
+        ext = content_type.split('/')[1].split(';')[0]
+        invalid_exts = [
+            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
+        if not(content_type.startswith('image') and ext not in invalid_exts):
+            return
+        if url not in self.img_urls:
+            self.img_urls.append(url)
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            with open(f.name, 'wb') as ff:
+                ff.write(flow.response.content)
+            app = create_app(root_path=__file__)
+            session = DB.session
+            with app.app_context():
+                sc_m = Sha256Checksum.get_or_create(f.name, url, session)[0]
+                session.commit()
+                if sc_m.trash and url not in self.trash_urls:
+                    self.trash_urls.append(url)
+                if not sc_m.trash:
+                    self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
+                        redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                logger.info('Url: {}'.format(url))
 
 
 addons = [
