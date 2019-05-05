@@ -572,6 +572,7 @@ class MitmImage:
             logging.getLogger("PIL.Image").setLevel(logging.INFO)
             logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
             logging.debug('MitmImage initiated')
+        self.app = create_app(root_path=__file__)
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
@@ -590,7 +591,7 @@ class MitmImage:
             return
         session = DB.session
         try:
-            app = create_app(root_path=__file__)
+            app = self.app
             if url in self.trash_urls:
                 logger.info(
                     'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
@@ -671,7 +672,7 @@ class MitmImage:
             with tempfile.NamedTemporaryFile(delete=False) as f:
                 with open(f.name, 'wb') as ff:
                     ff.write(flow.response.content)
-                app = create_app(root_path=__file__)
+                app = self.app
                 session = DB.session
                 with app.app_context():
                     u_m = Url.get_or_create(url, session)[0]
