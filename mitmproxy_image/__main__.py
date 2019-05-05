@@ -590,8 +590,6 @@ class MitmImage:
         if not redirect_host:
             return
         url = flow.request.pretty_url
-        if url not in self.img_urls:
-            return
         if redirect_host and \
                 flow.request.host == redirect_host and \
                 str(flow.request.port) == str(redirect_port):
@@ -613,18 +611,26 @@ class MitmImage:
                     session.commit()
                 return
             u_m = None
+            if url not in self.img_urls:
+                with app.app_context():
+                    u_m = \
+                        session.query(Url) \
+                        .filter_by(value=flow.request.url).one_or_none()
+            if url not in self.img_urls and not u_m:
+                return
             if url in self.url_dict:
                 redirect_url = self.url_dict[url]
             else:
                 with app.app_context():
-                    u_m = Url.get_or_create(flow.request.url, session)[0]
+                    if u_m is not None:
+                        u_m = Url.get_or_create(flow.request.url, session)[0]
                     sc_m = u_m.checksum
                     if not sc_m:
                         logger.debug('No file: {}'.format(url))
                         return
                     redirect_url = 'http://{}:{}/i/{}.{}'.format(
                         redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                    self.url_dict[url]
+                    self.url_dict[url] = redirect_url
             if flow.request.http_version == 'HTTP/2.0':
                 flow.response = HTTPResponse(
                     'HTTP/1.1', 302, 'Found',
@@ -665,7 +671,7 @@ class MitmImage:
             if redirect_host and \
                     flow.request.host == redirect_host and \
                     str(flow.request.port) == str(redirect_port):
-                logger.info('SKIP REDIRECT SERVER: {}'.format(url))
+                logger.debug('SKIP REDIRECT SERVER: {}'.format(url))
                 return
             if 'content-type' not in flow.response.headers:
                 logger.debug('Unknown content-type: {}'.format(url))
