@@ -7,9 +7,7 @@ https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
 from datetime import datetime, date
-from io import BytesIO, BufferedIOBase
 from logging.handlers import TimedRotatingFileHandler
-import hashlib
 import logging
 import os
 import pathlib
@@ -17,7 +15,7 @@ import shutil
 import tempfile
 import traceback
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Union, Tuple, TypeVar
+from typing import Any, Optional, Union, Tuple, TypeVar
 
 from appdirs import user_data_dir
 from flasgger import Swagger
@@ -108,16 +106,18 @@ class Sha256Checksum(BaseModel):
     @staticmethod
     def get_or_create(
             filepath: str,
-            url: Optional[str] = None,
+            url: Optional[Union[str, UrlVar]] = None,
             session: Optional[scoped_session] = None,
             image_dir: Optional[str] = IMAGE_DIR
     ) -> Tuple[Sha256ChecksumVar, bool]:
         hash_value = hash_file(filepath, 'sha256')
         instance, created = get_or_create(
             session, Sha256Checksum, value=hash_value)
-        if url:
+        if url and isinstance(url, str):
             url_m = get_or_create(session, Url, value=url)[0]
             instance.urls.append(url_m)
+        elif url and isinstance(url, Url):
+            url_m = url
         if created:
             instance.filesize = os.path.getsize(filepath)
             pil_img = Image.open(filepath)
