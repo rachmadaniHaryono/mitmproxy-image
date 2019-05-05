@@ -582,7 +582,7 @@ class MitmImage:
             logging.debug('MitmImage initiated')
         self.app = create_app(root_path=__file__, log_file=None)
 
-    #  @concurrent
+    @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
@@ -700,8 +700,23 @@ class MitmImage:
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
                     if not sc_m:
                         with session.no_autoflush:
-                            sc_m = Sha256Checksum.get_or_create(
-                                f.name, u_m, session)[0]
+                            try:
+                                sc_m = Sha256Checksum.get_or_create(
+                                    f.name, u_m, session)[0]
+                            except OSError as err:
+                                exp_txt = 'cannot identify image file'
+                                if str(err).startswith(exp_txt):
+                                    dbg_tmpl = \
+                                        '{}:{}\nurl: {}\nfile: {}\n' \
+                                        'filesize: {}'
+                                    logger.debug(dbg_tmpl.format(
+                                        type(err), err,
+                                        flow.request.url,
+                                        f.name,
+                                        os.path.getsize(f.name)
+                                    ))
+                                else:
+                                    raise err
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
                         session.commit()
