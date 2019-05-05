@@ -609,7 +609,7 @@ class MitmImage:
         session = DB.session
         try:
             app = self.app
-            if url in self.trash_urls:
+            if flow.request.url in self.trash_urls:
                 logger.info(
                     'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
                 with app.app_context():
