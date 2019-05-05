@@ -21,7 +21,7 @@ from appdirs import user_data_dir
 from flasgger import Swagger
 from flask.cli import FlaskGroup
 from flask_admin import Admin, AdminIndexView
-from mitmproxy import ctx, http
+from mitmproxy import ctx, http, command
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
@@ -753,6 +753,14 @@ class MitmImage:
         except Exception as err:
             logger.error('{}: {}'.format(type(err), err))
             logger.error(traceback.format_exc())
+
+    @command.command('mitmimage.test_log')
+    def test_log(self) -> None:
+        logger = logging.getLogger('test_log')
+        logger.debug('debug log')
+        logger.info('info log')
+        logger.warning('warning log')
+        logger.error('error log')
 
 
 addons = [
