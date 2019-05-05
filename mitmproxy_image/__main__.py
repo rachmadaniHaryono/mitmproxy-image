@@ -548,25 +548,6 @@ def store_flow_content(flow, redirect_host, redirect_port):
         raise err
 
 
-def load(loader):
-    loader.add_option(
-        name="redirect_host",
-        typespec=Optional[str],
-        default='127.0.0.1',
-        help="Server host for redirect.",
-    )
-    loader.add_option(
-        name="redirect_port",
-        typespec=Optional[int],
-        default=5012,
-        help="Server port for redirect.",
-    )
-    loader.add_option(
-        name="debug",
-        typespec=bool,
-        default=False,
-        help="Turn on debugging.",
-    )
 
 
 class MitmImage:
@@ -575,6 +556,26 @@ class MitmImage:
         self.img_urls = []
         self.url_dict = {}
         self.trash_urls = []
+
+    def load(self, loader):
+        loader.add_option(
+            name="redirect_host",
+            typespec=Optional[str],
+            default='127.0.0.1',
+            help="Server host for redirect.",
+        )
+        loader.add_option(
+            name="redirect_port",
+            typespec=Optional[int],
+            default=5012,
+            help="Server port for redirect.",
+        )
+        loader.add_option(
+            name="debug",
+            typespec=bool,
+            default=False,
+            help="Turn on debugging.",
+        )
         debug = ctx.options.debug \
             if ctx.options and hasattr(ctx.options, 'debug') else None
         if debug is not None:
@@ -586,7 +587,7 @@ class MitmImage:
             logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
             logging.getLogger("PIL.Image").setLevel(logging.INFO)
             logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
-            logging.debug('MitmImage initiated')
+        logging.info('MitmImage initiated')
         self.app = create_app(root_path=__file__, log_file=None)
 
     @concurrent
