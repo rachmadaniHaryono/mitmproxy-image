@@ -597,6 +597,10 @@ class MitmImage:
         if not redirect_host:
             return
         url = flow.request.pretty_url
+        if url != flow.request.url:
+            logger.debug('pretty url: {}\nurl: {}'.format(
+                url, flow.request.url
+            ))
         if redirect_host and \
                 flow.request.host == redirect_host and \
                 str(flow.request.port) == str(redirect_port):
