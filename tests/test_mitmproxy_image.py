@@ -6,7 +6,6 @@ import pytest
 
 from mitmproxy_image.__main__ import (
     create_app,
-    process_info,
     DB,
     Sha256Checksum,
     Url,
@@ -95,31 +94,6 @@ def test_get_or_create_sha256checksum_model(tmp_path):
                 '71bfa82'
                 '54d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe',
             'width': 60}
-
-
-def test_process_info(tmp_path):
-    from PIL import Image
-    exp_res = {
-        'ext': 'jpeg',
-        'filesize': 661,
-        'height': 30,
-        'img_format': 'JPEG',
-        'img_mode': 'RGB',
-        'value':
-        '71bfa8254d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe',
-        'width': 60}
-    img = Image.new('RGB', (60, 30), color='red')
-    test_img = tmp_path / 'test.jpg'
-    test_dir = tmp_path / 'test_dir'
-    test_dir.mkdir()
-    img.save(test_img)
-    with open(test_img, 'rb') as f:
-        res = process_info(f, folder=test_dir)
-    assert exp_res == res
-    exp_file = test_dir / '71' / \
-        '71bfa8254d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe' \
-        '.jpeg'
-    assert exp_file.is_file()
 
 
 @pytest.mark.parametrize('use_file', [True, False])
