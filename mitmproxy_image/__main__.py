@@ -30,6 +30,7 @@ from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.scoping import scoped_session
+from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils.types import URLType
@@ -629,11 +630,22 @@ class MitmImage:
                 redirect_url = self.url_dict[url]
             else:
                 with app.app_context():
-                    if u_m is not None:
+                    if u_m is None:
                         u_m = Url.get_or_create(flow.request.url, session)[0]
-                    sc_m = u_m.checksum
+                    try:
+                        sc_m = u_m.checksum
+                    except DetachedInstanceError:
+                        u_m = Url.get_or_create(
+                            flow.request.url, session)[0]
+                        sc_m = u_m.checksum
                     if not sc_m:
                         logger.info('No file: {}'.format(url))
+                        return
+                    elif sc_m.trash:
+                        logger.info(
+                            'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
+                        if flow.request.url not in self.trash_urls:
+                            self.trash_urls.append(flow.request.url)
                         return
                     redirect_url = 'http://{}:{}/i/{}.{}'.format(
                         redirect_host, redirect_port, sc_m.value, sc_m.ext)
@@ -679,7 +691,7 @@ class MitmImage:
                 logger.info('SKIP REDIRECT SERVER: {}'.format(url))
                 return
             if 'content-type' not in flow.response.headers:
-                logger.info('Unknown content-type: {}'.format(url))
+                logger.debug('Unknown content-type: {}'.format(url))
                 return
             content_type = flow.response.headers['content-type']
             ext = content_type.split('/')[1].split(';')[0]
