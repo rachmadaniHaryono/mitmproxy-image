@@ -702,14 +702,12 @@ class MitmImage:
                         with session.no_autoflush:
                             sc_m = Sha256Checksum.get_or_create(
                                 f.name, u_m, session)[0]
-                        session.commit()
-                        logger.info('Url: {}'.format(url))
-                    if sc_m.trash and url not in self.trash_urls:
-                        self.trash_urls.append(url)
-                    if not sc_m.trash:
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                        session.commit()
                         logger.info('Url inbox: {}'.format(url))
+                    if sc_m.trash and url not in self.trash_urls:
+                        self.trash_urls.append(url)
         except Exception as err:
             logger.error('{}: {}'.format(type(err), err))
             logger.error(traceback.format_exc())
