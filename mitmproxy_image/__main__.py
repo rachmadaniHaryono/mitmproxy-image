@@ -205,16 +205,19 @@ def create_app(
         db_uri=DB_URI,
         debug: Optional[bool] = None,
         testing: Optional[bool] = False,
-        root_path: Optional[str] = None
+        root_path: Optional[str] = None,
+        log_file: Optional[Union[str, None]] = SERVER_LOG_FILE
 ) -> Flask:
     """create app.
 
     >>> app = create_app()
     """
-    trf_hdlr = TimedRotatingFileHandler(SERVER_LOG_FILE, when='D', interval=30)
     kwargs = {'root_path': root_path} if root_path else {}
     app = Flask(__name__) if not kwargs else Flask(__name__, **kwargs)
-    app.logger.addHandler(trf_hdlr)
+    if log_file:
+        trf_hdlr = TimedRotatingFileHandler(
+            SERVER_LOG_FILE, when='D', interval=30)
+        app.logger.addHandler(trf_hdlr)
     app.config['SWAGGER'] = {
         'title': 'Mitmproxy Image',
         'uiversion': 2
@@ -250,6 +253,11 @@ def create_app(
     app.add_url_rule(
         '/api/url', 'url_list', url_list, methods=['GET', 'POST'])
     app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
+
+    def test():
+        app.logger.debug('test page')
+        return 'hello world'
+    app.add_url_rule('/test', 'test', test)
 
     Admin(
         app, name='Mitmproxy-Image', template_mode='bootstrap3',
@@ -572,9 +580,9 @@ class MitmImage:
             logging.getLogger("PIL.Image").setLevel(logging.INFO)
             logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
             logging.debug('MitmImage initiated')
-        self.app = create_app(root_path=__file__)
+        self.app = create_app(root_path=__file__, log_file=None)
 
-    @concurrent
+    #  @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
@@ -611,29 +619,32 @@ class MitmImage:
                 with app.app_context():
                     u_m = Url.get_or_create(flow.request.url, session)[0]
                     sc_m = u_m.checksum
+                    if not sc_m:
+                        logger.debug('No file: {}'.format(url))
+                        return
                     redirect_url = 'http://{}:{}/i/{}.{}'.format(
                         redirect_host, redirect_port, sc_m.value, sc_m.ext)
                     self.url_dict[url]
-                if flow.request.http_version == 'HTTP/2.0':
-                    flow.response = HTTPResponse(
-                        'HTTP/1.1', 302, 'Found',
-                        Headers(Location=redirect_url, Content_Length='0'),
-                        b'')
-                    logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                        url, redirect_url))
+            if flow.request.http_version == 'HTTP/2.0':
+                flow.response = HTTPResponse(
+                    'HTTP/1.1', 302, 'Found',
+                    Headers(Location=redirect_url, Content_Length='0'),
+                    b'')
+                logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                    url, redirect_url))
+            else:
+                flow.request.url = redirect_url
+                logger.info(
+                    'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+            with app.app_context():
+                if u_m is None:
+                    u_m = Url.get_or_create(flow.request.url, session)[0]
+                if u_m.redirect_counter is None:
+                    u_m.redirect_counter = 1
                 else:
-                    flow.request.url = redirect_url
-                    logger.info(
-                        'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-                with app.app_context():
-                    if u_m is None:
-                        u_m = Url.get_or_create(flow.request.url, session)[0]
-                    if u_m.redirect_counter is None:
-                        u_m.redirect_counter = 1
-                    else:
-                        u_m.redirect_counter += 1
-                    session.add(u_m)
-                    session.commit()
+                    u_m.redirect_counter += 1
+                session.add(u_m)
+                session.commit()
         except Exception as err:
             logger.error('{}: {}'.format(type(err), err))
             logger.error(traceback.format_exc())
@@ -669,7 +680,8 @@ class MitmImage:
                 return
             if url not in self.img_urls:
                 self.img_urls.append(url)
-            with tempfile.NamedTemporaryFile(delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                    delete=False, suffix='.{}'.format(ext)) as f:
                 with open(f.name, 'wb') as ff:
                     ff.write(flow.response.content)
                 app = self.app
@@ -681,19 +693,23 @@ class MitmImage:
                         logger.info(
                             'SKIP TRASH: {}'.format(flow.request.url))
                         return
+                    sc_m = None
                     if u_m.checksum and not u_m.checksum.trash:
                         sc_m = u_m.checksum
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                    sc_m = Sha256Checksum.get_or_create(
-                        f.name, u_m, session)[0]
-                    session.commit()
+                    if not sc_m:
+                        with session.no_autoflush:
+                            sc_m = Sha256Checksum.get_or_create(
+                                f.name, u_m, session)[0]
+                        session.commit()
+                        logger.info('Url: {}'.format(url))
                     if sc_m.trash and url not in self.trash_urls:
                         self.trash_urls.append(url)
                     if not sc_m.trash:
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                    logger.info('Url: {}'.format(url))
+                        logger.info('Url inbox: {}'.format(url))
         except Exception as err:
             logger.error('{}: {}'.format(type(err), err))
             logger.error(traceback.format_exc())
