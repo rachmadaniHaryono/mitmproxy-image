@@ -8,16 +8,13 @@ https://stackoverflow.com/a/44873382/1766261
 """
 from datetime import datetime, date
 from io import BytesIO, BufferedIOBase
-from json.decoder import JSONDecodeError
 from logging.handlers import TimedRotatingFileHandler
-from queue import Queue
 import hashlib
 import logging
 import os
 import pathlib
 import shutil
 import tempfile
-import time
 import traceback
 import sys
 from typing import Any, Dict, Iterable, List, Optional, Union, Tuple, TypeVar
@@ -52,104 +49,23 @@ import click
 import requests
 
 
+# app dir
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
+# log
 LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
 SERVER_LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image_server.log')
+# db
 DB_PATH = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
 DB_URI = 'sqlite:///{}'.format(DB_PATH)
+DB = SQLAlchemy()
+# annotation
 Sha256ChecksumVar = TypeVar('Sha256ChecksumVar', bound='Sha256Checksum')
 UrlVar = TypeVar('UrlVar', bound='Url')
 
 
-def chunks(l: List[Any], n: int) -> Iterable[Any]:
-    """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
-
-
-def process_info(
-        file_obj: Union[http.HTTPFlow, BufferedIOBase],
-        ext: Optional[str] = None,
-        use_chunks: Optional[bool] = True,
-        move_file: Optional[bool] = True,
-        folder: Optional[Union[str, pathlib.Path]] = IMAGE_DIR
-) -> Dict[str, Any]:
-    """Process info.
-
-    Example using mitmproxy `flow`:
-    >>> process_info(flow.response.content)  # doctest: +SKIP
-
-    Use file object and move the file into folder:
-    >>> with open(image, 'rb') as f:  # doctest: +SKIP
-    >>>     process_info(f)  # doctest: +SKIP
-
-    To only calculate the file, set `move_file` to `False`:
-    >>> with open(image, 'rb') as f:  # doctest: +SKIP
-    >>>     process_info(f, move_file=False)   # doctest: +SKIP
-    """
-    h = hashlib.sha256()
-    block = 128*1024
-    s = BytesIO()
-    res = {}
-    if use_chunks and hasattr(file_obj, 'len'):
-        file_iter = chunks(file_obj, block)
-    else:
-        file_iter = iter(lambda: file_obj.read(block), b'')
-    try:
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            temp_fname = f.name
-            with open(temp_fname, 'wb', buffering=0) as f_temp:
-                for b in file_iter:
-                    h.update(b)
-                    f_temp.write(b)
-                    s.write(b)
-                try:
-                    img = Image.open(s)
-                except OSError:
-                    s.seek(0, os.SEEK_END)
-                    img = Image.open(s)
-            s.seek(0, os.SEEK_END)
-            filesize = s.tell()
-            sha256_csum = h.hexdigest()
-            if not ext:
-                ext = img.format.lower()
-            if move_file:
-                new_bname = '{}.{}'.format(sha256_csum, ext)
-                if isinstance(folder, pathlib.Path):
-                    parent_folder = folder / sha256_csum[:2]
-                    new_fname = parent_folder / new_bname
-                    parent_folder.mkdir(parents=True, exist_ok=True)
-                    shutil.move(temp_fname, new_fname.as_posix())
-                else:
-                    parent_folder = os.path.join(folder, sha256_csum[:2])
-                    new_fname = os.path.join(parent_folder, new_bname)
-                    pathlib.Path(
-                        parent_folder).mkdir(parents=True, exist_ok=True)
-                    shutil.move(temp_fname, new_fname)
-                logging.info('DONE:{}'.format(new_fname))
-            else:
-                logging.info('ANALYZED:{}'.format(sha256_csum))
-        res = {
-            'value': sha256_csum,
-            'filesize': filesize,
-            'ext': ext,
-            'width': img.size[0],
-            'height': img.size[1],
-            'img_format': img.format,
-            'img_mode': img.mode
-        }
-    except Exception as err:
-        logging.error(traceback.format_exc())
-        logging.error('{}:{}'.format(type(err), err))
-        raise err
-    return res
-
-
 # MODEL
-DB = SQLAlchemy()
-
 
 class BaseModel(DB.Model):
     __abstract__ = True
