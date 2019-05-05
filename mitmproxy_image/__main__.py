@@ -494,18 +494,11 @@ def scan_image_folder():
             for item in pg_missing_items:
                 file_path = os.path.join(
                     IMAGE_DIR, item['value'][:2], item['basename'])
-                with open(file_path, 'rb') as f:
-                    info = process_info(f, use_chunks=False, move_file=False)
-                    if info['value'] != item['value']:
-                        # TODO move file
-                        raise ValueError
-                    checksum_m, _ = get_or_create(
-                        db_session, Sha256Checksum,
-                        value=info.pop('value'))
-                    for key, val in info.items():
-                        setattr(checksum_m, key, val)
-                    checksum_m.trash = False
-                    csm_ms.append(checksum_m)
+                checksum_m = Sha256Checksum.get_or_create(
+                    file_path, session=db_session)[0]
+                #  if info['value'] != item['value']:  # TODO
+                checksum_m.trash = False
+                csm_ms.append(checksum_m)
         db_session.add_all(csm_ms)
         db_session.commit()
 
