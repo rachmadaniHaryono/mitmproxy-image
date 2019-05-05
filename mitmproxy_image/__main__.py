@@ -65,7 +65,7 @@ UrlVar = TypeVar('UrlVar', bound='Url')
 
 # MODEL
 
-class BaseModel(DB.Model):
+class BaseModel(DB.Model):  # type: ignore
     __abstract__ = True
     id = DB.Column(DB.Integer, primary_key=True)
     created_at = DB.Column(
@@ -108,7 +108,7 @@ class Sha256Checksum(BaseModel):
             filepath: str,
             url: Optional[Union[str, UrlVar]] = None,
             session: Optional[scoped_session] = None,
-            image_dir: Optional[str] = IMAGE_DIR
+            image_dir: Union[str, 'os.PathLike[str]'] = IMAGE_DIR
     ) -> Tuple[Sha256ChecksumVar, bool]:
         hash_value = hash_file(filepath, 'sha256')
         instance, created = get_or_create(
@@ -118,6 +118,7 @@ class Sha256Checksum(BaseModel):
             instance.urls.append(url_m)
         elif url and isinstance(url, Url):
             url_m = url
+            instance.urls.append(url_m)
         if created:
             instance.filesize = os.path.getsize(filepath)
             pil_img = Image.open(filepath)
@@ -213,7 +214,9 @@ def create_app(
     >>> app = create_app()
     """
     kwargs = {'root_path': root_path} if root_path else {}
-    app = Flask(__name__) if not kwargs else Flask(__name__, **kwargs)
+    app = \
+        Flask(__name__) \
+        if not kwargs else Flask(__name__, **kwargs)  # type: ignore
     if log_file:
         trf_hdlr = TimedRotatingFileHandler(
             SERVER_LOG_FILE, when='D', interval=30)
@@ -556,7 +559,7 @@ def load(loader):
     )
     loader.add_option(
         name="debug",
-        typespec=Optional[bool],
+        typespec=bool,
         default=False,
         help="Turn on debugging.",
     )
@@ -602,7 +605,8 @@ class MitmImage:
                 logger.info(
                     'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
                 with app.app_context():
-                    u_m = Url.get_or_create(flow.request.url, session)[0]
+                    args = flow.request.url, session
+                    u_m = Url.get_or_create(*args)[0]  # type: Any
                     if u_m.check_counter is None:
                         u_m.check_counter = 1
                     else:
@@ -626,7 +630,7 @@ class MitmImage:
                         u_m = Url.get_or_create(flow.request.url, session)[0]
                     sc_m = u_m.checksum
                     if not sc_m:
-                        logger.debug('No file: {}'.format(url))
+                        logger.info('No file: {}'.format(url))
                         return
                     redirect_url = 'http://{}:{}/i/{}.{}'.format(
                         redirect_host, redirect_port, sc_m.value, sc_m.ext)
@@ -664,17 +668,15 @@ class MitmImage:
         url = flow.request.pretty_url
         try:
             if url in self.trash_urls:
-                logger.debug('Url on trash: {}'.format(url))
+                logger.info('Url on trash: {}'.format(url))
                 return
-            if not redirect_host:
-                logger.debug('No redirect host.\nUrl: {}'.format(url))
             if redirect_host and \
                     flow.request.host == redirect_host and \
                     str(flow.request.port) == str(redirect_port):
-                logger.debug('SKIP REDIRECT SERVER: {}'.format(url))
+                logger.info('SKIP REDIRECT SERVER: {}'.format(url))
                 return
             if 'content-type' not in flow.response.headers:
-                logger.debug('Unknown content-type: {}'.format(url))
+                logger.info('Unknown content-type: {}'.format(url))
                 return
             content_type = flow.response.headers['content-type']
             ext = content_type.split('/')[1].split(';')[0]
@@ -693,13 +695,13 @@ class MitmImage:
                 app = self.app
                 session = DB.session
                 with app.app_context():
-                    u_m = Url.get_or_create(url, session)[0]
+                    u_m = Url.get_or_create(url, session)[0]  # type: Any
                     if u_m.checksum and u_m.checksum.trash:
                         self.trash_urls.append(url)
                         logger.info(
                             'SKIP TRASH: {}'.format(flow.request.url))
                         return
-                    sc_m = None
+                    sc_m = None  # type: Any
                     if u_m.checksum and not u_m.checksum.trash:
                         sc_m = u_m.checksum
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
