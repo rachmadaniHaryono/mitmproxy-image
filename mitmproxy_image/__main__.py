@@ -702,6 +702,7 @@ class MitmImage:
                 session.add(u_m)
                 session.commit()
             return
+        u_m = None
         if url in self.url_dict:
             redirect_url = self.url_dict[url]
         else:
@@ -724,7 +725,8 @@ class MitmImage:
                 logger.info(
                     'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
             with app.app_context():
-                u_m = Url.get_or_create(flow.request.url, session)[0]
+                if u_m is None:
+                    u_m = Url.get_or_create(flow.request.url, session)[0]
                 if u_m.redirect_counter is None:
                     u_m.redirect_counter = 1
                 else:
