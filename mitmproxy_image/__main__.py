@@ -673,7 +673,15 @@ class MitmImage:
                 else:
                     u_m.redirect_counter += 1
                 session.add(u_m)
-                session.commit()
+                try:
+                    session.commit()
+                except OperationalError:
+                    logger.warning(
+                        'OperationalError: {}\n'
+                        'redirect_counter, check_counter:{}, {}'.format(
+                            flow.request.url,
+                            u_m.redirect_counter,
+                            u_m.check_counter))
         except Exception as err:
             logger.error('{}: {}'.format(type(err), err))
             logger.error(traceback.format_exc())
