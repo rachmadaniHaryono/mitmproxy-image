@@ -15,6 +15,7 @@ import shutil
 import tempfile
 import traceback
 import sys
+import shlex
 from typing import Any, Optional, Union, Tuple, TypeVar
 
 from appdirs import user_data_dir
@@ -25,6 +26,7 @@ from mitmproxy import ctx, http, command
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
+from mitmproxy.tools._main import mitmproxy
 from hashfile import hash_file
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
@@ -516,6 +518,36 @@ def scan_image_folder():
                 csm_ms.append(checksum_m)
         db_session.add_all(csm_ms)
         db_session.commit()
+
+
+@cli.command('run-mitmproxy')
+@click.option('--listen-host', default='127.0.0.1', help='Host for mitmproxy')
+@click.option('--listen-port', default=5007, help='Host for mitmproxy')
+@click.option('--debug', is_flag=True, help='Debug')
+@click.option('--redirect-host', default='127.0.0.1', help='Host for mitmproxy')  # NOQA
+@click.option('--redirect-port', default=5012, help='Host for mitmproxy')
+def run_mitmproxy(
+        listen_host: Optional[str] = '127.0.0.1',
+        listen_port: Optional[int] = 5007,
+        debug: Optional[bool] = False,
+        redirect_host: Optional[str] = '127.0.0.1',
+        redirect_port: Optional[int] = 5012
+):
+    assert listen_host, 'Listen host required'
+    args_lines = ['--listen-host {}'.format(listen_host)]
+    if listen_port:
+        args_lines.append('--listen-port {}'.format(listen_port))
+    args_lines.append('-s {}'.format(__file__))
+    if debug:
+        args_lines.append('--set=debug=true')
+    if redirect_host:
+        args_lines.append(
+            '--set=redirect_host={}'.format(shlex.quote(redirect_host)))
+    if redirect_port:
+        args_lines.append(
+            '--set=redirect_port={}'.format(shlex.quote(str(redirect_port))))
+    __import__('pdb').set_trace()
+    mitmproxy(shlex.split(' '.join(args_lines)))
 
 
 def store_flow_content(flow, redirect_host, redirect_port):
