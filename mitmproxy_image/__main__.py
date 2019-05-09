@@ -792,7 +792,12 @@ class MitmImage:
                                     raise err
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                        session.commit()
+                        try:
+                            session.commit()
+                        except OperationalError as err:
+                            logger.error('{}: {}\nerror: {}'.format(
+                                type(err), url, str(err)))
+                            return
                         logger.info('Url inbox: {}'.format(url))
                     if sc_m.trash and url not in self.trash_urls:
                         self.trash_urls.append(url)
