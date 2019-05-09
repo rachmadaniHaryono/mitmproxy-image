@@ -546,7 +546,6 @@ def run_mitmproxy(
     if redirect_port:
         args_lines.append(
             '--set=redirect_port={}'.format(shlex.quote(str(redirect_port))))
-    __import__('pdb').set_trace()
     mitmproxy(shlex.split(' '.join(args_lines)))
 
 
