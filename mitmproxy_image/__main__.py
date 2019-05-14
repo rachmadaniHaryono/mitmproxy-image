@@ -30,7 +30,7 @@ from mitmproxy.tools._main import mitmproxy
 from hashfile import hash_file
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql import func  # type: ignore  # NOQA
@@ -579,8 +579,6 @@ def store_flow_content(flow, redirect_host, redirect_port):
         raise err
 
 
-
-
 class MitmImage:
 
     def __init__(self):
@@ -709,12 +707,15 @@ class MitmImage:
                 session.add(u_m)
                 try:
                     session.commit()
-                except OperationalError:
+                except (OperationalError, IntegrityError) as err:
                     logger.warning(
-                        'OperationalError: {}\n'
+                        '{}: {}\n'
+                        'error: {}\n'
                         'redirect_counter, check_counter: {}, {}\n'
                         'host, port: {}, {}'.format(
+                            type(err),
                             flow.request.url,
+                            err,
                             redirect_counter,
                             check_counter,
                             flow.request.host,
@@ -794,7 +795,7 @@ class MitmImage:
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
                         try:
                             session.commit()
-                        except OperationalError as err:
+                        except (OperationalError, IntegrityError) as err:
                             logger.error('{}: {}\nerror: {}'.format(
                                 type(err), url, str(err)))
                             return
