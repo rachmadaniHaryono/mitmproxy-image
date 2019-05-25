@@ -549,36 +549,6 @@ def run_mitmproxy(
     mitmproxy(shlex.split(' '.join(args_lines)))
 
 
-def store_flow_content(flow, redirect_host, redirect_port):
-    """Store flow content by post it to server.
-
-    >>> store_flow_content(flow, '127.0.0.1', 5012)  # doctest: +SKIP
-    """
-    # check url in database
-    url = flow.request.pretty_url
-    url_api_endpoint = 'http://{}:{}/api/url'.format(
-        redirect_host, redirect_port)
-    checksum_api_endpoint = 'http://{}:{}/api/sha256_checksum'.format(
-        redirect_host, redirect_port)
-    s = requests.Session()
-    try:
-        g_resp = s.get(url_api_endpoint, data={'value': url})
-        if g_resp.status_code != 404:
-            return
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            with open(f.name, 'wb') as ff:
-                ff.write(flow.response.content)
-            files = {'file': open(f.name, 'rb')}
-            post_resp = s.post(
-                checksum_api_endpoint, files=files, data={'url': url})
-            if post_resp.status_code == 200:
-                logging.info('URL DONE:{}'.format(flow.request.pretty_url))
-    except Exception as err:
-        logging.error('{}: {}'.format(type(err), err))
-        logging.error(traceback.format_exc())
-        raise err
-
-
 class MitmImage:
 
     def __init__(self):
