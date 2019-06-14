@@ -21,22 +21,23 @@ from typing import Any, Optional, Union, Tuple, TypeVar
 from appdirs import user_data_dir
 from flasgger import Swagger
 from flask.cli import FlaskGroup
+from flask.views import MethodView
 from flask_admin import Admin, AdminIndexView
+from flask_sqlalchemy import SQLAlchemy
+from hashfile import hash_file
 from mitmproxy import ctx, http, command
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
 from mitmproxy.tools._main import mitmproxy
-from hashfile import hash_file
 from PIL import Image
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.exc import DetachedInstanceError
+from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
-from sqlalchemy_utils.types import URLType
 from sqlalchemy_utils import database_exists
+from sqlalchemy_utils.types import URLType
 from flask import (
     abort,
     current_app,
@@ -256,11 +257,17 @@ def create_app(
             'Sha256Checksum': Sha256Checksum, 'Url': Url,
         }
 
+    # route
+    sha256_checksum_view = Sha256ChecksumView.as_view('sha256_checksum')
     app.add_url_rule(
-        '/api/sha256_checksum', 'sha256_checksum_list',
-        sha256_checksum_list, methods=['GET', 'POST'])
+        '/api/sha256_checksum',
+        view_func=sha256_checksum_view,
+        methods=['GET', 'POST'])
+    url_view = UrlView.as_view('url_view')
     app.add_url_rule(
-        '/api/url', 'url_list', url_list, methods=['GET', 'POST'])
+        '/api/url',
+        view_func=url_view,
+        methods=['GET', 'POST'])
     app.add_url_rule('/i/<path:filename>', 'image_url', image_url)
 
     def test():
@@ -275,69 +282,61 @@ def create_app(
     return app
 
 
-def url_list():
-    db_session = DB.session
-    if flask_request.method == 'POST':
-        url_value = flask_request.form.get('value', None)
-    else:
-        url_value = flask_request.args.get('value', None)
-    if url_value is None and flask_request == 'GET':
-        return jsonify([x.to_dict() for x in db_session.query(Url).all()])
-    if url_value is None and flask_request == 'POST':
-        abort(404)
-        return
-    res = {}
-    try:
-        url_m = db_session.query(Url).filter_by(value=url_value).one_or_none()
-        if url_m is None and flask_request.method == 'POST':
-            url_m = Url.get_or_create(value=url_value, session=db_session)[0]
-            db_session.commit()
-        elif url_m is None:
-            abort(404)
-            return
-        res = url_m.to_dict()
-        if url_m.checksum:
-            res['checksum_value'] = url_m.checksum_value
-            res['checksum_trash'] = url_m.checksum_trash
-        if flask_request.method == 'POST':
-            for key in ('redirect_counter''check_counter'):
-                var = flask_request.form.get(key, None)
-                if var and var == '+1':
-                    if getattr(url_m, key, None) is None:
-                        setattr(url_m, key)
-                    else:
-                        setattr(url_m, key, getattr(url_m, key) + 1)
-                elif var:
-                    current_app.logger.error('Unknown input:{}:{}'.format(
-                        key, var))
-            db_session.add(url_m)
-            db_session.commit()
-            res['redirect_counter'] = url_m.redirect_counter
-            res['check_counter'] = url_m.check_counter
-    except OperationalError as err:
-        current_app.logger.error(traceback.format_exc())
-        current_app.logger.error('{}:{}\n{}:{}'.format(
-            type(err), err, 'URL', url_value))
-        res['error'] = str(err)
-        db_session.rollback()
-    finally:
-        db_session.close()
-    return jsonify(res)
+class Sha256ChecksumView(MethodView):
 
+    def get(self):
+        db_session = DB.session
+        input_query = flask_request.args.get('q')
+        qs_dict = {}
+        if input_query is not None:
+            for item in input_query.split():
+                if ':' not in item:
+                    continue
+                parts = item.split(':', 1)
+                qs_dict[parts[0]] = parts[1]
+        #  initial value
+        per_page = 200
+        created_at = None
+        # per_page
+        per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', per_page))
+        per_page = int(flask_request.args.get('per_page', per_page))
+        per_page = int(qs_dict.get('per_page', per_page))
+        # created_at
+        created_at = flask_request.args.get('created_at', created_at)
+        created_at = qs_dict.get('created_at', created_at)
+        # other args
+        page = int(flask_request.args.get('page', 1))
+        res = {}
+        try:
+            dsq = db_session.query(Sha256Checksum) \
+                .filter_by(trash=False) \
+                .order_by(Sha256Checksum.created_at.desc())
+            if created_at is not None and created_at == 'today':
+                dsq = dsq.filter(
+                    func.DATE(Sha256Checksum.created_at) == date.today()
+                )
+            if per_page > 0:
+                dsq = dsq.limit(per_page).offset((int(page) - 1) * per_page)
+            items = dsq.all()
+            res = {
+                'items': [{
+                    'created_at': str(item.created_at),
+                    'value': str(item.value),
+                    'urls': [url.value for url in item.urls],
+                    'img_url': url_for(
+                        '.image_url', _external=True,
+                        filename='{}.{}'.format(item.value, item.ext)),
+                } for item in items],
+                'next_page': url_for(
+                    'sha256_checksum', page=page+1, q=input_query,
+                    _external=True)
+            }
+        finally:
+            db_session.remove()
+        return jsonify(res)
 
-def sha256_checksum_list():
-    """Example endpoint returning a list of checksum
-    ---
-    parameters:
-      - name: page
-        in: query
-        type: integer
-    responses:
-      200:
-        description: A list of sha256 checksum
-    """
-    db_session = DB.session
-    if flask_request.method == 'POST':
+    def post(self):
+        db_session = DB.session
         # check if the post request has the file part
         if 'file' not in flask_request.files:
             return jsonify({'error': 'No file part'})
@@ -376,54 +375,93 @@ def sha256_checksum_list():
             finally:
                 db_session.remove()
         return jsonify({'status': 'success'})
-    input_query = flask_request.args.get('q')
-    qs_dict = {}
-    if input_query is not None:
-        for item in input_query.split():
-            if ':' not in item:
-                continue
-            parts = item.split(':', 1)
-            qs_dict[parts[0]] = parts[1]
-    #  initial value
-    per_page = 200
-    created_at = None
-    # per_page
-    per_page = int(os.environ.get('MITMPROXY_IMAGE_PER_PAGE', per_page))
-    per_page = int(flask_request.args.get('per_page', per_page))
-    per_page = int(qs_dict.get('per_page', per_page))
-    # created_at
-    created_at = flask_request.args.get('created_at', created_at)
-    created_at = qs_dict.get('created_at', created_at)
-    # other args
-    page = int(flask_request.args.get('page', 1))
-    res = {}
-    try:
-        dsq = db_session.query(Sha256Checksum) \
-            .filter_by(trash=False) \
-            .order_by(Sha256Checksum.created_at.desc())
-        if created_at is not None and created_at == 'today':
-            dsq = dsq.filter(
-                func.DATE(Sha256Checksum.created_at) == date.today()
-            )
-        if per_page > 0:
-            dsq = dsq.limit(per_page).offset((int(page) - 1) * per_page)
-        items = dsq.all()
-        res = {
-            'items': [{
-                'created_at': str(item.created_at),
-                'value': str(item.value),
-                'urls': [url.value for url in item.urls],
-                'img_url': url_for(
-                    '.image_url', _external=True,
-                    filename='{}.{}'.format(item.value, item.ext)),
-            } for item in items],
-            'next_page': url_for(
-                'sha256_checksum_list', page=page+1, q=input_query,
-                _external=True)
-        }
-    finally:
-        db_session.remove()
-    return jsonify(res)
+
+
+class UrlView(MethodView):
+
+    def get(self):
+        db_session = DB.session
+        url_value = flask_request.args.get('value', None)
+        if url_value is None:
+            return jsonify([x.to_dict() for x in db_session.query(Url).all()])
+        res = {}
+        try:
+            url_m = \
+                db_session.query(Url).filter_by(value=url_value).one_or_none()
+            if url_m is None:
+                abort(404)
+                return
+            res = url_m.to_dict()
+            if url_m.checksum:
+                res['checksum_value'] = url_m.checksum_value
+                res['checksum_trash'] = url_m.checksum_trash
+            if flask_request.method == 'POST':
+                for key in ('redirect_counter''check_counter'):
+                    var = flask_request.form.get(key, None)
+                    if var and var == '+1':
+                        if getattr(url_m, key, None) is None:
+                            setattr(url_m, key)
+                        else:
+                            setattr(url_m, key, getattr(url_m, key) + 1)
+                    elif var:
+                        current_app.logger.error('Unknown input:{}:{}'.format(
+                            key, var))
+                db_session.add(url_m)
+                db_session.commit()
+                res['redirect_counter'] = url_m.redirect_counter
+                res['check_counter'] = url_m.check_counter
+        except OperationalError as err:
+            current_app.logger.error(traceback.format_exc())
+            current_app.logger.error('{}:{}\n{}:{}'.format(
+                type(err), err, 'URL', url_value))
+            res['error'] = str(err)
+            db_session.rollback()
+        finally:
+            db_session.close()
+        return jsonify(res)
+
+    def post(self):
+        db_session = DB.session
+        url_value = flask_request.form.get('value', None)
+        if url_value is None:
+            abort(404)
+            return
+        res = {}
+        try:
+            url_m = \
+                db_session.query(Url).filter_by(value=url_value).one_or_none()
+            if url_m is None:
+                url_m = \
+                    Url.get_or_create(value=url_value, session=db_session)[0]
+                db_session.commit()
+            res = url_m.to_dict()
+            if url_m.checksum:
+                res['checksum_value'] = url_m.checksum_value
+                res['checksum_trash'] = url_m.checksum_trash
+            if flask_request.method == 'POST':
+                for key in ('redirect_counter''check_counter'):
+                    var = flask_request.form.get(key, None)
+                    if var and var == '+1':
+                        if getattr(url_m, key, None) is None:
+                            setattr(url_m, key)
+                        else:
+                            setattr(url_m, key, getattr(url_m, key) + 1)
+                    elif var:
+                        current_app.logger.error('Unknown input:{}:{}'.format(
+                            key, var))
+                db_session.add(url_m)
+                db_session.commit()
+                res['redirect_counter'] = url_m.redirect_counter
+                res['check_counter'] = url_m.check_counter
+        except OperationalError as err:
+            current_app.logger.error(traceback.format_exc())
+            current_app.logger.error('{}:{}\n{}:{}'.format(
+                type(err), err, 'URL', url_value))
+            res['error'] = str(err)
+            db_session.rollback()
+        finally:
+            db_session.close()
+        return jsonify(res)
 
 
 def image_url(filename):
