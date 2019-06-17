@@ -800,27 +800,42 @@ class MitmImage:
                                         '{}:{}\nurl: {}\nfile: {}\n' \
                                         'filesize: {}'
                                     logger.debug(dbg_tmpl.format(
-                                        type(err), err,
-                                        flow.request.url,
-                                        f.name,
-                                        os.path.getsize(f.name)
+                                        type(err), err, flow.request.url,
+                                        f.name, os.path.getsize(f.name)
                                     ))
                                 else:
                                     raise err
-                        self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
-                            redirect_host, redirect_port, sc_m.value, sc_m.ext)
                         try:
                             session.commit()
-                        except (OperationalError, IntegrityError) as err:
-                            logger.error('{}: {}\nerror: {}'.format(
-                                type(err), url, str(err)))
+                        except (OperationalError, IntegrityError):
+                            logger.exception(
+                                'response:url: {}'.format(url), exc_info=False)
+                            #  save file to app temp folder
+                            new_filepath = os.path.join(
+                                TEMP_DIR, '{}.{}'.format(sc_m.value, sc_m.ext))
+                            shutil.copyfile(f.name, new_filepath)
+                            new_filepath_text = new_filepath + '.txt'
+                            with open(new_filepath_text, 'w') as f:
+                                for url_m in sc_m.urls:
+                                    f.write(url_m.value)
+                            logger.info('saved to temp: {}'.format(url))
                             return
+                        self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
+                            redirect_host, redirect_port, sc_m.value, sc_m.ext)
                         logger.info('Url inbox: {}'.format(url))
                     if sc_m.trash and url not in self.trash_urls:
                         self.trash_urls.append(url)
-        except Exception as err:
-            logger.error('{}: {}'.format(type(err), err))
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('response:url: {}'.format(url))
+
+    @command.command('mitmimage.pdb')
+    def pdb(self):
+        __import__('pdb').set_trace()
+        pass
+
+    @command.command('mitmimage.scan_folder')
+    def scan_folder(self) -> None:
+        scan_image_folder()
 
     @command.command('mitmimage.test_log')
     def test_log(self) -> None:
