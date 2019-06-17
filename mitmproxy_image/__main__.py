@@ -727,53 +727,49 @@ class MitmImage:
                 session.add(u_m)
                 try:
                     session.commit()
-                except (OperationalError, IntegrityError) as err:
-                    logger.warning(
-                        '{}: {}\n'
-                        'error: {}\n'
+                except (OperationalError, IntegrityError):
+                    logger.exception(
+                        'request:url: {}\n'
                         'redirect_counter, check_counter: {}, {}\n'
                         'host, port: {}, {}'.format(
-                            type(err),
                             flow.request.url,
-                            err,
                             redirect_counter,
                             check_counter,
                             flow.request.host,
                             flow.request.port
                         ))
-        except Exception as err:
-            logger.error('{}: {}'.format(type(err), err))
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('request:url: {}'.format(url))
 
-    @concurrent
+    #  @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
+        if url in self.trash_urls:
+            logger.info('Url on trash: {}'.format(url))
+            return
+        if redirect_host and \
+                flow.request.host == redirect_host and \
+                str(flow.request.port) == str(redirect_port):
+            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
+            return
+        if 'content-type' not in flow.response.headers:
+            logger.debug('Unknown content-type: {}'.format(url))
+            return
+        content_type = flow.response.headers['content-type']
+        ext = content_type.split('/')[1].split(';')[0]
+        invalid_exts = [
+            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
+        if not(
+                content_type.startswith('image') and
+                ext not in invalid_exts):
+            return
+        if url not in self.img_urls:
+            self.img_urls.append(url)
         try:
-            if url in self.trash_urls:
-                logger.info('Url on trash: {}'.format(url))
-                return
-            if redirect_host and \
-                    flow.request.host == redirect_host and \
-                    str(flow.request.port) == str(redirect_port):
-                logger.info('SKIP REDIRECT SERVER: {}'.format(url))
-                return
-            if 'content-type' not in flow.response.headers:
-                logger.debug('Unknown content-type: {}'.format(url))
-                return
-            content_type = flow.response.headers['content-type']
-            ext = content_type.split('/')[1].split(';')[0]
-            invalid_exts = [
-                'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
-            if not(
-                    content_type.startswith('image') and
-                    ext not in invalid_exts):
-                return
-            if url not in self.img_urls:
-                self.img_urls.append(url)
             with tempfile.NamedTemporaryFile(
                     delete=False, suffix='.{}'.format(ext)) as f:
                 with open(f.name, 'wb') as ff:
@@ -787,7 +783,7 @@ class MitmImage:
                         logger.info(
                             'SKIP TRASH: {}'.format(flow.request.url))
                         return
-                    sc_m = None  # type: Any
+                    sc_m = None  # type: Any  # sha256 checksum model
                     if u_m.checksum and not u_m.checksum.trash:
                         sc_m = u_m.checksum
                         self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
