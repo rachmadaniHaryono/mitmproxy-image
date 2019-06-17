@@ -489,18 +489,7 @@ def echo_path():
     print(__file__)
 
 
-@cli.command('scan-image-folder')
 def scan_image_folder():
-    """Scan image folder.
-
-    This function find problems in image folder.
-    - empty filesize (trash)
-    - empty ext (process info, save if image)
-    - file not in database (process info, save  if image)
-    - file in database but not in image folder (set trash prop = True)
-    - file in db and folder, trash prop=true (set trash prop = False)
-    - file in database but empty filesize (trash)
-    """
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     im_data = []
     label = 'Getting all files'
@@ -564,6 +553,21 @@ def scan_image_folder():
                 csm_ms.append(checksum_m)
         db_session.add_all(csm_ms)
         db_session.commit()
+
+
+@cli.command('scan-image-folder')
+def scan_image_folder_command():
+    """Scan image folder.
+
+    This function find problems in image folder.
+    - empty filesize (trash)
+    - empty ext (process info, save if image)
+    - file not in database (process info, save  if image)
+    - file in database but not in image folder (set trash prop = True)
+    - file in db and folder, trash prop=true (set trash prop = False)
+    - file in database but empty filesize (trash)
+    """
+    scan_image_folder()
 
 
 @cli.command('run-mitmproxy')
