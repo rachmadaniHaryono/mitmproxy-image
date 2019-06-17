@@ -599,6 +599,54 @@ def run_mitmproxy(
     mitmproxy(shlex.split(' '.join(args_lines)))
 
 
+class MitmUrl:
+
+    def __init__(self, flow, **kwargs):
+        self.value = flow.request.url
+        pretty_url = flow.request.pretty_url
+        if self.value != pretty_url:
+            logging.warning(
+                'value is different with pretty value\n'
+                'value: {0.value}\n'
+                'pretty value: {1}'.format(self, pretty_url))
+        self.trash = None
+        self.host = flow.request.host
+        self.port = flow.request.port
+        self.content_type = None
+        self.is_image_url = False
+        if hasattr(flow.response, 'headers') and \
+                'content-type' in flow.response.headers:
+            self.content_type = flow.response.headers['content-type']
+            self.ext = self.content_type.split('/')[1].split(';')[0]
+        self.redirect_url = None
+
+    def __repr__(self):
+        kwargs = vars(self).copy()
+        kwargs.pop('host')
+        kwargs.pop('port')
+        desc = ['{}={}'.format(k, v) for k, v in kwargs.items()]
+        return '<MitmUrl({})>'.format('\n'.join(desc))
+
+    @property
+    def ext(self):
+        if self.content_type:
+            return self.content_type.split('/')[1].split(';')[0]
+
+    def repr(self):
+        return '<Mitmurl(value={0.value}, trash={0.value}, ' \
+            'content_type={0.content_type})>'.format(self)
+
+    def is_on_redirect_server(self, redirect_host, redirect_port):
+        return \
+            self.host == redirect_host and \
+            str(self.port) == str(redirect_port)
+
+    def update(self, flow):
+        if hasattr(flow.response, 'headers') and \
+                'content-type' in flow.response.headers:
+            self.content_type = flow.response.headers['content-type']
+
+
 class MitmImage:
 
     def __init__(self):
@@ -637,7 +685,6 @@ class MitmImage:
         logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
         logging.info('MitmImage initiated')
         self.app = create_app(root_path=__file__)
-        self.url_dict = {}
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
@@ -647,42 +694,39 @@ class MitmImage:
         if not redirect_host:
             return
         url = flow.request.pretty_url
-        if url != flow.request.url:
-            logger.debug('pretty url: {}\nurl: {}'.format(
-                url, flow.request.url
-            ))
-        if redirect_host and \
-                flow.request.host == redirect_host and \
-                str(flow.request.port) == str(redirect_port):
+        if url not in self.url_dict:
+            murl = MitmUrl(flow)
+        else:
+            murl = self.url_dict[url]
+            murl.update(flow)
+        if murl.is_on_redirect_server(redirect_host, redirect_port):
             logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
+        app = self.app
         session = DB.session
+        if murl.trash:
+            logger.info('SKIP REDIRECT TRASH: {}'.format(flow.request.url))
+            with app.app_context():
+                args = flow.request.url, session
+                u_m = Url.get_or_create(*args)[0]  # type: Any
+                if u_m.check_counter is None:
+                    u_m.check_counter = 1
+                else:
+                    u_m.check_counter += 1
+                session.add(u_m)
+                session.commit()
+            return
+        u_m = None
         try:
-            app = self.app
-            if flow.request.url in self.trash_urls:
-                logger.info(
-                    'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-                with app.app_context():
-                    args = flow.request.url, session
-                    u_m = Url.get_or_create(*args)[0]  # type: Any
-                    if u_m.check_counter is None:
-                        u_m.check_counter = 1
-                    else:
-                        u_m.check_counter += 1
-                    session.add(u_m)
-                    session.commit()
-                return
-            u_m = None
-            if url not in self.img_urls:
+            if not murl.is_image_url:
                 with app.app_context():
                     u_m = \
                         session.query(Url) \
                         .filter_by(value=flow.request.url).one_or_none()
-            if url not in self.img_urls and not u_m:
+            if not murl.is_image_url and not u_m:
                 return
-            if url in self.url_dict:
-                redirect_url = self.url_dict[url]
-            else:
+            redirect_url = murl.redirect_url
+            if not redirect_url:
                 with app.app_context():
                     if u_m is None:
                         u_m = Url.get_or_create(flow.request.url, session)[0]
@@ -698,12 +742,14 @@ class MitmImage:
                     elif sc_m.trash:
                         logger.info(
                             'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-                        if flow.request.url not in self.trash_urls:
-                            self.trash_urls.append(flow.request.url)
+                        if not murl.trash:
+                            murl.trash = True
+                            self.url_dict[url] = murl
                         return
                     redirect_url = 'http://{}:{}/i/{}.{}'.format(
                         redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                    self.url_dict[url] = redirect_url
+                    murl.redirect_url = redirect_url
+                    self.url_dict[url] = murl
             if flow.request.http_version == 'HTTP/2.0':
                 flow.response = HTTPResponse(
                     'HTTP/1.1', 302, 'Found',
@@ -727,12 +773,14 @@ class MitmImage:
                 session.add(u_m)
                 try:
                     session.commit()
-                except (OperationalError, IntegrityError):
-                    logger.exception(
+                except (OperationalError, IntegrityError) as err:
+                    logger.error(
                         'request:url: {}\n'
+                        'error: {}\n'
                         'redirect_counter, check_counter: {}, {}\n'
                         'host, port: {}, {}'.format(
-                            flow.request.url,
+                            murl.value,
+                            err,
                             redirect_counter,
                             check_counter,
                             flow.request.host,
@@ -740,6 +788,8 @@ class MitmImage:
                         ))
         except Exception:
             logger.exception('request:url: {}'.format(url))
+        finally:
+            self.url_dict[url] = murl
 
     #  @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -748,30 +798,32 @@ class MitmImage:
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
-        if url in self.trash_urls:
+        if url not in self.url_dict:
+            murl = MitmUrl(flow)
+        else:
+            self.url_dict[url].update(flow)
+            murl = self.url_dict[url]
+        invalid_exts = [
+            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
+        if murl.trash:
             logger.info('Url on trash: {}'.format(url))
             return
         if redirect_host and \
-                flow.request.host == redirect_host and \
-                str(flow.request.port) == str(redirect_port):
+                murl.is_on_redirect_server(redirect_host, redirect_port):
             logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
-        if 'content-type' not in flow.response.headers:
+        if murl.content_type is None:
             logger.debug('Unknown content-type: {}'.format(url))
             return
-        content_type = flow.response.headers['content-type']
-        ext = content_type.split('/')[1].split(';')[0]
-        invalid_exts = [
-            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
         if not(
-                content_type.startswith('image') and
-                ext not in invalid_exts):
+                murl.content_type.startswith('image') and
+                murl.ext not in invalid_exts):
             return
-        if url not in self.img_urls:
-            self.img_urls.append(url)
+        if not murl.is_image_url:
+            murl.is_image_url = True
         try:
             with tempfile.NamedTemporaryFile(
-                    delete=False, suffix='.{}'.format(ext)) as f:
+                    delete=False, suffix='.{}'.format(murl.ext)) as f:
                 with open(f.name, 'wb') as ff:
                     ff.write(flow.response.content)
                 app = self.app
@@ -779,15 +831,16 @@ class MitmImage:
                 with app.app_context():
                     u_m = Url.get_or_create(url, session)[0]  # type: Any
                     if u_m.checksum and u_m.checksum.trash:
-                        self.trash_urls.append(url)
-                        logger.info(
-                            'SKIP TRASH: {}'.format(flow.request.url))
+                        murl.trash = True
+                        self.url_dict[url] = murl
+                        logger.info('SKIP TRASH: {}'.format(murl.value))
                         return
                     sc_m = None  # type: Any  # sha256 checksum model
                     if u_m.checksum and not u_m.checksum.trash:
                         sc_m = u_m.checksum
-                        self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
+                        murl.redirect_url = 'http://{}:{}/i/{}.{}'.format(
                             redirect_host, redirect_port, sc_m.value, sc_m.ext)
+                        self.url_dict[url] = murl
                     if not sc_m:
                         with session.no_autoflush:
                             try:
@@ -827,6 +880,8 @@ class MitmImage:
                         self.trash_urls.append(url)
         except Exception:
             logger.exception('response:url: {}'.format(url))
+        finally:
+            self.url_dict[url] = murl
 
     @command.command('mitmimage.pdb')
     def pdb(self):
