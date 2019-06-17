@@ -245,7 +245,11 @@ def create_app(
         app.config['DEBUG'] = debug
     if testing:
         app.config['TESTING'] = testing
-
+    # folder
+    folders = [IMAGE_DIR, TEMP_DIR]
+    for folder in folders:
+        pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
+    # db
     DB.init_app(app)
     app.app_context().push()
     if \
