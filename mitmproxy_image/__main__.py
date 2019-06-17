@@ -7,7 +7,6 @@ https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
 from datetime import datetime, date
-from logging.handlers import TimedRotatingFileHandler
 import logging
 import os
 import pathlib
@@ -48,16 +47,22 @@ from flask import (
     url_for,
 )
 import click
-import requests
 
 
 # app dir
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
 pathlib.Path(APP_DIR).mkdir(parents=True, exist_ok=True)
 IMAGE_DIR = os.path.join(APP_DIR, 'image')
+TEMP_DIR = os.path.join(APP_DIR, 'temp')
 # log
-LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image.log')
-SERVER_LOG_FILE = os.path.join(APP_DIR, 'mitmproxy_image_server.log')
+YEAR = datetime.now().year
+MONTH = datetime.now().month
+LOG_FILE = os.path.join(
+    APP_DIR, 'mitmproxy_image_{}_{}.log'.format(YEAR, MONTH))
+SERVER_LOG_FILE = os.path.join(
+    APP_DIR, 'mitmproxy_image_server_{}_{}.log'.format(YEAR, MONTH))
+LOG_FORMAT = '%(asctime)s %(levelname)s - %(message)s'
+FORMATTER = logging.Formatter(LOG_FORMAT)
 # db
 DB_PATH = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
 DB_URI = 'sqlite:///{}'.format(DB_PATH)
@@ -211,23 +216,22 @@ def get_or_create(
 # FLASK
 def create_app(
         db_uri=DB_URI,
-        debug: Optional[bool] = None,
+        debug: Optional[bool] = False,
         testing: Optional[bool] = False,
         root_path: Optional[str] = None,
         log_file: Optional[Union[str, None]] = SERVER_LOG_FILE
 ) -> Flask:
-    """create app.
-
-    >>> app = create_app()
-    """
+    """create app."""
     kwargs = {'root_path': root_path} if root_path else {}
     app = \
         Flask(__name__) \
         if not kwargs else Flask(__name__, **kwargs)  # type: ignore
     if log_file:
-        trf_hdlr = TimedRotatingFileHandler(
-            SERVER_LOG_FILE, when='D', interval=30)
-        app.logger.addHandler(trf_hdlr)
+        fh = logging.FileHandler(log_file)
+        fh.setFormatter(FORMATTER)
+        if debug:
+            fh.setLevel(logging.DEBUG)
+        app.logger.addHandler(fh)
     app.config['SWAGGER'] = {
         'title': 'Mitmproxy Image',
         'uiversion': 2
@@ -615,17 +619,17 @@ class MitmImage:
         )
         debug = ctx.options.debug \
             if ctx.options and hasattr(ctx.options, 'debug') else None
-        if debug is not None:
-            level = logging.DEBUG if debug else logging.INFO
-            logging.basicConfig(
-                filename=LOG_FILE, filemode='a', level=level)
-            logging.getLogger("hpack.hpack").setLevel(logging.INFO)
-            logging.getLogger("hpack.table").setLevel(logging.INFO)
-            logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
-            logging.getLogger("PIL.Image").setLevel(logging.INFO)
-            logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+        level = logging.DEBUG if debug else logging.INFO
+        logging.basicConfig(
+            filename=LOG_FILE, filemode='a', level=level, format=LOG_FORMAT)
+        logging.getLogger("hpack.hpack").setLevel(logging.INFO)
+        logging.getLogger("hpack.table").setLevel(logging.INFO)
+        logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+        logging.getLogger("PIL.Image").setLevel(logging.INFO)
+        logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
         logging.info('MitmImage initiated')
-        self.app = create_app(root_path=__file__, log_file=None)
+        self.app = create_app(root_path=__file__)
+        self.url_dict = {}
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
