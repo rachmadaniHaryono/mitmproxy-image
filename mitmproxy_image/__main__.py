@@ -775,16 +775,9 @@ class MitmImage:
                     session.commit()
                 except (OperationalError, IntegrityError) as err:
                     logger.error(
-                        'request:url: {}\n'
-                        'error: {}\n'
-                        'redirect_counter, check_counter: {}, {}\n'
-                        'host, port: {}, {}'.format(
-                            murl.value,
-                            err,
-                            redirect_counter,
-                            check_counter,
-                            flow.request.host,
-                            flow.request.port
+                        'request:url: {}\nerror: {}\n'
+                        'redirect_counter, check_counter: {}, {}'.format(
+                            murl.value, err, redirect_counter, check_counter,
                         ))
         except Exception:
             logger.exception('request:url: {}'.format(url))
