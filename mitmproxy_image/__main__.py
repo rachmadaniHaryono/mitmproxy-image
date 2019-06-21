@@ -801,12 +801,17 @@ class MitmImage:
         if murl.trash_status == 'false' and \
                 murl.get_redirect_url(redirect_host, redirect_port):
             # file already on inbox
-            logger.info('RESPONSE:ON INBOX: {}'.format(url))
+            logger.debug('RESPONSE:ON INBOX: {}'.format(url))
             return
         try:
             with app.app_context():
-                url_model = \
-                    Url.get_or_create(url, session)[0]  # type: Any
+                try:
+                    url_model = \
+                        Url.get_or_create(url, session)[0]  # type: Any
+                except OperationalError as err:
+                    session.rollback()
+                    logging.error('url: {}\nerror: {}'.format(url, err))
+                    return
                 if url_model.checksum:
                     zero_filesize = url_model.checksum.filesize == 0
                 if url_model.checksum and not zero_filesize:
