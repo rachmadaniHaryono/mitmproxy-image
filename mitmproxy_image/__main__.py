@@ -670,6 +670,7 @@ class MitmImage:
         self.url_dict = {}
         self.invalid_exts = [
             'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
+        self.pdb = False
 
     def load(self, loader):
         loader.add_option(
@@ -713,9 +714,11 @@ class MitmImage:
         url = flow.request.pretty_url
         if url not in self.url_dict:
             murl = MitmUrl(flow)
+            self.url_dict[url] = murl
         else:
+            self.url_dict[url].update(flow)
             murl = self.url_dict[url]
-            murl.update(flow)
+        self.url_dict[url] = murl
         if murl.is_on_redirect_server(redirect_host, redirect_port):
             logger.info('REQUEST:SKIP REDIRECT SERVER: {}'.format(url))
             return
@@ -761,7 +764,8 @@ class MitmImage:
                 murl.redirect_counter += 1
                 self.url_dict[url] = murl
             else:
-                __import__('pdb').set_trace()
+                if self.pdb:
+                    __import__('pdb').set_trace()
                 logger.debug('REQUEST:NO REDIRECT URL: {}'.format(url))
         except Exception:
             logger.exception('request:url: {}'.format(url))
@@ -775,6 +779,7 @@ class MitmImage:
         url = flow.request.pretty_url
         if url not in self.url_dict:
             murl = MitmUrl(flow)
+            self.url_dict[url] = murl
         else:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
@@ -794,7 +799,7 @@ class MitmImage:
             return
         app = self.app
         session = DB.session
-        if murl.trash_status != 'unknown' and murl.checksum_ext is None:
+        if murl.trash_status != 'unknown' and murl.checksum_ext is None and self.pdb:
             __import__('pdb').set_trace()
         if murl.trash_status == 'true':
             logger.info('SKIP TRASH: {}'.format(murl.value))
@@ -881,7 +886,7 @@ class MitmImage:
         raise NotImplementedError
 
     @command.command('mitmimage.pdb')
-    def pdb(self):
+    def run_pdb(self):
         __import__('pdb').set_trace()
         pass
 
