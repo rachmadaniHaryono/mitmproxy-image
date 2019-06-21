@@ -703,7 +703,7 @@ class MitmImage:
         logging.info('MitmImage initiated')
         self.app = create_app(root_path=__file__)
 
-    @concurrent
+    #  @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
@@ -761,11 +761,12 @@ class MitmImage:
                 murl.redirect_counter += 1
                 self.url_dict[url] = murl
             else:
+                __import__('pdb').set_trace()
                 logger.debug('REQUEST:NO REDIRECT URL: {}'.format(url))
         except Exception:
             logger.exception('request:url: {}'.format(url))
 
-    @concurrent
+    #  @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
@@ -801,7 +802,7 @@ class MitmImage:
         if murl.trash_status == 'false' and \
                 murl.get_redirect_url(redirect_host, redirect_port):
             # file already on inbox
-            logger.debug('RESPONSE:ON INBOX: {}'.format(url))
+            logger.info('RESPONSE:ON INBOX: {}'.format(url))
             return
         try:
             with app.app_context():
