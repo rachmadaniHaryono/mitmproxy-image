@@ -727,6 +727,7 @@ class MitmImage:
             self.url_dict[url] = murl
             return
         if not murl.is_image_url(self.invalid_exts):
+            logger.debug('REQUEST:NOT IMAGE URL: {}'.format(url))
             return
         try:
             if murl.trash_status == 'unknown':
@@ -759,10 +760,12 @@ class MitmImage:
                         'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
                 murl.redirect_counter += 1
                 self.url_dict[url] = murl
+            else:
+                logger.debug('REQUEST:NO REDIRECT URL: {}'.format(url))
         except Exception:
             logger.exception('request:url: {}'.format(url))
 
-    #  @concurrent
+    @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
@@ -786,6 +789,7 @@ class MitmImage:
                 url, murl.content_type))
             return
         if not murl.is_image_url(self.invalid_exts):
+            logger.debug('RESPONSE:NOT IMAGE URL: {}'.format(url))
             return
         app = self.app
         session = DB.session
@@ -797,6 +801,7 @@ class MitmImage:
         if murl.trash_status == 'false' and \
                 murl.get_redirect_url(redirect_host, redirect_port):
             # file already on inbox
+            logger.info('RESPONSE:ON INBOX: {}'.format(url))
             return
         try:
             with app.app_context():
