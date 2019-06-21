@@ -813,6 +813,7 @@ class MitmImage:
                     session.rollback()
                     logging.error('url: {}\nerror: {}'.format(url, err))
                     return
+                zero_filesize = False
                 if url_model.checksum:
                     zero_filesize = url_model.checksum.filesize == 0
                 if url_model.checksum and not zero_filesize:
