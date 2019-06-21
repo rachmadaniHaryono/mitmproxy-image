@@ -609,16 +609,17 @@ class MitmUrl:
                 'value is different with pretty value\n'
                 'value: {0.value}\n'
                 'pretty value: {1}'.format(self, pretty_url))
-        self.trash = None
+        self.trash_status = 'unknown'
         self.host = flow.request.host
         self.port = flow.request.port
         self.content_type = None
-        self.is_image_url = False
         if hasattr(flow.response, 'headers') and \
                 'content-type' in flow.response.headers:
             self.content_type = flow.response.headers['content-type']
-            self.ext = self.content_type.split('/')[1].split(';')[0]
-        self.redirect_url = None
+        self.check_counter = 0
+        self.redirect_counter = 0
+        self.checksum_value = None
+        self.checksum_ext = None
 
     def __repr__(self):
         kwargs = vars(self).copy()
@@ -631,6 +632,14 @@ class MitmUrl:
     def ext(self):
         if self.content_type:
             return self.content_type.split('/')[1].split(';')[0]
+
+    def is_image_url(self, invalid_exts=None):
+        if not self.content_type:
+            return False
+        res = self.content_type.startswith('image')
+        if res and invalid_exts:
+            res = self.ext not in invalid_exts
+        return res
 
     def repr(self):
         return '<Mitmurl(value={0.value}, trash={0.value}, ' \
@@ -646,13 +655,21 @@ class MitmUrl:
                 'content-type' in flow.response.headers:
             self.content_type = flow.response.headers['content-type']
 
+    def get_redirect_url(self, redirect_host, redirect_port):
+        if self.checksum_value:
+            if self.checksum_ext is None:
+                __import__('pdb').set_trace()
+            return 'http://{}:{}/i/{}.{}'.format(
+                redirect_host, redirect_port,
+                self.checksum_value, self.checksum_ext)
+
 
 class MitmImage:
 
     def __init__(self):
-        self.img_urls = []
         self.url_dict = {}
-        self.trash_urls = []
+        self.invalid_exts = [
+            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
 
     def load(self, loader):
         loader.add_option(
