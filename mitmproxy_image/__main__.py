@@ -717,89 +717,50 @@ class MitmImage:
             murl = self.url_dict[url]
             murl.update(flow)
         if murl.is_on_redirect_server(redirect_host, redirect_port):
-            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
+            logger.info('REQUEST:SKIP REDIRECT SERVER: {}'.format(url))
             return
         app = self.app
         session = DB.session
-        if murl.trash:
+        if murl.trash_status == 'true':
             logger.info('SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-            with app.app_context():
-                args = flow.request.url, session
-                u_m = Url.get_or_create(*args)[0]  # type: Any
-                if u_m.check_counter is None:
-                    u_m.check_counter = 1
-                else:
-                    u_m.check_counter += 1
-                session.add(u_m)
-                session.commit()
+            murl.check_counter += 1
+            self.url_dict[url] = murl
             return
-        u_m = None
+        if not murl.is_image_url(self.invalid_exts):
+            return
         try:
-            if not murl.is_image_url:
+            if murl.trash_status == 'unknown':
                 with app.app_context():
-                    u_m = \
-                        session.query(Url) \
-                        .filter_by(value=flow.request.url).one_or_none()
-            if not murl.is_image_url and not u_m:
-                return
-            redirect_url = murl.redirect_url
-            if not redirect_url:
-                with app.app_context():
-                    if u_m is None:
-                        u_m = Url.get_or_create(flow.request.url, session)[0]
-                    try:
-                        sc_m = u_m.checksum
-                    except DetachedInstanceError:
-                        u_m = Url.get_or_create(
-                            flow.request.url, session)[0]
-                        sc_m = u_m.checksum
-                    if not sc_m:
-                        logger.info('No file: {}'.format(url))
-                        return
-                    elif sc_m.trash:
-                        logger.info(
-                            'SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-                        if not murl.trash:
-                            murl.trash = True
-                            self.url_dict[url] = murl
-                        return
-                    redirect_url = 'http://{}:{}/i/{}.{}'.format(
-                        redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                    murl.redirect_url = redirect_url
+                    url_model = \
+                        Url.get_or_create(url, session)[0]  # type: Any
+                    if url_model.checksum:
+                        if url_model.checksum.filesize == 0:
+                            logger.info('REEQUEST:0 FILESIZE: {}'.format(url))
+                            return
+                        murl.trash_status = \
+                            'true' if url_model.checksum.trash else 'false'
+                        murl.checksum_value = url_model.checksum.value
+                        murl.checksum_ext = url_model.checksum.ext
                     self.url_dict[url] = murl
-            if flow.request.http_version == 'HTTP/2.0':
-                flow.response = HTTPResponse(
-                    'HTTP/1.1', 302, 'Found',
-                    Headers(Location=redirect_url, Content_Length='0'),
-                    b'')
-                logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                    url, redirect_url))
-            else:
-                flow.request.url = redirect_url
-                logger.info(
-                    'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-            with app.app_context():
-                if u_m is None:
-                    u_m = Url.get_or_create(flow.request.url, session)[0]
-                if u_m.redirect_counter is None:
-                    u_m.redirect_counter = 1
+            redirect_url = murl.get_redirect_url(redirect_host, redirect_port)
+            if redirect_url:
+                if flow.request.http_version == 'HTTP/2.0':
+                    flow.response = HTTPResponse(
+                        'HTTP/1.1', 302, 'Found',
+                        Headers(
+                            Location=redirect_url,
+                            Content_Length='0'),
+                        b'')
+                    logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                        url, redirect_url))
                 else:
-                    u_m.redirect_counter += 1
-                redirect_counter = u_m.redirect_counter
-                check_counter = u_m.check_counter
-                session.add(u_m)
-                try:
-                    session.commit()
-                except (OperationalError, IntegrityError) as err:
-                    logger.error(
-                        'request:url: {}\nerror: {}\n'
-                        'redirect_counter, check_counter: {}, {}'.format(
-                            murl.value, err, redirect_counter, check_counter,
-                        ))
+                    flow.request.url = redirect_url
+                    logger.info(
+                        'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+                murl.redirect_counter += 1
+                self.url_dict[url] = murl
         except Exception:
             logger.exception('request:url: {}'.format(url))
-        finally:
-            self.url_dict[url] = murl
 
     #  @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -813,49 +774,79 @@ class MitmImage:
         else:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
-        invalid_exts = [
-            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
-        if murl.trash:
+        if murl.trash_status == 'true':
             logger.info('Url on trash: {}'.format(url))
             return
         if redirect_host and \
                 murl.is_on_redirect_server(redirect_host, redirect_port):
-            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
+            logger.info('RESPONSE:SKIP REDIRECT SERVER: {}'.format(url))
             return
-        if murl.content_type is None:
-            logger.debug('Unknown content-type: {}'.format(url))
+        if murl.content_type is None or murl.ext is None:
+            logger.debug('Unknown content-type: {}\ncontent type: {}'.format(
+                url, murl.content_type))
             return
-        if not(
-                murl.content_type.startswith('image') and
-                murl.ext not in invalid_exts):
+        if not murl.is_image_url(self.invalid_exts):
             return
-        if not murl.is_image_url:
-            murl.is_image_url = True
+        app = self.app
+        session = DB.session
+        if murl.trash_status != 'unknown' and murl.checksum_ext is None:
+            __import__('pdb').set_trace()
+        if murl.trash_status == 'true':
+            logger.info('SKIP TRASH: {}'.format(murl.value))
+            return
+        if murl.trash_status == 'false' and \
+                murl.get_redirect_url(redirect_host, redirect_port):
+            # file already on inbox
+            return
         try:
-            with tempfile.NamedTemporaryFile(
-                    delete=False, suffix='.{}'.format(murl.ext)) as f:
-                with open(f.name, 'wb') as ff:
-                    ff.write(flow.response.content)
-                app = self.app
-                session = DB.session
-                with app.app_context():
-                    u_m = Url.get_or_create(url, session)[0]  # type: Any
-                    if u_m.checksum and u_m.checksum.trash:
-                        murl.trash = True
-                        self.url_dict[url] = murl
-                        logger.info('SKIP TRASH: {}'.format(murl.value))
-                        return
-                    sc_m = None  # type: Any  # sha256 checksum model
-                    if u_m.checksum and not u_m.checksum.trash:
-                        sc_m = u_m.checksum
-                        murl.redirect_url = 'http://{}:{}/i/{}.{}'.format(
-                            redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                        self.url_dict[url] = murl
-                    if not sc_m:
+            with app.app_context():
+                url_model = \
+                    Url.get_or_create(url, session)[0]  # type: Any
+                if url_model.checksum:
+                    zero_filesize = url_model.checksum.filesize == 0
+                if url_model.checksum and not zero_filesize:
+                    url_model.trash_status = \
+                        'true' if url_model.checksum.trash else 'false'
+                    murl.checksum_value = url_model.checksum.value
+                    murl.checksum_ext = url_model.checksum.ext
+                    self.url_dict[url] = murl
+                    sc_m = url_model.checksum
+                else:
+                    with tempfile.NamedTemporaryFile(
+                            delete=False, suffix='.{}'.format(murl.ext)) as f:
+                        with open(f.name, 'wb') as ff:
+                            ff.write(flow.response.content)
+                        if os.stat(f.name).st_size == 0:
+                            logger.info('REQUEST:0 FILESIZE: {}'.format(url))
+                            return
                         with session.no_autoflush:
                             try:
-                                sc_m = Sha256Checksum.get_or_create(
-                                    f.name, u_m, session)[0]
+                                sc_m = \
+                                    Sha256Checksum.get_or_create(  # type: ignore  # NOQA
+                                        f.name, url_model, session)[0]
+                                sc_m.urls.append(url_model)
+                                try:
+                                    session.commit()
+                                    murl.checksum_value = sc_m.value
+                                    murl.checksum_ext = sc_m.ext
+                                    murl.trash_status = 'false'
+                                    self.url_dict[url] = murl
+                                    logger.info('Url inbox: {}'.format(url))
+                                except (OperationalError, IntegrityError):
+                                    session.rollback()
+                                    #  save file to app temp folder
+                                    new_filepath = os.path.join(
+                                        TEMP_DIR, '{}.{}'.format(
+                                            sc_m.value, sc_m.ext))
+                                    shutil.copyfile(f.name, new_filepath)
+                                    new_filepath_text = new_filepath + '.txt'
+                                    with open(new_filepath_text, 'w') as f:
+                                        for url_m in sc_m.urls:
+                                            f.write(url_m.value)
+                                    logger.exception(
+                                        'response:url: {}\n'
+                                        'saved to temp: {}'.format(
+                                            url, url), exc_info=False)
                             except OSError as err:
                                 exp_txt = 'cannot identify image file'
                                 if str(err).startswith(exp_txt):
@@ -868,30 +859,14 @@ class MitmImage:
                                     ))
                                 else:
                                     raise err
-                        try:
-                            session.commit()
-                        except (OperationalError, IntegrityError):
-                            logger.exception(
-                                'response:url: {}'.format(url), exc_info=False)
-                            #  save file to app temp folder
-                            new_filepath = os.path.join(
-                                TEMP_DIR, '{}.{}'.format(sc_m.value, sc_m.ext))
-                            shutil.copyfile(f.name, new_filepath)
-                            new_filepath_text = new_filepath + '.txt'
-                            with open(new_filepath_text, 'w') as f:
-                                for url_m in sc_m.urls:
-                                    f.write(url_m.value)
-                            logger.info('saved to temp: {}'.format(url))
-                            return
-                        self.url_dict[url] = 'http://{}:{}/i/{}.{}'.format(
-                            redirect_host, redirect_port, sc_m.value, sc_m.ext)
-                        logger.info('Url inbox: {}'.format(url))
-                    if sc_m.trash and url not in self.trash_urls:
-                        self.trash_urls.append(url)
         except Exception:
+            with app.app_context():
+                session.rollback()
             logger.exception('response:url: {}'.format(url))
-        finally:
-            self.url_dict[url] = murl
+
+    @command.command('mitmimage.upload_counter')
+    def upload_counter(self):
+        raise NotImplementedError
 
     @command.command('mitmimage.pdb')
     def pdb(self):
