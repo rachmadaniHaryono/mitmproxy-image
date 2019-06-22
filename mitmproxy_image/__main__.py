@@ -842,6 +842,10 @@ class MitmImage:
                                     Sha256Checksum.get_or_create(  # type: ignore  # NOQA
                                         f.name, url_model, session)[0]
                                 sc_m.urls.append(url_model)
+                                valid_errors = (
+                                    IntegrityError,
+                                    OperationalError,
+                                )
                                 try:
                                     session.commit()
                                     murl.checksum_value = sc_m.value
@@ -849,7 +853,7 @@ class MitmImage:
                                     murl.trash_status = 'false'
                                     self.url_dict[url] = murl
                                     logger.info('Url inbox: {}'.format(url))
-                                except (OperationalError, IntegrityError):
+                                except valid_errors as err:
                                     session.rollback()
                                     #  save file to app temp folder
                                     new_filepath = os.path.join(
@@ -861,9 +865,10 @@ class MitmImage:
                                         for url_m in sc_m.urls:
                                             f.write(url_m.value)
                                     logger.exception(
-                                        'response:url: {}\n'
+                                        'RESPONSE:url: {}\n'
+                                        'error: {}\n'
                                         'saved to temp: {}'.format(
-                                            url, url), exc_info=False)
+                                            url, err, url), exc_info=False)
                             except OSError as err:
                                 exp_txt = 'cannot identify image file'
                                 if str(err).startswith(exp_txt):
