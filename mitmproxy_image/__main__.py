@@ -32,7 +32,6 @@ from mitmproxy.script import concurrent
 from mitmproxy.tools._main import mitmproxy
 from PIL import Image
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
@@ -801,7 +800,8 @@ class MitmImage:
             return
         app = self.app
         session = DB.session
-        if murl.trash_status != 'unknown' and murl.checksum_ext is None and self.pdb:
+        if murl.trash_status != 'unknown' and murl.checksum_ext is None \
+                and self.pdb:
             __import__('pdb').set_trace()
         if murl.trash_status == 'true':
             logger.info('SKIP TRASH: {}'.format(murl.value))
@@ -855,7 +855,8 @@ class MitmImage:
                                     murl.checksum_ext = sc_m.ext
                                     murl.trash_status = 'false'
                                     self.url_dict[url] = murl
-                                    logger.info('Url inbox: {}'.format(url))
+                                    logger.info(
+                                        'Url inbox: {}'.format(url))
                                 except valid_errors as err:
                                     session.rollback()
                                     #  save file to app temp folder
