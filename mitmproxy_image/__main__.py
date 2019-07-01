@@ -12,6 +12,7 @@ import os
 import pathlib
 import shutil
 import tempfile
+import threading
 import traceback
 import sys
 import shlex
@@ -671,6 +672,7 @@ class MitmImage:
         self.invalid_exts = [
             'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
         self.pdb = False
+        self.lock = threading.Lock()
 
     def load(self, loader):
         loader.add_option(
@@ -830,7 +832,8 @@ class MitmImage:
                     sc_m = url_model.checksum
                 else:
                     with tempfile.NamedTemporaryFile(
-                            delete=False, suffix='.{}'.format(murl.ext)) as f:
+                            delete=False, suffix='.{}'.format(murl.ext)
+                    ) as f, self.lock:
                         with open(f.name, 'wb') as ff:
                             ff.write(flow.response.content)
                         if os.stat(f.name).st_size == 0:
