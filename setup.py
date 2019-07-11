@@ -16,6 +16,7 @@ setup(
     python_requires='>=3.5',
     install_requires=[
         'appdirs>=1.4.3',
+        'click==6.7',
         'flasgger>=0.9.2',
         'Flask-Admin>=1.5.2',
         'Flask-SQLAlchemy>=2.3.2',
