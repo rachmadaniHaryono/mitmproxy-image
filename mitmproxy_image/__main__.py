@@ -596,6 +596,9 @@ def run_mitmproxy(
     if redirect_port:
         args_lines.append(
             '--set=redirect_port={}'.format(shlex.quote(str(redirect_port))))
+    args_lines.append('--view-filter {}'.format(shlex.quote('~t image/*')))
+    args_lines.append(
+        '--set console_focus_follow={}'.format(shlex.quote('true')))
     mitmproxy(shlex.split(' '.join(args_lines)))
 
 
