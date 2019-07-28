@@ -776,10 +776,10 @@ class MitmImage:
         logger = logging.getLogger('response')
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
+        url = flow.request.pretty_url
         if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
             logger.debug('RESPONSE:NOT IMAGE URL: {}'.format(url))
             return
-        url = flow.request.pretty_url
         if url not in self.url_dict:
             murl = MitmUrl(flow)
         else:
