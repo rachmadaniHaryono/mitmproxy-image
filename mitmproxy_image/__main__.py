@@ -61,7 +61,7 @@ LOG_FILE = os.path.join(
     APP_DIR, 'mitmproxy_image_{}_{}.log'.format(YEAR, MONTH))
 SERVER_LOG_FILE = os.path.join(
     APP_DIR, 'mitmproxy_image_server_{}_{}.log'.format(YEAR, MONTH))
-LOG_FORMAT = '%(asctime)s %(levelname)s - %(message)s'
+LOG_FORMAT = '%(asctime)s %(levelname)s - %(name)s:%(message)s'
 FORMATTER = logging.Formatter(LOG_FORMAT)
 # db
 DB_PATH = os.path.abspath(os.path.join(APP_DIR, 'mitmproxy_image.db'))
@@ -707,7 +707,7 @@ class MitmImage:
         redirect_port = ctx.options.redirect_port
         logger = logging.getLogger('request')
         if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
-            logger.debug('REQUEST:NOT IMAGE URL: {}'.format(url))
+            logger.debug('NOT IMAGE URL: {}'.format(url))
             return
         if not redirect_host:
             return
@@ -718,7 +718,7 @@ class MitmImage:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
         if murl.is_on_redirect_server(redirect_host, redirect_port):
-            logger.info('REQUEST:SKIP REDIRECT SERVER: {}'.format(url))
+            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
         self.url_dict[url] = murl
         app = self.app
@@ -735,7 +735,7 @@ class MitmImage:
                         Url.get_or_create(url, session)[0]  # type: Any
                     if url_model.checksum:
                         if url_model.checksum.filesize == 0:
-                            logger.info('REEQUEST:0 FILESIZE: {}'.format(url))
+                            logger.info('0 FILESIZE: {}'.format(url))
                             return
                         murl.trash_status = \
                             'true' if url_model.checksum.trash else 'false'
@@ -766,7 +766,7 @@ class MitmImage:
             else:
                 if self.pdb:
                     __import__('pdb').set_trace()
-                logger.debug('REQUEST:NO REDIRECT URL: {}'.format(url))
+                logger.debug('NO REDIRECT URL: {}'.format(url))
         except Exception:
             logger.exception('request:url: {}'.format(url))
 
@@ -778,7 +778,7 @@ class MitmImage:
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
         if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
-            logger.debug('RESPONSE:NOT IMAGE URL: {}'.format(url))
+            logger.debug('NOT IMAGE URL: {}'.format(url))
             return
         if url not in self.url_dict:
             murl = MitmUrl(flow)
@@ -796,9 +796,9 @@ class MitmImage:
                         v.get_redirect_url(redirect_host, redirect_port) == url and k != url)][0]
                 key_url = matching_murl[0]
                 del self.url_dict[key_url]
-                logger.info('RESPONSE:URL 404:{}\nredirect: {}'.format(key_url, url))
+                logger.info('URL 404:{}\nredirect: {}'.format(key_url, url))
             else:
-                logger.info('RESPONSE:SKIP REDIRECT SERVER: {}'.format(url))
+                logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
         murl = self.url_dict[url]
         if murl.trash_status == 'true':
@@ -819,7 +819,7 @@ class MitmImage:
         if murl.trash_status == 'false' and \
                 murl.get_redirect_url(redirect_host, redirect_port):
             # file already on inbox
-            logger.info('RESPONSE:ON INBOX: {}'.format(url))
+            logger.info('ON INBOX: {}'.format(url))
             return
         try:
             with app.app_context():
@@ -881,7 +881,7 @@ class MitmImage:
                                         for url_m in sc_m.urls:
                                             f.write(url_m.value)
                                     logger.exception(
-                                        'RESPONSE:url: {}\n'
+                                        'url: {}\n'
                                         'error: {}\n'
                                         'saved to temp: {}'.format(
                                             url, err, url), exc_info=False)
