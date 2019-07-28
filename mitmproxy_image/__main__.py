@@ -16,7 +16,7 @@ import threading
 import traceback
 import sys
 import shlex
-from typing import Any, Optional, Union, Tuple, TypeVar
+from typing import Any, List, Optional, Union, Tuple, TypeVar
 
 from appdirs import user_data_dir
 from flasgger import Swagger
@@ -636,14 +636,6 @@ class MitmUrl:
         if self.content_type:
             return self.content_type.split('/')[1].split(';')[0]
 
-    def is_image_url(self, invalid_exts=None):
-        if not self.content_type:
-            return False
-        res = self.content_type.startswith('image')
-        if res and invalid_exts:
-            res = self.ext not in invalid_exts
-        return res
-
     def repr(self):
         return '<Mitmurl(value={0.value}, trash={0.value}, ' \
             'content_type={0.content_type})>'.format(self)
@@ -708,33 +700,32 @@ class MitmImage:
         logging.info('MitmImage initiated')
         self.app = create_app(root_path=__file__)
 
-    @concurrent
+    #  @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         logger = logging.getLogger('request')
+        if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
+            logger.debug('REQUEST:NOT IMAGE URL: {}'.format(url))
+            return
         if not redirect_host:
             return
         url = flow.request.pretty_url
         if url not in self.url_dict:
             murl = MitmUrl(flow)
-            self.url_dict[url] = murl
         else:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
-        self.url_dict[url] = murl
         if murl.is_on_redirect_server(redirect_host, redirect_port):
             logger.info('REQUEST:SKIP REDIRECT SERVER: {}'.format(url))
             return
+        self.url_dict[url] = murl
         app = self.app
         session = DB.session
         if murl.trash_status == 'true':
             logger.info('SKIP REDIRECT TRASH: {}'.format(flow.request.url))
             murl.check_counter += 1
             self.url_dict[url] = murl
-            return
-        if not murl.is_image_url(self.invalid_exts):
-            logger.debug('REQUEST:NOT IMAGE URL: {}'.format(url))
             return
         try:
             if murl.trash_status == 'unknown':
@@ -780,6 +771,9 @@ class MitmImage:
         logger = logging.getLogger('response')
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
+        if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
+            logger.debug('RESPONSE:NOT IMAGE URL: {}'.format(url))
+            return
         url = flow.request.pretty_url
         if url not in self.url_dict:
             murl = MitmUrl(flow)
@@ -797,9 +791,6 @@ class MitmImage:
         if murl.content_type is None or murl.ext is None:
             logger.debug('Unknown content-type: {}\ncontent type: {}'.format(
                 url, murl.content_type))
-            return
-        if not murl.is_image_url(self.invalid_exts):
-            logger.debug('RESPONSE:NOT IMAGE URL: {}'.format(url))
             return
         app = self.app
         session = DB.session
@@ -841,6 +832,8 @@ class MitmImage:
                             ff.write(flow.response.content)
                         if os.stat(f.name).st_size == 0:
                             logger.info('REQUEST:0 FILESIZE: {}'.format(url))
+                            murl.zero_filesize = 'true'
+                            self.url_dict[url] = murl
                             return
                         with session.no_autoflush:
                             try:
@@ -892,6 +885,48 @@ class MitmImage:
             with app.app_context():
                 session.rollback()
             logger.exception('response:url: {}'.format(url))
+
+    # etc method
+
+    @staticmethod
+    def is_flow_content_type_valid(flow: http.HTTPFlow, invalid_exts: List[str]):
+        """check if flown content_type valid.
+
+        flowl.content_type examples:
+        - `None`
+        - image/webp
+        - text/html; charset=utf-8
+        - application/javascript
+        - application/json; charset=utf-8
+        - image/gif;charset=utf-8
+
+        mitmproxy_image only interested on `image/*`.
+        invalid_exts will be required argument,
+        until it is possible for user to change it
+        """
+        known_content_types = (
+            'image/gif', 'image/jpeg', 'image/png', 'image/svg+xml',
+            'image/vnd.microsoft.icon', 'image/webp', 'image/x-icon',
+        )
+        content_type = None
+        if hasattr(flow.response, 'headers') and \
+                'content-type' in flow.response.headers:
+            content_type = flow.response.headers['content-type']
+        if not content_type:
+            return False
+        res = content_type.startswith('image')
+        if res:
+            if content_type.startswith(known_content_types) :
+                logging.info(
+                    'unknown content type: {}\nurl: {}'.format(
+                        content_type, flow.request.url))
+            if any([
+                    content_type.startswith('image/{}'.format(x))
+                    for x in invalid_exts]):
+                res = False
+        return res
+
+    # command
 
     @command.command('mitmimage.upload_counter')
     def upload_counter(self):
