@@ -701,7 +701,7 @@ class MitmImage:
         logging.info('MitmImage initiated')
         self.app = create_app(root_path=__file__)
 
-    #  @concurrent
+    @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
