@@ -932,7 +932,7 @@ class MitmImage:
             return False
         res = content_type.startswith('image')
         if res:
-            if content_type.startswith(known_content_types) :
+            if not content_type.startswith(known_content_types):
                 logging.info(
                     'unknown content type: {}\nurl: {}'.format(
                         content_type, flow.request.url))
