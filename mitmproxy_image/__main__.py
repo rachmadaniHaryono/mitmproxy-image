@@ -612,7 +612,8 @@ class MitmUrl:
                 'value is different with pretty value\n'
                 'value: {0.value}\n'
                 'pretty value: {1}'.format(self, pretty_url))
-        self.trash_status = 'unknown'
+        self.trash_status = 'unknown'  # unknown, true or false
+        self.zero_filesize = 'unknown' # unknown, true or false
         self.host = flow.request.host
         self.port = flow.request.port
         self.content_type = None
@@ -742,7 +743,7 @@ class MitmImage:
                         murl.checksum_ext = url_model.checksum.ext
                     self.url_dict[url] = murl
             redirect_url = murl.get_redirect_url(redirect_host, redirect_port)
-            if redirect_url:
+            if redirect_url and murl.zero_filesize != 'true':
                 if flow.request.http_version == 'HTTP/2.0':
                     flow.response = HTTPResponse(
                         'HTTP/1.1', 302, 'Found',
