@@ -796,8 +796,9 @@ class MitmImage:
                         v.get_redirect_url(redirect_host, redirect_port) == url and k != url)][0]
                 key_url = matching_murl[0]
                 del self.url_dict[key_url]
-                logger.info('RESPONSE:URL REDOWNLOAD: {}'.format(key_url))
-            logger.info('RESPONSE:SKIP REDIRECT SERVER: {}'.format(url))
+                logger.info('RESPONSE:URL 404:{}\nredirect: {}'.format(key_url, url))
+            else:
+                logger.info('RESPONSE:SKIP REDIRECT SERVER: {}'.format(url))
             return
         murl = self.url_dict[url]
         if murl.trash_status == 'true':
