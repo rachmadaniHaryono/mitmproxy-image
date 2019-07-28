@@ -778,13 +778,9 @@ class MitmImage:
         url = flow.request.pretty_url
         if url not in self.url_dict:
             murl = MitmUrl(flow)
-            self.url_dict[url] = murl
         else:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
-        if murl.trash_status == 'true':
-            logger.info('Url on trash: {}'.format(url))
-            return
         if redirect_host and \
                 murl.is_on_redirect_server(redirect_host, redirect_port):
             logger.debug('status code, url:{}, {}'.format(
@@ -798,6 +794,10 @@ class MitmImage:
                 del self.url_dict[key_url]
                 logger.info('RESPONSE:URL REDOWNLOAD: {}'.format(key_url))
             logger.info('RESPONSE:SKIP REDIRECT SERVER: {}'.format(url))
+            return
+        murl = self.url_dict[url]
+        if murl.trash_status == 'true':
+            logger.info('Url on trash: {}'.format(url))
             return
         if murl.content_type is None or murl.ext is None:
             logger.debug('Unknown content-type: {}\ncontent type: {}'.format(
