@@ -704,17 +704,16 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         redirect_host = ctx.options.redirect_host
-        redirect_port = ctx.options.redirect_port
-        logger = logging.getLogger('request')
-        if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
-            logger.debug('NOT IMAGE URL: {}'.format(url))
-            return
         if not redirect_host:
             return
+        redirect_port = ctx.options.redirect_port
+        logger = logging.getLogger('request')
         url = flow.request.pretty_url
-        if url not in self.url_dict:
-            murl = MitmUrl(flow)
-        else:
+        murl = MitmUrl(flow)
+        if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
+            logger.debug('NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
+            return
+        if url in self.url_dict:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
         if murl.is_on_redirect_server(redirect_host, redirect_port):
@@ -777,12 +776,16 @@ class MitmImage:
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
         url = flow.request.pretty_url
-        if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
-            logger.debug('NOT IMAGE URL: {}'.format(url))
+        if flow.response.status_code == 304:
+            logger.debug('304 status code: {}'.format(url))
             return
-        if url not in self.url_dict:
-            murl = MitmUrl(flow)
-        else:
+        murl = MitmUrl(flow)
+        if not MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
+            if 'http://img.bakufu.jp/wp-content/uploads/2019/07' in url:
+                __import__('pdb').set_trace()
+            logger.debug('NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
+            return
+        if url in self.url_dict:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
         if redirect_host and \
@@ -800,7 +803,6 @@ class MitmImage:
             else:
                 logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
-        murl = self.url_dict[url]
         if murl.trash_status == 'true':
             logger.info('Url on trash: {}'.format(url))
             return
