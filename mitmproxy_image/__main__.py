@@ -16,7 +16,7 @@ import threading
 import traceback
 import sys
 import shlex
-from typing import Any, List, Optional, Union, Tuple, TypeVar
+from typing import Any, Optional, Union, Tuple, TypeVar
 
 from appdirs import user_data_dir
 from flasgger import Swagger
@@ -47,6 +47,7 @@ from flask import (
     url_for,
 )
 import click
+#  import snoop
 
 
 # app dir
@@ -70,6 +71,13 @@ DB = SQLAlchemy()
 # annotation
 Sha256ChecksumVar = TypeVar('Sha256ChecksumVar', bound='Sha256Checksum')
 UrlVar = TypeVar('UrlVar', bound='Url')
+# etc
+#  snoop.install(out=os.path.join(APP_DIR, 'snoop.log'))
+KNOWN_IMAGE_EXTS = (
+    'gif', 'jpeg', 'jpg', 'png', 'svg+xml', 'vnd.microsoft.icon',
+    'webp', 'x-icon',)
+KNOWN_CONTENT_TYPES = ('image/{}'.format(x) for x in KNOWN_IMAGE_EXTS)
+INVALID_IMAGE_EXTS = ['svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
 
 
 # MODEL
@@ -902,12 +910,13 @@ class MitmImage:
         except Exception:
             with app.app_context():
                 session.rollback()
-            logger.exception('response:url: {}'.format(url))
+            logger.exception('url: {}'.format(url))
 
     # etc method
 
     @staticmethod
-    def is_flow_content_type_valid(flow: http.HTTPFlow, invalid_exts: List[str]):
+    #  @snoop
+    def is_flow_content_type_valid(flow: http.HTTPFlow):
         """check if flown content_type valid.
 
         flowl.content_type examples:
@@ -922,10 +931,6 @@ class MitmImage:
         invalid_exts will be required argument,
         until it is possible for user to change it
         """
-        known_content_types = (
-            'image/gif', 'image/jpeg', 'image/png', 'image/svg+xml',
-            'image/vnd.microsoft.icon', 'image/webp', 'image/x-icon',
-        )
         content_type = None
         if hasattr(flow.response, 'headers') and \
                 'content-type' in flow.response.headers:
@@ -934,13 +939,13 @@ class MitmImage:
             return False
         res = content_type.startswith('image')
         if res:
-            if not content_type.startswith(known_content_types):
+            if not content_type.startswith(tuple(KNOWN_CONTENT_TYPES)):
                 logging.info(
-                    'unknown content type: {}\nurl: {}'.format(
+                    'unknown content type: {!r}\nurl: {}'.format(
                         content_type, flow.request.url))
             if any([
                     content_type.startswith('image/{}'.format(x))
-                    for x in invalid_exts]):
+                    for x in INVALID_IMAGE_EXTS]):
                 res = False
         return res
 
