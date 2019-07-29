@@ -621,7 +621,7 @@ class MitmUrl:
                 'value: {0.value}\n'
                 'pretty value: {1}'.format(self, pretty_url))
         self.trash_status = 'unknown'  # unknown, true or false
-        self.zero_filesize = 'unknown' # unknown, true or false
+        self.zero_filesize = 'unknown'  # unknown, true or false
         self.host = flow.request.host
         self.port = flow.request.port
         self.content_type = None
@@ -718,8 +718,9 @@ class MitmImage:
         logger = logging.getLogger('request')
         url = flow.request.pretty_url
         murl = MitmUrl(flow)
-        if MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
-            logger.debug('NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
+        if MitmImage.is_flow_content_type_valid(flow):
+            logger.debug(
+                'NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
             return
         if url in self.url_dict:
             self.url_dict[url].update(flow)
@@ -751,8 +752,8 @@ class MitmImage:
                     self.url_dict[url] = murl
             redirect_url = murl.get_redirect_url(redirect_host, redirect_port)
             if (
-                redirect_url and 
-                murl.zero_filesize != 'true' and 
+                redirect_url and
+                murl.zero_filesize != 'true' and
                 murl.trash_status != 'true'
             ):
                 if flow.request.http_version == 'HTTP/2.0':
@@ -775,7 +776,7 @@ class MitmImage:
                     __import__('pdb').set_trace()
                 logger.debug('NO REDIRECT URL: {}'.format(url))
         except Exception:
-            logger.exception('request:url: {}'.format(url))
+            logger.exception('url: {}'.format(url))
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -788,10 +789,9 @@ class MitmImage:
             logger.debug('304 status code: {}'.format(url))
             return
         murl = MitmUrl(flow)
-        if not MitmImage.is_flow_content_type_valid(flow, self.invalid_exts):
-            if 'http://img.bakufu.jp/wp-content/uploads/2019/07' in url:
-                __import__('pdb').set_trace()
-            logger.debug('NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
+        if not MitmImage.is_flow_content_type_valid(flow):
+            logger.debug(
+                'NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
             return
         if url in self.url_dict:
             self.url_dict[url].update(flow)
@@ -802,9 +802,11 @@ class MitmImage:
                 flow.response.status_code, url))
             if flow.response.status_code == 404:
                 matching_murl = [
-                    [k, v] for k, v in self.url_dict.items() 
+                    [k, v] for k, v in self.url_dict.items()
                     if (
-                        v.get_redirect_url(redirect_host, redirect_port) == url and k != url)][0]
+                        v.get_redirect_url(
+                            redirect_host, redirect_port) == url
+                        and k != url)][0]
                 key_url = matching_murl[0]
                 del self.url_dict[key_url]
                 logger.info('URL 404:{}\nredirect: {}'.format(key_url, url))
