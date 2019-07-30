@@ -76,7 +76,7 @@ UrlVar = TypeVar('UrlVar', bound='Url')
 KNOWN_IMAGE_EXTS = (
     'gif', 'jpeg', 'jpg', 'png', 'svg+xml', 'vnd.microsoft.icon',
     'webp', 'x-icon',)
-KNOWN_CONTENT_TYPES = ('image/{}'.format(x) for x in KNOWN_IMAGE_EXTS)
+KNOWN_CONTENT_TYPES = tuple('image/{}'.format(x) for x in KNOWN_IMAGE_EXTS)
 INVALID_IMAGE_EXTS = ['svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
 
 
@@ -917,7 +917,7 @@ class MitmImage:
     # etc method
 
     @staticmethod
-    #  @snoop
+    #  @snoop(watch=('content_type'))
     def is_flow_content_type_valid(flow: http.HTTPFlow):
         """check if flown content_type valid.
 
@@ -941,7 +941,7 @@ class MitmImage:
             return False
         res = content_type.startswith('image')
         if res:
-            if not content_type.startswith(tuple(KNOWN_CONTENT_TYPES)):
+            if not content_type.startswith(KNOWN_CONTENT_TYPES):
                 logging.info(
                     'unknown content type: {!r}\nurl: {}'.format(
                         content_type, flow.request.url))
