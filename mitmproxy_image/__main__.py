@@ -746,17 +746,17 @@ class MitmImage:
         redirect_port = ctx.options.redirect_port
         logger = logging.getLogger('request')
         url = flow.request.pretty_url
-        murl = MitmUrl(flow)
-        if MitmImage.is_flow_content_type_valid(flow):
+        if not is_flow_content_type_valid(flow):
             logger.debug(
-                'NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
+                'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
+            return
+        murl = MitmUrl(flow)
+        if murl.is_on_redirect_server(redirect_host, redirect_port):
+            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
         if url in self.url_dict:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
-        if murl.is_on_redirect_server(redirect_host, redirect_port):
-            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
-            return
         self.url_dict[url] = murl
         app = self.app
         session = DB.session
@@ -807,21 +807,20 @@ class MitmImage:
         except Exception:
             logger.exception('url: {}'.format(url))
 
-    @concurrent
-    def response(self, flow: http.HTTPFlow) -> None:
-        """Handle response."""
+    def check_valid_flow_response(self, flow: http.HTTPFlow)->bool:
         logger = logging.getLogger('response')
+        url = flow.request.pretty_url
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
-        url = flow.request.pretty_url
+        res = {'url': None}
         if flow.response.status_code == 304:
             logger.debug('304 status code: {}'.format(url))
             return
-        murl = MitmUrl(flow)
-        if not MitmImage.is_flow_content_type_valid(flow):
+        if not is_flow_content_type_valid(flow):
             logger.debug(
-                'NOT IMAGE URL: {}, {}'.format(murl.content_type, url))
+                'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
             return
+        murl = MitmUrl(flow)
         if url in self.url_dict:
             self.url_dict[url].update(flow)
             murl = self.url_dict[url]
@@ -849,8 +848,6 @@ class MitmImage:
             logger.debug('Unknown content-type: {}\ncontent type: {}'.format(
                 url, murl.content_type))
             return
-        app = self.app
-        session = DB.session
         if murl.trash_status != 'unknown' and murl.checksum_ext is None \
                 and self.pdb:
             __import__('pdb').set_trace()
@@ -862,6 +859,20 @@ class MitmImage:
             # file already on inbox
             logger.info('ON INBOX: {}'.format(url))
             return
+        res['url'] = murl
+        return res
+
+    @concurrent
+    def response(self, flow: http.HTTPFlow) -> None:
+        """Handle response."""
+        logger = logging.getLogger('response')
+        url = flow.request.pretty_url
+        check_res = self.check_valid_flow_response(flow)
+        if check_res is None:
+            return
+        murl = check_res['url']
+        app = self.app
+        session = DB.session
         try:
             with app.app_context():
                 try:
