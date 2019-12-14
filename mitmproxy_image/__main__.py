@@ -72,7 +72,6 @@ DB = SQLAlchemy()
 Sha256ChecksumVar = TypeVar('Sha256ChecksumVar', bound='Sha256Checksum')
 UrlVar = TypeVar('UrlVar', bound='Url')
 # etc
-#  snoop.install(out=os.path.join(APP_DIR, 'snoop.log'))
 KNOWN_IMAGE_EXTS = (
     'gif', 'jpeg', 'jpg', 'png', 'svg+xml', 'vnd.microsoft.icon',
     'webp', 'x-icon',)
@@ -668,6 +667,36 @@ class MitmUrl:
                 self.checksum_value, self.checksum_ext)
 
 
+def get_content_type(flow: http.HTTPFlow) -> Optional[str]:
+    """Get content type from HTTPFlow instance."""
+    content_type = None
+    if hasattr(flow.response, 'headers') and \
+            'content-type' in flow.response.headers:
+        content_type = flow.response.headers['content-type']
+    return content_type
+
+
+def is_flow_content_type_valid(flow: http.HTTPFlow) -> bool:
+    """check if flow content_type valid.
+
+    mitmproxy_image only interested on `image/*` content type.
+    """
+    content_type = get_content_type(flow)
+    if not content_type:
+        return False
+    res = content_type.startswith('image')
+    if res:
+        if not content_type.startswith(KNOWN_CONTENT_TYPES):
+            logging.info(
+                'unknown content type: {!r}\nurl: {}'.format(
+                    content_type, flow.request.url))
+        if any([
+                content_type.startswith('image/{}'.format(x))
+                for x in INVALID_IMAGE_EXTS]):
+            res = False
+    return res
+
+
 class MitmImage:
 
     def __init__(self):
@@ -913,43 +942,6 @@ class MitmImage:
             with app.app_context():
                 session.rollback()
             logger.exception('url: {}'.format(url))
-
-    # etc method
-
-    @staticmethod
-    #  @snoop(watch=('content_type'))
-    def is_flow_content_type_valid(flow: http.HTTPFlow):
-        """check if flown content_type valid.
-
-        flowl.content_type examples:
-        - `None`
-        - image/webp
-        - text/html; charset=utf-8
-        - application/javascript
-        - application/json; charset=utf-8
-        - image/gif;charset=utf-8
-
-        mitmproxy_image only interested on `image/*`.
-        invalid_exts will be required argument,
-        until it is possible for user to change it
-        """
-        content_type = None
-        if hasattr(flow.response, 'headers') and \
-                'content-type' in flow.response.headers:
-            content_type = flow.response.headers['content-type']
-        if not content_type:
-            return False
-        res = content_type.startswith('image')
-        if res:
-            if not content_type.startswith(KNOWN_CONTENT_TYPES):
-                logging.info(
-                    'unknown content type: {!r}\nurl: {}'.format(
-                        content_type, flow.request.url))
-            if any([
-                    content_type.startswith('image/{}'.format(x))
-                    for x in INVALID_IMAGE_EXTS]):
-                res = False
-        return res
 
     # command
 
