@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 from PIL import Image
 from sqlalchemy_utils import database_exists
@@ -7,6 +8,8 @@ import pytest
 from mitmproxy_image.__main__ import (
     create_app,
     DB,
+    is_content_type_valid,
+    MitmImage,
     Sha256Checksum,
     Url,
 )
@@ -111,6 +114,24 @@ def test_create_app(tmp_path, use_file):
         # after create app
         assert test_file.is_file()
         assert database_exists(db_uri)
+
+
+def test_init_mitmimage():
+    MitmImage()
+
+
+@pytest.mark.parametrize('content_type, exp_res', [
+    [None, False],
+    ['image/webp', True],
+    ['text/html; charset=utf-8', False],
+    ['application/javascript', False],
+    ['application/json; charset=utf-8', False],
+    ['image/gif;charset=utf-8', False],
+])
+def test_is_content_type_valid(content_type, exp_res):
+    flow = Mock()
+    flow.response.headers = {'content-type': content_type}
+    assert exp_res == is_content_type_valid(flow)
 
 
 if __name__ == '__main__':
