@@ -676,7 +676,7 @@ def get_content_type(flow: http.HTTPFlow) -> Optional[str]:
     return content_type
 
 
-def is_flow_content_type_valid(flow: http.HTTPFlow) -> bool:
+def is_content_type_valid(flow: http.HTTPFlow) -> bool:
     """check if flow content_type valid.
 
     mitmproxy_image only interested on `image/*` content type.
@@ -746,7 +746,7 @@ class MitmImage:
         redirect_port = ctx.options.redirect_port
         logger = logging.getLogger('request')
         url = flow.request.pretty_url
-        if not is_flow_content_type_valid(flow):
+        if not is_content_type_valid(flow):
             logger.debug(
                 'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
             return
@@ -816,7 +816,7 @@ class MitmImage:
         if flow.response.status_code == 304:
             logger.debug('304 status code: {}'.format(url))
             return
-        if not is_flow_content_type_valid(flow):
+        if not is_content_type_valid(flow):
             logger.debug(
                 'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
             return
