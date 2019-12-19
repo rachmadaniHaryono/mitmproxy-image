@@ -746,18 +746,13 @@ class MitmImage:
         redirect_port = ctx.options.redirect_port
         logger = logging.getLogger('request')
         url = flow.request.pretty_url
-        if not is_content_type_valid(flow):
-            logger.debug(
-                'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
+        if url not in self.url_dict:
+            logger.debug('unknown url: {}'.format(url))
             return
-        murl = MitmUrl(flow)
+        murl = self.url_dict[url]
         if murl.is_on_redirect_server(redirect_host, redirect_port):
             logger.info('SKIP REDIRECT SERVER: {}'.format(url))
             return
-        if url in self.url_dict:
-            self.url_dict[url].update(flow)
-            murl = self.url_dict[url]
-        self.url_dict[url] = murl
         app = self.app
         session = DB.session
         if murl.trash_status == 'true':
