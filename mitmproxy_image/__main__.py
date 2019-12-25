@@ -47,6 +47,7 @@ from flask import (
     url_for,
 )
 import click
+import urwid
 #  import snoop
 
 
@@ -606,7 +607,15 @@ def run_mitmproxy(
     args_lines.append('--view-filter {}'.format(shlex.quote('~t image/*')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
-    mitmproxy(shlex.split(' '.join(args_lines)))
+    while True:
+        try:
+            mitmproxy(shlex.split(' '.join(args_lines)))
+            break
+        except urwid.canvas.CanvasError as err:
+            print('{}: {}'.format(type(err), err))
+            print('restarting mitmproxy-image')
+        except Exception as err:
+            raise err
 
 
 class MitmUrl:
