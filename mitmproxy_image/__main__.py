@@ -6,26 +6,31 @@ https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_m
 https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
-from datetime import datetime, date
 import logging
 import os
 import pathlib
+import shlex
 import shutil
+import sys
 import tempfile
 import threading
 import traceback
-import sys
-import shlex
-from typing import Any, Optional, Union, Tuple, TypeVar
+from datetime import date, datetime
+from typing import Any, Optional, Tuple, TypeVar, Union
 
+import click
+import urwid
 from appdirs import user_data_dir
 from flasgger import Swagger
+from flask import Flask, abort, current_app, jsonify
+from flask import request as flask_request
+from flask import send_from_directory, url_for
 from flask.cli import FlaskGroup
 from flask.views import MethodView
 from flask_admin import Admin, AdminIndexView
 from flask_sqlalchemy import SQLAlchemy
 from hashfile import hash_file
-from mitmproxy import ctx, http, command
+from mitmproxy import command, ctx, http
 from mitmproxy.http import HTTPResponse
 from mitmproxy.net.http.headers import Headers
 from mitmproxy.script import concurrent
@@ -37,17 +42,7 @@ from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils.types import URLType
-from flask import (
-    abort,
-    current_app,
-    Flask,
-    jsonify,
-    request as flask_request,
-    send_from_directory,
-    url_for,
-)
-import click
-import urwid
+
 #  import snoop
 
 
@@ -638,8 +633,8 @@ class MitmUrl:
             self.content_type = flow.response.headers['content-type']
         self.check_counter = 0
         self.redirect_counter = 0
-        self.checksum_value = None
-        self.checksum_ext = None
+        self.checksum_value = None  # type: Optional[str]
+        self.checksum_ext = None  # type: Optional[str]
 
     def __repr__(self):
         kwargs = vars(self).copy()
@@ -704,6 +699,10 @@ def is_content_type_valid(flow: http.HTTPFlow) -> bool:
                 for x in INVALID_IMAGE_EXTS]):
             res = False
     return res
+
+
+class InvalidFlowResponse(Exception):
+    pass
 
 
 class MitmImage:
@@ -811,19 +810,20 @@ class MitmImage:
         except Exception:
             logger.exception('url: {}'.format(url))
 
-    def check_valid_flow_response(self, flow: http.HTTPFlow)->bool:
+    def check_valid_flow_response(
+        self, flow: http.HTTPFlow
+    ) -> MitmUrl:
         logger = logging.getLogger('response')
         url = flow.request.pretty_url
         redirect_host = ctx.options.redirect_host
         redirect_port = ctx.options.redirect_port
-        res = {'url': None}
         if flow.response.status_code == 304:
             logger.debug('304 status code: {}'.format(url))
-            return
+            raise InvalidFlowResponse
         if not is_content_type_valid(flow):
             logger.debug(
                 'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
-            return
+            raise InvalidFlowResponse
         murl = MitmUrl(flow)
         if url in self.url_dict:
             self.url_dict[url].update(flow)
@@ -844,37 +844,37 @@ class MitmImage:
                 logger.info('URL 404:{}\nredirect: {}'.format(key_url, url))
             else:
                 logger.info('SKIP REDIRECT SERVER: {}'.format(url))
-            return
+            raise InvalidFlowResponse
         if murl.trash_status == 'true':
             logger.info('Url on trash: {}'.format(url))
-            return
+            raise InvalidFlowResponse
         if murl.content_type is None or murl.ext is None:
             logger.debug('Unknown content-type: {}\ncontent type: {}'.format(
                 url, murl.content_type))
-            return
+            raise InvalidFlowResponse
         if murl.trash_status != 'unknown' and murl.checksum_ext is None \
                 and self.pdb:
             __import__('pdb').set_trace()
         if murl.trash_status == 'true':
             logger.info('SKIP TRASH: {}'.format(murl.value))
-            return
+            raise InvalidFlowResponse
         if murl.trash_status == 'false' and \
                 murl.get_redirect_url(redirect_host, redirect_port):
             # file already on inbox
             logger.info('ON INBOX: {}'.format(url))
-            return
-        res['url'] = murl
-        return res
+            raise InvalidFlowResponse
+        return murl
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
         url = flow.request.pretty_url
-        check_res = self.check_valid_flow_response(flow)
-        if check_res is None:
+        try:
+            checked_url = self.check_valid_flow_response(flow)
+        except InvalidFlowResponse:
             return
-        murl = check_res['url']
+        murl = checked_url
         app = self.app
         session = DB.session
         try:
@@ -933,7 +933,9 @@ class MitmImage:
                                             sc_m.value, sc_m.ext))
                                     shutil.copyfile(f.name, new_filepath)
                                     new_filepath_text = new_filepath + '.txt'
-                                    with open(new_filepath_text, 'w') as f:
+                                    with open(  # type: ignore
+                                            new_filepath_text, 'w'
+                                    ) as f:
                                         for url_m in sc_m.urls:
                                             f.write(url_m.value)
                                     logger.exception(
