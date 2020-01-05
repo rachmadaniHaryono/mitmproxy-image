@@ -406,21 +406,6 @@ class UrlView(MethodView):
             if url_m.checksum:
                 res['checksum_value'] = url_m.checksum_value
                 res['checksum_trash'] = url_m.checksum_trash
-            if flask_request.method == 'POST':
-                for key in ('redirect_counter''check_counter'):
-                    var = flask_request.form.get(key, None)
-                    if var and var == '+1':
-                        if getattr(url_m, key, None) is None:
-                            setattr(url_m, key)
-                        else:
-                            setattr(url_m, key, getattr(url_m, key) + 1)
-                    elif var:
-                        current_app.logger.error('Unknown input:{}:{}'.format(
-                            key, var))
-                db_session.add(url_m)
-                db_session.commit()
-                res['redirect_counter'] = url_m.redirect_counter
-                res['check_counter'] = url_m.check_counter
         except OperationalError as err:
             current_app.logger.error(traceback.format_exc())
             current_app.logger.error('{}:{}\n{}:{}'.format(
@@ -449,21 +434,20 @@ class UrlView(MethodView):
             if url_m.checksum:
                 res['checksum_value'] = url_m.checksum_value
                 res['checksum_trash'] = url_m.checksum_trash
-            if flask_request.method == 'POST':
-                for key in ('redirect_counter''check_counter'):
-                    var = flask_request.form.get(key, None)
-                    if var and var == '+1':
-                        if getattr(url_m, key, None) is None:
-                            setattr(url_m, key)
-                        else:
-                            setattr(url_m, key, getattr(url_m, key) + 1)
-                    elif var:
-                        current_app.logger.error('Unknown input:{}:{}'.format(
-                            key, var))
-                db_session.add(url_m)
-                db_session.commit()
-                res['redirect_counter'] = url_m.redirect_counter
-                res['check_counter'] = url_m.check_counter
+            for key in ('redirect_counter''check_counter'):
+                var = flask_request.form.get(key, None)
+                if var and var == '+1':
+                    if getattr(url_m, key, None) is None:
+                        setattr(url_m, key)
+                    else:
+                        setattr(url_m, key, getattr(url_m, key) + 1)
+                elif var:
+                    current_app.logger.error('Unknown input:{}:{}'.format(
+                        key, var))
+            db_session.add(url_m)
+            db_session.commit()
+            res['redirect_counter'] = url_m.redirect_counter
+            res['check_counter'] = url_m.check_counter
         except OperationalError as err:
             current_app.logger.error(traceback.format_exc())
             current_app.logger.error('{}:{}\n{}:{}'.format(
