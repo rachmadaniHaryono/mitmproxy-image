@@ -689,7 +689,7 @@ def check_valid_flow_response(
     flow: http.HTTPFlow,
     logger: logging.Logger,
     url_dict: Optional[Dict] = None
-) -> Tuple[Optional[MitmUrl], str, str]:
+) -> Tuple[Optional[MitmUrl], str, str, bool]:
     url = flow.request.pretty_url
     redirect_host = ctx.options.redirect_host
     redirect_port = ctx.options.redirect_port
@@ -702,9 +702,9 @@ def check_valid_flow_response(
     if valid and not is_content_type_valid(flow):
         note = 'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url)
         valid, level = False, 'debug'
-    if not valid:
-        return (None, note, level)
     murl = MitmUrl(flow)
+    if not valid:
+        return (murl, note, level, valid)
     if url_dict and url in url_dict:
         url_dict[url].update(flow)
         murl = url_dict[url]
@@ -742,9 +742,7 @@ def check_valid_flow_response(
         # file already on inbox
         note = 'ON INBOX: {}'.format(url)
         valid = False
-    if valid:
-        return (murl, note, level)
-    return (None, note, level)
+    return (murl, note, level, valid)
 
 
 class MitmImage:
@@ -856,9 +854,9 @@ class MitmImage:
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
-        murl, note, level = check_valid_flow_response(
+        murl, note, level, valid = check_valid_flow_response(
             flow, logger, self.url_dict)
-        if not murl:
+        if not valid:
             if level == 'info':
                 logger.info(note)
             elif level == 'debug':
