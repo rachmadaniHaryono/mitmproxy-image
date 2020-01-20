@@ -16,7 +16,7 @@ import tempfile
 import threading
 import traceback
 from datetime import date, datetime
-from typing import Any, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, TypeVar, Union
 
 import click
 import urwid
@@ -599,7 +599,7 @@ def run_mitmproxy(
 
 class MitmUrl:
 
-    def __init__(self, flow, **kwargs):
+    def __init__(self, flow):
         self.value = flow.request.url
         pretty_url = flow.request.pretty_url
         if self.value != pretty_url:
@@ -685,8 +685,66 @@ def is_content_type_valid(flow: http.HTTPFlow) -> bool:
     return res
 
 
-class InvalidFlowResponse(Exception):
-    pass
+def check_valid_flow_response(
+    flow: http.HTTPFlow,
+    logger: logging.Logger,
+    url_dict: Optional[Dict] = None
+) -> Tuple[Optional[MitmUrl], str, str]:
+    url = flow.request.pretty_url
+    redirect_host = ctx.options.redirect_host
+    redirect_port = ctx.options.redirect_port
+    valid = True
+    note = ''
+    level = 'info'
+    if flow.response.status_code == 304:
+        note = '304 status code: {}'.format(url)
+        valid, level = False, 'debug'
+    if valid and not is_content_type_valid(flow):
+        note = 'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url)
+        valid, level = False, 'debug'
+    if not valid:
+        return (None, note, level)
+    murl = MitmUrl(flow)
+    if url_dict and url in url_dict:
+        url_dict[url].update(flow)
+        murl = url_dict[url]
+    if redirect_host and murl.is_on_redirect_server(
+            redirect_host, redirect_port):
+        if flow.response.status_code == 404 and url_dict:
+            matching_murl = [
+                [k, v] for k, v in url_dict.items()
+                if (
+                    v.get_redirect_url(
+                        redirect_host, redirect_port) == url
+                    and k != url)][0]
+            key_url = matching_murl[0]
+            del url_dict[key_url]
+            note = 'URL 404:{}\nredirect: {}'.format(key_url, url)
+        else:
+            note = 'SKIP REDIRECT SERVER: {}'.format(url)
+        valid = False
+    if valid and murl.trash_status == 'true':
+        note = 'Url on trash: {}'.format(url)
+        valid = False
+    if valid and (murl.content_type is None or murl.ext is None):
+        note = 'Unknown content-type: {}\ncontent type: {}'.format(
+            url, murl.content_type)
+        valid, level = False, 'debug'
+    if valid and murl.trash_status != 'unknown' and murl.checksum_ext is None:
+        note = 'unknown trash status & unknown checksum ext, url: {}'.format(
+            url)
+        valid, level = False, 'debug'
+    if valid and murl.trash_status == 'true':
+        note = 'SKIP TRASH: {}'.format(murl.value)
+        valid = False
+    if valid and murl.trash_status == 'false' and \
+            murl.get_redirect_url(redirect_host, redirect_port):
+        # file already on inbox
+        note = 'ON INBOX: {}'.format(url)
+        valid = False
+    if valid:
+        return (murl, note, level)
+    return (None, note, level)
 
 
 class MitmImage:
@@ -794,71 +852,22 @@ class MitmImage:
         except Exception:
             logger.exception('url: {}'.format(url))
 
-    def check_valid_flow_response(
-        self, flow: http.HTTPFlow
-    ) -> MitmUrl:
-        logger = logging.getLogger('response')
-        url = flow.request.pretty_url
-        redirect_host = ctx.options.redirect_host
-        redirect_port = ctx.options.redirect_port
-        if flow.response.status_code == 304:
-            logger.debug('304 status code: {}'.format(url))
-            raise InvalidFlowResponse
-        if not is_content_type_valid(flow):
-            logger.debug(
-                'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url))
-            raise InvalidFlowResponse
-        murl = MitmUrl(flow)
-        if url in self.url_dict:
-            self.url_dict[url].update(flow)
-            murl = self.url_dict[url]
-        if redirect_host and \
-                murl.is_on_redirect_server(redirect_host, redirect_port):
-            logger.debug('status code, url:{}, {}'.format(
-                flow.response.status_code, url))
-            if flow.response.status_code == 404:
-                matching_murl = [
-                    [k, v] for k, v in self.url_dict.items()
-                    if (
-                        v.get_redirect_url(
-                            redirect_host, redirect_port) == url
-                        and k != url)][0]
-                key_url = matching_murl[0]
-                del self.url_dict[key_url]
-                logger.info('URL 404:{}\nredirect: {}'.format(key_url, url))
-            else:
-                logger.info('SKIP REDIRECT SERVER: {}'.format(url))
-            raise InvalidFlowResponse
-        if murl.trash_status == 'true':
-            logger.info('Url on trash: {}'.format(url))
-            raise InvalidFlowResponse
-        if murl.content_type is None or murl.ext is None:
-            logger.debug('Unknown content-type: {}\ncontent type: {}'.format(
-                url, murl.content_type))
-            raise InvalidFlowResponse
-        if murl.trash_status != 'unknown' and murl.checksum_ext is None \
-                and self.pdb:
-            __import__('pdb').set_trace()
-        if murl.trash_status == 'true':
-            logger.info('SKIP TRASH: {}'.format(murl.value))
-            raise InvalidFlowResponse
-        if murl.trash_status == 'false' and \
-                murl.get_redirect_url(redirect_host, redirect_port):
-            # file already on inbox
-            logger.info('ON INBOX: {}'.format(url))
-            raise InvalidFlowResponse
-        return murl
-
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
-        url = flow.request.pretty_url
-        try:
-            checked_url = self.check_valid_flow_response(flow)
-        except InvalidFlowResponse:
+        murl, note, level = check_valid_flow_response(
+            flow, logger, self.url_dict)
+        if not murl:
+            if level == 'info':
+                logger.info(note)
+            elif level == 'debug':
+                logger.debug(note)
+            else:
+                logger.error('Unknown log level: {}'.format(level))
+                logger.info(note)
             return
-        murl = checked_url
+        url = flow.request.pretty_url
         app = self.app
         session = DB.session
         try:

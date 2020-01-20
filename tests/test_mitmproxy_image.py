@@ -1,17 +1,23 @@
+import logging
+import os
+import pickle
 import unittest
+from unittest import mock
 from unittest.mock import Mock
 
+import pytest
 from PIL import Image
 from sqlalchemy_utils import database_exists
-import pytest
 
 from mitmproxy_image.__main__ import (
-    create_app,
     DB,
-    is_content_type_valid,
     MitmImage,
+    MitmUrl,
     Sha256Checksum,
     Url,
+    check_valid_flow_response,
+    create_app,
+    is_content_type_valid
 )
 
 
@@ -132,6 +138,35 @@ def test_is_content_type_valid(content_type, exp_res):
     flow = Mock()
     flow.response.headers = {'content-type': content_type}
     assert exp_res == is_content_type_valid(flow)
+
+
+def test_check_valid_flow_response():
+    m_flow = Mock()
+    resp_pickle = os.path.join(
+        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    with open(resp_pickle, 'rb') as f:
+        m_flow.request, m_flow.response = pickle.load(f)
+    with mock.patch('mitmproxy_image.__main__.ctx'):
+        res = check_valid_flow_response(
+            m_flow, logging.getLogger(__name__))
+    assert vars(res[0]) == vars(MitmUrl(m_flow))
+    assert res[1:] == ('', 'info')
+
+
+def test_mitmurl():
+    m_flow = Mock()
+    resp_pickle = os.path.join(
+        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    with open(resp_pickle, 'rb') as f:
+        m_flow.request, m_flow.response = pickle.load(f)
+    obj = MitmUrl(m_flow)
+    assert vars(obj) == {
+        'value': 'https://pocket-syndicated-publisher-logos.s3.amazonaws.com/5d001cdc87f29.png',  # NOQA
+        'trash_status': 'unknown', 'zero_filesize': 'unknown',
+        'host': 'pocket-syndicated-publisher-logos.s3.amazonaws.com',
+        'port': 443, 'content_type': 'image/png', 'check_counter': 0,
+        'redirect_counter': 0, 'checksum_value': None,
+        'checksum_ext': None}
 
 
 if __name__ == '__main__':
