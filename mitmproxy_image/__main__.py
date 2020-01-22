@@ -689,7 +689,7 @@ def check_valid_flow_response(
     flow: http.HTTPFlow,
     logger: logging.Logger,
     url_dict: Optional[Dict] = None
-) -> Tuple[Optional[MitmUrl], str, str, bool]:
+) -> Tuple[MitmUrl, str, str, bool]:
     url = flow.request.pretty_url
     redirect_host = ctx.options.redirect_host
     redirect_port = ctx.options.redirect_port
