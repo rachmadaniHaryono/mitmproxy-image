@@ -150,7 +150,7 @@ def test_check_valid_flow_response():
         res = check_valid_flow_response(
             m_flow, logging.getLogger(__name__))
     assert vars(res[0]) == vars(MitmUrl(m_flow))
-    assert res[1:] == ('', 'info')
+    assert res[1:] == ('', 'info', True)
 
 
 def test_mitmurl():
