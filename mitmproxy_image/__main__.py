@@ -16,7 +16,7 @@ import tempfile
 import threading
 import traceback
 from datetime import date, datetime
-from typing import Any, Dict, Optional, Tuple, TypeVar, Union
+from typing import IO, Any, Dict, Optional, Tuple, TypeVar, Union
 
 import click
 import urwid
@@ -745,6 +745,23 @@ def check_valid_flow_response(
     return (murl, note, level, valid)
 
 
+def save_to_temp_folder(
+        checksum_model: Sha256Checksum,
+        file_: IO[bytes],
+        temp_dir: str = TEMP_DIR
+):
+    # compatibility
+    sc_m = checksum_model
+    f = file_
+    new_filepath = os.path.join(
+        temp_dir, '{}.{}'.format(sc_m.value, sc_m.ext))
+    shutil.copyfile(f.name, new_filepath)
+    new_filepath_text = new_filepath + '.txt'
+    urls = [x.value for x in sc_m.urls]
+    with open(new_filepath_text, 'w') as fp:
+        fp.write('\n'.join(urls))
+
+
 class MitmImage:
 
     def __init__(self):
@@ -919,16 +936,7 @@ class MitmImage:
                                 except valid_errors as err:
                                     session.rollback()
                                     #  save file to app temp folder
-                                    new_filepath = os.path.join(
-                                        TEMP_DIR, '{}.{}'.format(
-                                            sc_m.value, sc_m.ext))
-                                    shutil.copyfile(f.name, new_filepath)
-                                    new_filepath_text = new_filepath + '.txt'
-                                    with open(  # type: ignore
-                                            new_filepath_text, 'w'
-                                    ) as f:
-                                        for url_m in sc_m.urls:
-                                            f.write(url_m.value)
+                                    save_to_temp_folder(sc_m, f)
                                     logger.exception(
                                         'url: {}\n'
                                         'error: {}\n'
