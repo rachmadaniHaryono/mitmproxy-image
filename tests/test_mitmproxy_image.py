@@ -189,8 +189,11 @@ def test_save_to_temp_folder(tmp_path):
     m_file.name = test_img_path
     save_to_temp_folder(m_sc, m_file, test_dir)
     exp_txt_file = test_dir / (hash_ + '.' + ext + '.txt')
-    assert os.path.isfile(test_dir / (hash_ + '.' + ext))
-    assert os.path.isfile(exp_txt_file)
+    exp_img_file = test_dir / (hash_ + '.' + ext)
+    assert exp_img_file.is_file()
+    assert exp_img_file.stat().st_size > 0
+    assert exp_txt_file.is_file()
+    assert exp_txt_file.stat().st_size > 0
     with open(exp_txt_file) as f:
         assert f.read() == '\n'.join(urls)
 
