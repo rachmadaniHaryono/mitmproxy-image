@@ -17,7 +17,8 @@ from mitmproxy_image.__main__ import (
     Url,
     check_valid_flow_response,
     create_app,
-    is_content_type_valid
+    is_content_type_valid,
+    save_to_temp_folder
 )
 
 
@@ -167,6 +168,32 @@ def test_mitmurl():
         'port': 443, 'content_type': 'image/png', 'check_counter': 0,
         'redirect_counter': 0, 'checksum_value': None,
         'checksum_ext': None}
+
+
+def test_save_to_temp_folder(tmp_path):
+    img = Image.new('RGB', (60, 30), color='red')
+    test_img_path = tmp_path / 'test.jpg'
+    img.save(test_img_path)
+    test_dir = tmp_path / 'test_dir'
+    test_dir.mkdir()
+    m_sc = Mock()
+    hash_ = '71bfa8254d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe'
+    ext = 'jpeg'
+    m_sc.value, m_sc.ext = hash_, ext
+    urls = ['http://example.com/1.jpg', 'http://example.com/2.jpg']
+    m_sc.urls = []
+    for url in urls:
+        m_url = Mock()
+        m_url.value = url
+        m_sc.urls.append(m_url)
+    m_file = Mock()
+    m_file.name = test_img_path
+    save_to_temp_folder(m_sc, m_file, test_dir)
+    exp_txt_file = test_dir / (hash_ + '.' + ext + '.txt')
+    assert os.path.isfile(test_dir / (hash_ + '.' + ext))
+    assert os.path.isfile(exp_txt_file)
+    with open(exp_txt_file) as f:
+        assert f.read() == '\n'.join(urls)
 
 
 if __name__ == '__main__':
