@@ -80,6 +80,7 @@ def test_get_or_create_sha256checksum_model(tmp_path):
     test_dir = tmp_path / 'test_dir'
     test_dir.mkdir()
     img.save(test_img)
+    hash_ = '71bfa8254d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe'
     with app.app_context():
         m, created = Sha256Checksum.get_or_create(
             test_img.as_posix(), url, session, tmp_path.as_posix())
@@ -100,9 +101,7 @@ def test_get_or_create_sha256checksum_model(tmp_path):
                 'check_counter': '0',
                 'id': '1',
                 'value': 'http://example.com/1.jpeg'}],
-            'value':
-                '71bfa82'
-                '54d2cbdbdfe56938cdbf0c759be4d3d80818b56652de89fc589a70cbe',
+            'value': hash_,
             'width': 60}
 
 
