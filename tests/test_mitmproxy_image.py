@@ -166,7 +166,9 @@ def test_mitmurl():
         'host': 'pocket-syndicated-publisher-logos.s3.amazonaws.com',
         'port': 443, 'content_type': 'image/png', 'check_counter': 0,
         'redirect_counter': 0, 'checksum_value': None,
-        'checksum_ext': None}
+        'checksum_ext': None,
+        'pretty_url': 'https://pocket-syndicated-publisher-logos.s3.amazonaws.com/5d001cdc87f29.png'  # NOQA
+    }
 
 
 def test_save_to_temp_folder(tmp_path):
