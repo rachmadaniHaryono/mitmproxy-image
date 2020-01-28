@@ -1,6 +1,7 @@
 import logging
 import os
 import pickle
+import threading
 import unittest
 from unittest import mock
 from unittest.mock import Mock
@@ -18,6 +19,7 @@ from mitmproxy_image.__main__ import (
     check_valid_flow_response,
     create_app,
     is_content_type_valid,
+    save_flow_response,
     save_to_temp_folder
 )
 
@@ -198,6 +200,37 @@ def test_save_to_temp_folder(tmp_path):
     assert exp_txt_file.stat().st_size > 0
     with open(exp_txt_file) as f:
         assert f.read() == '\n'.join(urls)
+
+
+def test_save_flow_response(tmp_path):
+    m_flow = Mock()
+    resp_pickle = os.path.join(
+        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    with open(resp_pickle, 'rb') as f:
+        m_flow.request, m_flow.response = pickle.load(f)
+    m_url = MitmUrl(m_flow)
+    app = create_app('sqlite://')
+    url_dict = {}
+    image_dir = tmp_path / 'image'
+    with app.app_context():
+        save_flow_response(
+            m_url,
+            DB.session,
+            url_dict,
+            threading.Lock(),
+            m_flow,
+            logging.getLogger(),
+            image_dir
+        )
+    assert url_dict == {m_url.value: m_url}
+    assert (
+        image_dir /
+        '2f' /
+        '2fc4424b398e6267cd738c1a67414c2fda6f8a828d45a2cfd072ba057b01d7a7.png'
+    ).is_file()
+    sc_m = Sha256Checksum.query.filter_by(
+        value=m_url.checksum_value).first()
+    assert [x.value for x in sc_m.urls] == [m_url.value]
 
 
 if __name__ == '__main__':
