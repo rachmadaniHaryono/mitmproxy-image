@@ -599,14 +599,14 @@ def run_mitmproxy(
 
 class MitmUrl:
 
-    def __init__(self, flow):
+    def __init__(self, flow: http.HTTPFlow):
         self.value = flow.request.url
-        pretty_url = flow.request.pretty_url
-        if self.value != pretty_url:
+        self.pretty_url = flow.request.pretty_url
+        if self.value != self.pretty_url:
             logging.warning(
                 'value is different with pretty value\n'
                 'value: {0.value}\n'
-                'pretty value: {1}'.format(self, pretty_url))
+                'pretty value: {0.pretty_url}'.format(self))
         self.trash_status = 'unknown'  # unknown, true or false
         self.zero_filesize = 'unknown'  # unknown, true or false
         self.host = flow.request.host
@@ -762,6 +762,81 @@ def save_to_temp_folder(
         fp.write('\n'.join(urls))
 
 
+def save_flow_response(
+        m_url: MitmUrl,
+        session: Any,
+        url_dict: Dict[str, MitmUrl],
+        lock: Any,
+        flow: Any,
+        logger: Any
+):
+    # compatibility
+    url = m_url.pretty_url
+    valid_errors = (IntegrityError, OperationalError,)
+
+    try:
+        url_model = Url.get_or_create(url, session)[0]  # type: Any
+    except OperationalError as err:
+        session.rollback()
+        logging.error('url: {}\nerror: {}'.format(url, err))
+        return
+    zero_filesize = False
+    if url_model.checksum:
+        zero_filesize = url_model.checksum.filesize == 0
+    if url_model.checksum and not zero_filesize:
+        url_model.trash_status = \
+            'true' if url_model.checksum.trash else 'false'
+        m_url.checksum_value = url_model.checksum.value
+        m_url.checksum_ext = url_model.checksum.ext
+        url_dict[url] = m_url
+        return
+    with tempfile.NamedTemporaryFile(
+            delete=False, suffix='.{}'.format(m_url.ext)
+    ) as f, lock:
+        with open(f.name, 'wb') as ff:
+            ff.write(flow.response.content)
+        if os.stat(f.name).st_size == 0:
+            logger.info('REQUEST:0 FILESIZE: {}'.format(url))
+            m_url.zero_filesize = 'true'
+            url_dict[url] = m_url
+            return
+        with session.no_autoflush:
+            try:
+                sc_m = \
+                    Sha256Checksum.get_or_create(  # type: ignore  # NOQA
+                        f.name, url_model, session)[0]
+                sc_m.urls.append(url_model)
+                try:
+                    session.commit()
+                    m_url.checksum_value = sc_m.value
+                    m_url.checksum_ext = sc_m.ext
+                    m_url.trash_status = 'false'
+                    url_dict[url] = m_url
+                    logger.info(
+                        'Url inbox: {}'.format(url))
+                except valid_errors as err:
+                    session.rollback()
+                    #  save file to app temp folder
+                    save_to_temp_folder(sc_m, f)
+                    logger.exception(
+                        'url: {}\n'
+                        'error: {}\n'
+                        'saved to temp: {}'.format(
+                            url, err, url), exc_info=False)
+            except OSError as err:
+                exp_txt = 'cannot identify image file'
+                if str(err).startswith(exp_txt):
+                    dbg_tmpl = \
+                        '{}:{}\nurl: {}\nfile: {}\n' \
+                        'filesize: {}'
+                    logger.debug(dbg_tmpl.format(
+                        type(err), err, url,
+                        f.name, os.path.getsize(f.name)
+                    ))
+                else:
+                    raise err
+
+
 class MitmImage:
 
     def __init__(self):
@@ -871,7 +946,7 @@ class MitmImage:
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         logger = logging.getLogger('response')
-        murl, note, level, valid = check_valid_flow_response(
+        m_url, note, level, valid = check_valid_flow_response(
             flow, logger, self.url_dict)
         if not valid:
             if level == 'info':
@@ -882,82 +957,20 @@ class MitmImage:
                 logger.error('Unknown log level: {}'.format(level))
                 logger.info(note)
             return
-        url = flow.request.pretty_url
-        app = self.app
-        session = DB.session
         try:
-            with app.app_context():
-                try:
-                    url_model = \
-                        Url.get_or_create(url, session)[0]  # type: Any
-                except OperationalError as err:
-                    session.rollback()
-                    logging.error('url: {}\nerror: {}'.format(url, err))
-                    return
-                zero_filesize = False
-                if url_model.checksum:
-                    zero_filesize = url_model.checksum.filesize == 0
-                if url_model.checksum and not zero_filesize:
-                    url_model.trash_status = \
-                        'true' if url_model.checksum.trash else 'false'
-                    murl.checksum_value = url_model.checksum.value
-                    murl.checksum_ext = url_model.checksum.ext
-                    self.url_dict[url] = murl
-                    sc_m = url_model.checksum
-                else:
-                    with tempfile.NamedTemporaryFile(
-                            delete=False, suffix='.{}'.format(murl.ext)
-                    ) as f, self.lock:
-                        with open(f.name, 'wb') as ff:
-                            ff.write(flow.response.content)
-                        if os.stat(f.name).st_size == 0:
-                            logger.info('REQUEST:0 FILESIZE: {}'.format(url))
-                            murl.zero_filesize = 'true'
-                            self.url_dict[url] = murl
-                            return
-                        with session.no_autoflush:
-                            try:
-                                sc_m = \
-                                    Sha256Checksum.get_or_create(  # type: ignore  # NOQA
-                                        f.name, url_model, session)[0]
-                                sc_m.urls.append(url_model)
-                                valid_errors = (
-                                    IntegrityError,
-                                    OperationalError,
-                                )
-                                try:
-                                    session.commit()
-                                    murl.checksum_value = sc_m.value
-                                    murl.checksum_ext = sc_m.ext
-                                    murl.trash_status = 'false'
-                                    self.url_dict[url] = murl
-                                    logger.info(
-                                        'Url inbox: {}'.format(url))
-                                except valid_errors as err:
-                                    session.rollback()
-                                    #  save file to app temp folder
-                                    save_to_temp_folder(sc_m, f)
-                                    logger.exception(
-                                        'url: {}\n'
-                                        'error: {}\n'
-                                        'saved to temp: {}'.format(
-                                            url, err, url), exc_info=False)
-                            except OSError as err:
-                                exp_txt = 'cannot identify image file'
-                                if str(err).startswith(exp_txt):
-                                    dbg_tmpl = \
-                                        '{}:{}\nurl: {}\nfile: {}\n' \
-                                        'filesize: {}'
-                                    logger.debug(dbg_tmpl.format(
-                                        type(err), err, flow.request.url,
-                                        f.name, os.path.getsize(f.name)
-                                    ))
-                                else:
-                                    raise err
+            with self.app.app_context():
+                save_flow_response(
+                    m_url,
+                    DB.session,
+                    self.url_dict,
+                    self.lock,
+                    flow,
+                    logger
+                )
         except Exception:
-            with app.app_context():
-                session.rollback()
-            logger.exception('url: {}'.format(url))
+            with self.app.app_context():
+                DB.session.rollback()
+            logger.exception('url: {}'.format(m_url.pretty_url))
 
     # command
 
