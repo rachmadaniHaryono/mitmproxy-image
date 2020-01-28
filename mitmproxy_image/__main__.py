@@ -768,7 +768,8 @@ def save_flow_response(
         url_dict: Dict[str, MitmUrl],
         lock: Any,
         flow: Any,
-        logger: Any
+        logger: Any,
+        image_dir: Union[str, 'os.PathLike[str]'] = IMAGE_DIR
 ):
     # compatibility
     url = m_url.pretty_url
@@ -804,7 +805,7 @@ def save_flow_response(
             try:
                 sc_m = \
                     Sha256Checksum.get_or_create(  # type: ignore  # NOQA
-                        f.name, url_model, session)[0]
+                        f.name, url_model, session, image_dir)[0]
                 sc_m.urls.append(url_model)
                 try:
                     session.commit()
