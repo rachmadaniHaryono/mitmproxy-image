@@ -838,6 +838,55 @@ def save_flow_response(
                     raise err
 
 
+def redirect_flow_request(
+    m_url: MitmUrl,
+    flow: http.HTTPFlow,
+    app: Any,
+    session: Any,
+    url_dict: Dict[str, MitmUrl],
+    redirect_url: str,
+    logger: logging.Logger
+):
+    # compatibility
+    url = m_url.pretty_url
+
+    if m_url.trash_status == 'unknown':
+        with app.app_context():
+            url_model = \
+                Url.get_or_create(url, session)[0]  # type: Any
+            if url_model.checksum:
+                if url_model.checksum.filesize == 0:
+                    logger.info('0 FILESIZE: {}'.format(url))
+                    return
+                m_url.trash_status = \
+                    'true' if url_model.checksum.trash else 'false'
+                m_url.checksum_value = url_model.checksum.value
+                m_url.checksum_ext = url_model.checksum.ext
+            url_dict[url] = m_url
+    if (
+        redirect_url and
+        m_url.zero_filesize != 'true' and
+        m_url.trash_status != 'true'
+    ):
+        if flow.request.http_version == 'HTTP/2.0':
+            flow.response = HTTPResponse(
+                'HTTP/1.1', 302, 'Found',
+                Headers(
+                    Location=redirect_url,
+                    Content_Length='0'),
+                b'')
+            logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
+                url, redirect_url))
+        else:
+            flow.request.url = redirect_url
+            logger.info(
+                'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
+        m_url.redirect_counter += 1
+        url_dict[url] = m_url
+    else:
+        logger.debug('NO REDIRECT URL: {}'.format(url))
+
+
 class MitmImage:
 
     def __init__(self):
@@ -902,44 +951,11 @@ class MitmImage:
             self.url_dict[url] = murl
             return
         try:
-            if murl.trash_status == 'unknown':
-                with app.app_context():
-                    url_model = \
-                        Url.get_or_create(url, session)[0]  # type: Any
-                    if url_model.checksum:
-                        if url_model.checksum.filesize == 0:
-                            logger.info('0 FILESIZE: {}'.format(url))
-                            return
-                        murl.trash_status = \
-                            'true' if url_model.checksum.trash else 'false'
-                        murl.checksum_value = url_model.checksum.value
-                        murl.checksum_ext = url_model.checksum.ext
-                    self.url_dict[url] = murl
-            redirect_url = murl.get_redirect_url(redirect_host, redirect_port)
-            if (
-                redirect_url and
-                murl.zero_filesize != 'true' and
-                murl.trash_status != 'true'
-            ):
-                if flow.request.http_version == 'HTTP/2.0':
-                    flow.response = HTTPResponse(
-                        'HTTP/1.1', 302, 'Found',
-                        Headers(
-                            Location=redirect_url,
-                            Content_Length='0'),
-                        b'')
-                    logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                        url, redirect_url))
-                else:
-                    flow.request.url = redirect_url
-                    logger.info(
-                        'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-                murl.redirect_counter += 1
-                self.url_dict[url] = murl
-            else:
-                if self.pdb:
-                    __import__('pdb').set_trace()
-                logger.debug('NO REDIRECT URL: {}'.format(url))
+            redirect_url = redirect_url = murl.get_redirect_url(
+                redirect_host, redirect_port)
+            redirect_flow_request(
+                murl, flow, app, session, self.url_dict,
+                redirect_url, logger)
         except Exception:
             logger.exception('url: {}'.format(url))
 
