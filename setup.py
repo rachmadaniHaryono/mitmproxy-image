@@ -1,5 +1,12 @@
 from setuptools import setup, find_packages
 
+
+TEST = [
+    'flake8>=3.6.0',
+    'mypy>=0.761',
+]
+
+
 setup(
     name='mitmproxy-image',
     version='1.0.0',
@@ -30,11 +37,11 @@ setup(
     ],
     extras_require={
         'dev': [
-            'flake8>=3.6.0',
             'flask-shell-ipython>=0.3.1',
             'ipython>=7.1.1',
             'pdbpp>=0.9.2',
-        ],
+        ] + TEST,
+        'test': TEST
     },
     entry_points={
         'console_scripts': [
