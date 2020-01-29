@@ -19,6 +19,7 @@ from mitmproxy_image.__main__ import (
     check_valid_flow_response,
     create_app,
     is_content_type_valid,
+    redirect_flow_request,
     save_flow_response,
     save_to_temp_folder
 )
@@ -231,6 +232,36 @@ def test_save_flow_response(tmp_path):
     sc_m = Sha256Checksum.query.filter_by(
         value=m_url.checksum_value).first()
     assert [x.value for x in sc_m.urls] == [m_url.value]
+
+
+def test_redirect_flow_request(tmp_path):
+    m_flow = Mock()
+    resp_pickle = os.path.join(
+        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    with open(resp_pickle, 'rb') as f:
+        m_flow.request, m_flow.response = pickle.load(f)
+    m_url = MitmUrl(m_flow)
+    app = create_app('sqlite://')
+    url_dict = {}
+    image_dir = tmp_path / 'image'
+    session = DB.session
+    logger = logging.getLogger()
+    with app.app_context():
+        save_flow_response(
+            m_url,
+            session,
+            url_dict,
+            threading.Lock(),
+            m_flow,
+            logger,
+            image_dir
+        )
+    redirect_url = m_url.get_redirect_url('127.0.0.1', '5012')
+    redirect_flow_request(
+        m_url, m_flow, app, session, url_dict, redirect_url, logger)
+    assert m_url.trash_status == 'false'
+    assert m_url.redirect_counter == 1
+    assert m_flow.request.url == redirect_url
 
 
 if __name__ == '__main__':
