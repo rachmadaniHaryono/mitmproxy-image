@@ -25,6 +25,13 @@ from mitmproxy_image.__main__ import (
 )
 
 
+PICKLE_PATH = os.path.join(
+    os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+pickle_path_exist = pytest.mark.skipif(
+    not os.path.isfile(PICKLE_PATH), reason='No pickled data found.'
+)
+
+
 class Mitmproxy_imageTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -143,10 +150,10 @@ def test_is_content_type_valid(content_type, exp_res):
     assert exp_res == is_content_type_valid(flow)
 
 
+@pickle_path_exist
 def test_check_valid_flow_response():
     m_flow = Mock()
-    resp_pickle = os.path.join(
-        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    resp_pickle = PICKLE_PATH
     with open(resp_pickle, 'rb') as f:
         m_flow.request, m_flow.response = pickle.load(f)
     with mock.patch('mitmproxy_image.__main__.ctx'):
@@ -156,10 +163,10 @@ def test_check_valid_flow_response():
     assert res[1:] == ('', 'info', True)
 
 
+@pickle_path_exist
 def test_mitmurl():
     m_flow = Mock()
-    resp_pickle = os.path.join(
-        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    resp_pickle = PICKLE_PATH
     with open(resp_pickle, 'rb') as f:
         m_flow.request, m_flow.response = pickle.load(f)
     obj = MitmUrl(m_flow)
@@ -203,10 +210,10 @@ def test_save_to_temp_folder(tmp_path):
         assert f.read() == '\n'.join(urls)
 
 
+@pickle_path_exist
 def test_save_flow_response(tmp_path):
     m_flow = Mock()
-    resp_pickle = os.path.join(
-        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    resp_pickle = PICKLE_PATH
     with open(resp_pickle, 'rb') as f:
         m_flow.request, m_flow.response = pickle.load(f)
     m_url = MitmUrl(m_flow)
@@ -234,10 +241,10 @@ def test_save_flow_response(tmp_path):
     assert [x.value for x in sc_m.urls] == [m_url.value]
 
 
+@pickle_path_exist
 def test_redirect_flow_request(tmp_path):
     m_flow = Mock()
-    resp_pickle = os.path.join(
-        os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    resp_pickle = PICKLE_PATH
     with open(resp_pickle, 'rb') as f:
         m_flow.request, m_flow.response = pickle.load(f)
     m_url = MitmUrl(m_flow)
