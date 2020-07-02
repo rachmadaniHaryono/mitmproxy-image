@@ -6,6 +6,7 @@ https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_m
 https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
+import cgi
 import logging
 import os
 import pathlib
@@ -16,7 +17,8 @@ import tempfile
 import threading
 import traceback
 from datetime import date, datetime
-from typing import IO, Any, Dict, Optional, Tuple, TypeVar, Union
+from typing import Any, List, Optional, Tuple, TypeVar, Union
+import io
 
 import click
 import urwid
@@ -30,18 +32,18 @@ from flask.views import MethodView
 from flask_admin import Admin, AdminIndexView
 from flask_sqlalchemy import SQLAlchemy
 from hashfile import hash_file
-from mitmproxy import command, ctx, http
-from mitmproxy.http import HTTPResponse
-from mitmproxy.net.http.headers import Headers
+from mitmproxy import command, http
 from mitmproxy.script import concurrent
 from mitmproxy.tools._main import mitmproxy
 from PIL import Image
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils.types import URLType
+
+from hydrus import Client
 
 #  import snoop
 
@@ -558,31 +560,23 @@ def scan_image_folder_command():
 
 
 @cli.command('run-mitmproxy')
-@click.option('--listen-host', default='127.0.0.1', help='Host for mitmproxy')
-@click.option('--listen-port', default=5007, help='Host for mitmproxy')
-@click.option('--debug', is_flag=True, help='Debug')
-@click.option('--redirect-host', default='127.0.0.1', help='Host for mitmproxy')  # NOQA
-@click.option('--redirect-port', default=5012, help='Host for mitmproxy')
+@click.option(
+    '--listen-host',
+    show_default=True, default='127.0.0.1', help='Host for mitmproxy')
+@click.option(
+    '--listen-port',
+    show_default=True, default=5007, help='Host for mitmproxy')
 def run_mitmproxy(
         listen_host: Optional[str] = '127.0.0.1',
         listen_port: Optional[int] = 5007,
-        debug: Optional[bool] = False,
-        redirect_host: Optional[str] = '127.0.0.1',
-        redirect_port: Optional[int] = 5012
 ):
-    assert listen_host, 'Listen host required'
+    # TODO change this
+    # load config than using argv
+    # log info to file
     args_lines = ['--listen-host {}'.format(listen_host)]
     if listen_port:
         args_lines.append('--listen-port {}'.format(listen_port))
     args_lines.append('-s {}'.format(__file__))
-    if debug:
-        args_lines.append('--set=debug=true')
-    if redirect_host:
-        args_lines.append(
-            '--set=redirect_host={}'.format(shlex.quote(redirect_host)))
-    if redirect_port:
-        args_lines.append(
-            '--set=redirect_port={}'.format(shlex.quote(str(redirect_port))))
     args_lines.append('--view-filter {}'.format(shlex.quote('~t image/*')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
@@ -597,420 +591,79 @@ def run_mitmproxy(
             raise err
 
 
-class MitmUrl:
-
-    def __init__(self, flow: http.HTTPFlow):
-        self.value = flow.request.url
-        self.pretty_url = flow.request.pretty_url
-        if self.value != self.pretty_url:
-            logging.warning(
-                'value is different with pretty value\n'
-                'value: {0.value}\n'
-                'pretty value: {0.pretty_url}'.format(self))
-        self.trash_status = 'unknown'  # unknown, true or false
-        self.zero_filesize = 'unknown'  # unknown, true or false
-        self.host = flow.request.host
-        self.port = flow.request.port
-        self.content_type = None
-        if hasattr(flow.response, 'headers') and \
-                'content-type' in flow.response.headers:
-            self.content_type = flow.response.headers['content-type']
-        self.check_counter = 0
-        self.redirect_counter = 0
-        self.checksum_value = None  # type: Optional[str]
-        self.checksum_ext = None  # type: Optional[str]
-
-    def __repr__(self):
-        kwargs = vars(self).copy()
-        kwargs.pop('host')
-        kwargs.pop('port')
-        desc = ['{}={}'.format(k, v) for k, v in kwargs.items()]
-        return '<MitmUrl({})>'.format('\n'.join(desc))
-
-    @property
-    def ext(self):
-        if self.content_type:
-            return self.content_type.split('/')[1].split(';')[0]
-
-    def repr(self):
-        return '<Mitmurl(value={0.value}, trash={0.value}, ' \
-            'content_type={0.content_type})>'.format(self)
-
-    def is_on_redirect_server(self, redirect_host, redirect_port):
-        return \
-            self.host == redirect_host and \
-            str(self.port) == str(redirect_port)
-
-    def update(self, flow):
-        if hasattr(flow.response, 'headers') and \
-                'content-type' in flow.response.headers:
-            self.content_type = flow.response.headers['content-type']
-
-    def get_redirect_url(self, redirect_host, redirect_port):
-        if self.checksum_value:
-            if self.checksum_ext is None:
-                __import__('pdb').set_trace()
-            return 'http://{}:{}/i/{}.{}'.format(
-                redirect_host, redirect_port,
-                self.checksum_value, self.checksum_ext)
-
-
-def get_content_type(flow: http.HTTPFlow) -> Optional[str]:
-    """Get content type from HTTPFlow instance."""
-    content_type = None
-    if hasattr(flow.response, 'headers') and \
-            'content-type' in flow.response.headers:
-        content_type = flow.response.headers['content-type']
-    return content_type
-
-
-def is_content_type_valid(flow: http.HTTPFlow) -> bool:
-    """check if flow content_type valid.
-
-    mitmproxy_image only interested on `image/*` content type.
-    """
-    content_type = get_content_type(flow)
-    if not content_type:
-        return False
-    res = content_type.startswith('image')
-    if res:
-        if not content_type.startswith(KNOWN_CONTENT_TYPES):
-            logging.info(
-                'unknown content type: {!r}\nurl: {}'.format(
-                    content_type, flow.request.url))
-        if any([
-                content_type.startswith('image/{}'.format(x))
-                for x in INVALID_IMAGE_EXTS]):
-            res = False
-    return res
-
-
-def check_valid_flow_response(
-    flow: http.HTTPFlow,
-    logger: logging.Logger,
-    url_dict: Optional[Dict] = None
-) -> Tuple[MitmUrl, str, str, bool]:
-    url = flow.request.pretty_url
-    redirect_host = ctx.options.redirect_host
-    redirect_port = ctx.options.redirect_port
-    valid = True
-    note = ''
-    level = 'info'
-    if flow.response.status_code == 304:
-        note = '304 status code: {}'.format(url)
-        valid, level = False, 'debug'
-    if valid and not is_content_type_valid(flow):
-        note = 'NOT IMAGE URL: {}, {}'.format(get_content_type(flow), url)
-        valid, level = False, 'debug'
-    murl = MitmUrl(flow)
-    if not valid:
-        return (murl, note, level, valid)
-    if url_dict and url in url_dict:
-        url_dict[url].update(flow)
-        murl = url_dict[url]
-    if redirect_host and murl.is_on_redirect_server(
-            redirect_host, redirect_port):
-        if flow.response.status_code == 404 and url_dict:
-            matching_murl = [
-                [k, v] for k, v in url_dict.items()
-                if (
-                    v.get_redirect_url(
-                        redirect_host, redirect_port) == url
-                    and k != url)][0]
-            key_url = matching_murl[0]
-            del url_dict[key_url]
-            note = 'URL 404:{}\nredirect: {}'.format(key_url, url)
-        else:
-            note = 'SKIP REDIRECT SERVER: {}'.format(url)
-        valid = False
-    if valid and murl.trash_status == 'true':
-        note = 'Url on trash: {}'.format(url)
-        valid = False
-    if valid and (murl.content_type is None or murl.ext is None):
-        note = 'Unknown content-type: {}\ncontent type: {}'.format(
-            url, murl.content_type)
-        valid, level = False, 'debug'
-    if valid and murl.trash_status != 'unknown' and murl.checksum_ext is None:
-        note = 'unknown trash status & unknown checksum ext, url: {}'.format(
-            url)
-        valid, level = False, 'debug'
-    if valid and murl.trash_status == 'true':
-        note = 'SKIP TRASH: {}'.format(murl.value)
-        valid = False
-    if valid and murl.trash_status == 'false' and \
-            murl.get_redirect_url(redirect_host, redirect_port):
-        # file already on inbox
-        note = 'ON INBOX: {}'.format(url)
-        valid = False
-    return (murl, note, level, valid)
-
-
-def save_to_temp_folder(
-        checksum_model: Sha256Checksum,
-        file_: IO[bytes],
-        temp_dir: str = TEMP_DIR
-):
-    # compatibility
-    sc_m = checksum_model
-    f = file_
-    new_filepath = os.path.join(
-        temp_dir, '{}.{}'.format(sc_m.value, sc_m.ext))
-    shutil.copyfile(f.name, new_filepath)
-    new_filepath_text = new_filepath + '.txt'
-    urls = [x.value for x in sc_m.urls]
-    with open(new_filepath_text, 'w') as fp:
-        fp.write('\n'.join(urls))
-
-
-def save_flow_response(
-        m_url: MitmUrl,
-        session: Any,
-        url_dict: Dict[str, MitmUrl],
-        lock: Any,
-        flow: Any,
-        logger: Any,
-        image_dir: Union[str, 'os.PathLike[str]'] = IMAGE_DIR
-):
-    # compatibility
-    url = m_url.pretty_url
-    valid_errors = (IntegrityError, OperationalError,)
-
-    try:
-        url_model = Url.get_or_create(url, session)[0]  # type: Any
-    except OperationalError as err:
-        session.rollback()
-        logging.error('url: {}\nerror: {}'.format(url, err))
-        return
-    zero_filesize = False
-    if url_model.checksum:
-        zero_filesize = url_model.checksum.filesize == 0
-    if url_model.checksum and not zero_filesize:
-        url_model.trash_status = \
-            'true' if url_model.checksum.trash else 'false'
-        m_url.checksum_value = url_model.checksum.value
-        m_url.checksum_ext = url_model.checksum.ext
-        url_dict[url] = m_url
-        return
-    with tempfile.NamedTemporaryFile(
-            delete=False, suffix='.{}'.format(m_url.ext)
-    ) as f, lock:
-        with open(f.name, 'wb') as ff:
-            ff.write(flow.response.content)
-        if os.stat(f.name).st_size == 0:
-            logger.info('REQUEST:0 FILESIZE: {}'.format(url))
-            m_url.zero_filesize = 'true'
-            url_dict[url] = m_url
-            return
-        with session.no_autoflush:
-            try:
-                sc_m = \
-                    Sha256Checksum.get_or_create(  # type: ignore  # NOQA
-                        f.name, url_model, session, image_dir)[0]
-                sc_m.urls.append(url_model)
-                try:
-                    session.commit()
-                    m_url.checksum_value = sc_m.value
-                    m_url.checksum_ext = sc_m.ext
-                    m_url.trash_status = 'false'
-                    url_dict[url] = m_url
-                    logger.info(
-                        'Url inbox: {}'.format(url))
-                except valid_errors as err:
-                    session.rollback()
-                    #  save file to app temp folder
-                    save_to_temp_folder(sc_m, f)
-                    logger.exception(
-                        'url: {}\n'
-                        'error: {}\n'
-                        'saved to temp: {}'.format(
-                            url, err, url), exc_info=False)
-            except OSError as err:
-                exp_txt = 'cannot identify image file'
-                if str(err).startswith(exp_txt):
-                    dbg_tmpl = \
-                        '{}:{}\nurl: {}\nfile: {}\n' \
-                        'filesize: {}'
-                    logger.debug(dbg_tmpl.format(
-                        type(err), err, url,
-                        f.name, os.path.getsize(f.name)
-                    ))
-                else:
-                    raise err
-
-
-def redirect_flow_request(
-    m_url: MitmUrl,
-    flow: http.HTTPFlow,
-    app: Any,
-    session: Any,
-    url_dict: Dict[str, MitmUrl],
-    redirect_url: str,
-    logger: logging.Logger
-):
-    # compatibility
-    url = m_url.pretty_url
-
-    if m_url.trash_status == 'unknown':
-        with app.app_context():
-            url_model = \
-                Url.get_or_create(url, session)[0]  # type: Any
-            if url_model.checksum:
-                if url_model.checksum.filesize == 0:
-                    logger.info('0 FILESIZE: {}'.format(url))
-                    return
-                m_url.trash_status = \
-                    'true' if url_model.checksum.trash else 'false'
-                m_url.checksum_value = url_model.checksum.value
-                m_url.checksum_ext = url_model.checksum.ext
-            url_dict[url] = m_url
-    if (
-        redirect_url and
-        m_url.zero_filesize != 'true' and
-        m_url.trash_status != 'true'
-    ):
-        if flow.request.http_version == 'HTTP/2.0':
-            flow.response = HTTPResponse(
-                'HTTP/1.1', 302, 'Found',
-                Headers(
-                    Location=redirect_url,
-                    Content_Length='0'),
-                b'')
-            logger.info('REDIRECT HTTP2: {}\nTO: {}'.format(
-                url, redirect_url))
-        else:
-            flow.request.url = redirect_url
-            logger.info(
-                'REDIRECT: {}\nTO: {}'.format(url, redirect_url))
-        m_url.redirect_counter += 1
-        url_dict[url] = m_url
-    else:
-        logger.debug('NO REDIRECT URL: {}'.format(url))
-
-
 class MitmImage:
 
     def __init__(self):
-        self.url_dict = {}
-        self.invalid_exts = [
-            'svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
-        self.pdb = False
+        self.data = {}
         self.lock = threading.Lock()
-
-    def load(self, loader):
-        loader.add_option(
-            name="redirect_host",
-            typespec=Optional[str],
-            default='127.0.0.1',
-            help="Server host for redirect.",
-        )
-        loader.add_option(
-            name="redirect_port",
-            typespec=Optional[int],
-            default=5012,
-            help="Server port for redirect.",
-        )
-        loader.add_option(
-            name="debug",
-            typespec=bool,
-            default=False,
-            help="Turn on debugging.",
-        )
-        debug = ctx.options.debug \
-            if ctx.options and hasattr(ctx.options, 'debug') else None
-        level = logging.DEBUG if debug else logging.INFO
-        logging.basicConfig(
-            filename=LOG_FILE, filemode='a', level=level, format=LOG_FORMAT)
-        logging.getLogger("hpack.hpack").setLevel(logging.INFO)
-        logging.getLogger("hpack.table").setLevel(logging.INFO)
-        logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
-        logging.getLogger("PIL.Image").setLevel(logging.INFO)
-        logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
-        logging.info('MitmImage initiated')
-        self.app = create_app(root_path=__file__)
-
-    @concurrent
-    def request(self, flow: http.HTTPFlow):
-        redirect_host = ctx.options.redirect_host
-        if not redirect_host:
-            return
-        redirect_port = ctx.options.redirect_port
-        logger = logging.getLogger('request')
-        url = flow.request.pretty_url
-        if url not in self.url_dict:
-            logger.debug('unknown url: {}'.format(url))
-            return
-        murl = self.url_dict[url]
-        if murl.is_on_redirect_server(redirect_host, redirect_port):
-            logger.info('SKIP REDIRECT SERVER: {}'.format(url))
-            return
-        app = self.app
-        session = DB.session
-        if murl.trash_status == 'true':
-            logger.info('SKIP REDIRECT TRASH: {}'.format(flow.request.url))
-            murl.check_counter += 1
-            self.url_dict[url] = murl
-            return
-        try:
-            redirect_url = redirect_url = murl.get_redirect_url(
-                redirect_host, redirect_port)
-            redirect_flow_request(
-                murl, flow, app, session, self.url_dict,
-                redirect_url, logger)
-        except Exception:
-            logger.exception('url: {}'.format(url))
+        self.logger = logging.getLogger()
+        access_key = '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
+        self.client = Client(access_key)
+        logger = logging.getLogger('mitmimage')
+        logger.setLevel(logging.DEBUG)
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler('mitmimage.log')
+        fh.setLevel(logging.DEBUG)
+        logger.addHandler(fh)
+        self.logger = logger
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        logger = logging.getLogger('response')
-        m_url, note, level, valid = check_valid_flow_response(
-            flow, logger, self.url_dict)
-        if not valid:
-            if level == 'info':
-                logger.info(note)
-            elif level == 'debug':
-                logger.debug(note)
-            else:
-                logger.error('Unknown log level: {}'.format(level))
-                logger.info(note)
+        allowed_subtype: List[str] = [
+            'jpeg',
+            'jpg',
+            'png',
+            'webp',
+        ]
+        disallowed_subtype: List[str] = [
+            'cur',
+            'gif',
+            'svg+xml',
+            'vnd.microsoft.icon',
+            'x-icon',
+        ]
+        if not flow.response or 'Content-type' not in flow.response.data.headers:
             return
-        try:
-            with self.app.app_context():
-                save_flow_response(
-                    m_url,
-                    DB.session,
-                    self.url_dict,
-                    self.lock,
-                    flow,
-                    logger
-                )
-        except Exception:
-            with self.app.app_context():
-                DB.session.rollback()
-            logger.exception('url: {}'.format(m_url.pretty_url))
+        content_type = flow.response.data.headers['Content-type']
+        mimetype = cgi.parse_header(content_type)[0]
+        maintype, subtype = mimetype.lower().split('/')
+        if maintype != 'image':
+            return
+        if subtype not in allowed_subtype:
+            if subtype not in disallowed_subtype:
+                self.logger.info('unknown subtype:{}'.format(subtype))
+            return
+        # hydrus url files response
+        url = flow.request.url
+        if url not in self.data:
+            self.data[url] = {'hydrus': None}
+        url_data = self.data[url].get('hydrus', None)
+        if not url_data:
+            huf_resp = self.client.get_url_files(flow.request.url)
+            self.data[url]['hydrus'] = url_data = huf_resp
+        if url_data.get('url_file_statuses', None):
+            return
+        content = flow.response.get_content()
+        if content is None:
+            self.logger.debug('url dont have content\n:{}'.format(url))
+            return
+        # upload file
+        upload_resp = self.client.add_file(io.BytesIO(content))
+        self.logger.info('file uploaded:\nhash:{}, status:{}\nurl:{}'.format(
+            upload_resp['hash'], upload_resp['status'], url
+        ))
+        # update data
+        self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
+        self.client.associate_url([upload_resp['hash'], ], [url_data['normalised_url'], ])
+        # show uploaded image
+        self.client.add_url(url_data['normalised_url'], page_name='mitmimage')
 
     # command
 
-    @command.command('mitmimage.upload_counter')
-    def upload_counter(self):
-        raise NotImplementedError
-
-    @command.command('mitmimage.pdb')
-    def run_pdb(self):
-        __import__('pdb').set_trace()
-        pass
-
-    @command.command('mitmimage.scan_folder')
-    def scan_folder(self) -> None:
-        scan_image_folder()
-
-    @command.command('mitmimage.test_log')
-    def test_log(self) -> None:
-        logger = logging.getLogger('test_log')
-        logger.debug('debug log')
-        logger.info('info log')
-        logger.warning('warning log')
-        logger.error('error log')
+    @command.command('mitmimage.print_hello')
+    def print_hello(self):
+        print('hello')
 
 
 addons = [
