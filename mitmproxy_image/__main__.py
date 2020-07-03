@@ -605,9 +605,7 @@ class MitmImage:
         logger.addHandler(fh)
         self.logger = logger
 
-    @concurrent
-    def response(self, flow: http.HTTPFlow) -> None:
-        """Handle response."""
+    def is_valid_content_type(self, flow: http.HTTPFlow) -> bool:
         allowed_subtype: List[str] = [
             'jpeg',
             'jpg',
@@ -622,15 +620,22 @@ class MitmImage:
             'x-icon',
         ]
         if not flow.response or 'Content-type' not in flow.response.data.headers:
-            return
+            return False
         content_type = flow.response.data.headers['Content-type']
         mimetype = cgi.parse_header(content_type)[0]
         maintype, subtype = mimetype.lower().split('/')
         if maintype != 'image':
-            return
+            return False
         if subtype not in allowed_subtype:
             if subtype not in disallowed_subtype:
                 self.logger.info('unknown subtype:{}'.format(subtype))
+            return False
+        return True
+
+    @concurrent
+    def response(self, flow: http.HTTPFlow) -> None:
+        """Handle response."""
+        if not self.is_valid_content_type(flow):
             return
         # hydrus url files response
         url = flow.request.url
