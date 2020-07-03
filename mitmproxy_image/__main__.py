@@ -23,7 +23,6 @@ import io
 import click
 import urwid
 from appdirs import user_data_dir
-from flasgger import Swagger
 from flask import Flask, abort, current_app, jsonify
 from flask import request as flask_request
 from flask import send_from_directory, url_for
@@ -241,7 +240,6 @@ def create_app(
         'title': 'Mitmproxy Image',
         'uiversion': 2
     }
-    swagger = Swagger(app)  # NOQA
     app.config['SECRET_KEY'] = os.urandom(24)
     app.config['WTF_CSRF_ENABLED'] = False
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
