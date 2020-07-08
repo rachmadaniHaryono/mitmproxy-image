@@ -7,6 +7,7 @@ https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
 import cgi
+import io
 import logging
 import os
 import pathlib
@@ -18,7 +19,6 @@ import threading
 import traceback
 from datetime import date, datetime
 from typing import Any, List, Optional, Tuple, TypeVar, Union
-import io
 
 import click
 import urwid
@@ -31,6 +31,7 @@ from flask.views import MethodView
 from flask_admin import Admin, AdminIndexView
 from flask_sqlalchemy import SQLAlchemy
 from hashfile import hash_file
+from hydrus import Client
 from mitmproxy import command, http
 from mitmproxy.script import concurrent
 from mitmproxy.tools._main import mitmproxy
@@ -41,8 +42,6 @@ from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils.types import URLType
-
-from hydrus import Client
 
 #  import snoop
 
@@ -605,7 +604,9 @@ class MitmImage:
         logger.addHandler(fh)
         self.logger = logger
 
-    def is_valid_content_type(self, flow: http.HTTPFlow) -> bool:
+    @classmethod
+    def is_valid_content_type(
+            cls, flow: http.HTTPFlow, logger: Optional[Any] = None) -> bool:
         allowed_subtype: List[str] = [
             'jpeg',
             'jpg',
@@ -627,15 +628,15 @@ class MitmImage:
         if maintype != 'image':
             return False
         if subtype not in allowed_subtype:
-            if subtype not in disallowed_subtype:
-                self.logger.info('unknown subtype:{}'.format(subtype))
+            if subtype not in disallowed_subtype and logger:
+                logger.info('unknown subtype:{}'.format(subtype))
             return False
         return True
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        if not self.is_valid_content_type(flow):
+        if not self.is_valid_content_type(flow, logger=self.logger):
             return
         # hydrus url files response
         url = flow.request.url
