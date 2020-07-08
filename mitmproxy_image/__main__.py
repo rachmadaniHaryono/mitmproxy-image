@@ -648,6 +648,9 @@ class MitmImage:
             self.data[url]['hydrus'] = url_data = huf_resp
         if url_data.get('url_file_statuses', None):
             return
+        if flow.response is None:
+            self.logger.debug('url dont have response\n:{}'.format(url))
+            return
         content = flow.response.get_content()
         if content is None:
             self.logger.debug('url dont have content\n:{}'.format(url))
@@ -658,10 +661,18 @@ class MitmImage:
             upload_resp['hash'], upload_resp['status'], url
         ))
         # update data
-        self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
-        self.client.associate_url([upload_resp['hash'], ], [url_data['normalised_url'], ])
+        if 'url_file_statuses' in self.data[url]['hydrus']:
+            self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
+        else:
+            self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
+        normalised_url = url_data.get('normalised_url', None)
+        if normalised_url:
+            associated_url = normalised_url
+        else:
+            associated_url = url
+        self.client.associate_url([upload_resp['hash'], ], [associated_url])
         # show uploaded image
-        self.client.add_url(url_data['normalised_url'], page_name='mitmimage')
+        self.client.add_url(associated_url, page_name='mitmimage')
 
     # command
 
