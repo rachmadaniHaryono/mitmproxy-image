@@ -161,10 +161,9 @@ def test_mitmimage_response(valid_ct, data, url, url_files):
     ]
 )
 def test_mitmimage_is_valid_content_type(headers, res):
-    inst = MitmImage()
     mock_flow = mock.Mock()
     mock_flow.response.data.headers = headers
-    assert inst.is_valid_content_type(mock_flow) == res
+    assert MitmImage.is_valid_content_type(mock_flow) == res
 
 
 if __name__ == '__main__':
