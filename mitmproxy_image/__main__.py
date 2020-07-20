@@ -567,24 +567,31 @@ def run_mitmproxy(
         listen_host: Optional[str] = '127.0.0.1',
         listen_port: Optional[int] = 5007,
 ):
-    # TODO change this
-    # load config than using argv
-    # log info to file
     args_lines = ['--listen-host {}'.format(listen_host)]
     if listen_port:
         args_lines.append('--listen-port {}'.format(listen_port))
     args_lines.append('-s {}'.format(__file__))
-    args_lines.append('--view-filter {}'.format(shlex.quote('~t image/*')))
+    args_lines.append('--view-filter {}'.format(shlex.quote(
+        '~t "image\\/(?!cur|gif|svg+xml|vnd.microsoft.icon|x-icon).+"')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
     while True:
         try:
-            mitmproxy(shlex.split(' '.join(args_lines)))
-            break
+            res = mitmproxy(shlex.split(' '.join(args_lines)))
+            if res is None:
+                break
+            else:
+                import pdb
+                pdb.set_trace()
         except urwid.canvas.CanvasError as err:
             print('{}: {}'.format(type(err), err))
             print('restarting mitmproxy-image')
+        except RuntimeWarning as err:
+            print('{}: {}'.format(type(err), err))
+            break
         except Exception as err:
+            import ipdb
+            ipdb.set_trace()
             raise err
 
 
