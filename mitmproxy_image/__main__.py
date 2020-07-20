@@ -686,9 +686,23 @@ class MitmImage:
 
     # command
 
-    @command.command('mitmimage.print_hello')
-    def print_hello(self):
-        print('hello')
+    @command.command('mitmimage.log_hello')
+    def log_hello(self):
+        ctx.log.info('mitmimage: hello')
+
+    @command.command("mitmimage.clear_data")
+    def clear_data(self) -> None:
+        self.data = {}
+        ctx.log.info('mitmimage: data cleared')
+
+    @command.command("mitmimage.show_downloaded_url")
+    def clear_url_data(self, show: bool) -> None:
+        self.show_downloaded_url = show
+
+    @command.command('mitmimage.pdb')
+    def pdb(self):
+        import pdb
+        pdb.set_trace()
 
 
 addons = [
