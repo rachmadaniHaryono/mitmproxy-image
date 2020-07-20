@@ -32,7 +32,7 @@ from flask_admin import Admin, AdminIndexView
 from flask_sqlalchemy import SQLAlchemy
 from hashfile import hash_file
 from hydrus import Client
-from mitmproxy import command, http
+from mitmproxy import command, ctx, http
 from mitmproxy.script import concurrent
 from mitmproxy.tools._main import mitmproxy
 from PIL import Image
@@ -42,8 +42,6 @@ from sqlalchemy.sql import func  # type: ignore  # NOQA
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils.types import URLType
-
-#  import snoop
 
 
 # app dir
@@ -610,6 +608,7 @@ class MitmImage:
         fh.setLevel(logging.DEBUG)
         logger.addHandler(fh)
         self.logger = logger
+        self.show_downloaded_url = True
 
     @classmethod
     def is_valid_content_type(
@@ -653,6 +652,10 @@ class MitmImage:
         if not url_data:
             huf_resp = self.client.get_url_files(flow.request.url)
             self.data[url]['hydrus'] = url_data = huf_resp
+            url_file_statuses = huf_resp.get('url_file_statuses', None)
+            if (url_file_statuses and self.show_downloaded_url and
+                    any(x['status'] == 2 for x in url_file_statuses)):
+                self.client.add_url(url, page_name='mitmimage')
         if url_data.get('url_file_statuses', None):
             return
         if flow.response is None:
