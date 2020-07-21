@@ -25,7 +25,6 @@ from datetime import date, datetime
 from typing import Any, List, Optional, Tuple, TypeVar, Union
 
 import click
-import urwid
 from appdirs import user_data_dir
 from flask import Flask, abort, current_app, jsonify
 from flask import request as flask_request
@@ -660,7 +659,12 @@ def run_custom_mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
         return 1
     assert_utf8_env()
     from mitmproxy.tools import console
-    run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
+    try:
+        run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
+    except SystemExit as err:
+        print(err)
+        import pdb
+        pdb.set_trace()
     return None
 
 
@@ -684,24 +688,7 @@ def run_mitmproxy(
         '(?!cur|gif|svg\\+xml|vnd.microsoft.icon|x-icon).+"')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
-    while True:
-        try:
-            res = run_custom_mitmproxy(shlex.split(' '.join(args_lines)))
-            if res is None:
-                break
-            else:
-                import pdb
-                pdb.set_trace()
-        except urwid.canvas.CanvasError as err:
-            print('{}: {}'.format(type(err), err))
-            print('restarting mitmproxy-image')
-        except (RuntimeWarning, TypeError) as err:
-            print('{}: {}'.format(type(err), err))
-            break
-        except Exception as err:
-            import ipdb
-            ipdb.set_trace()
-            raise err
+    run_custom_mitmproxy(shlex.split(' '.join(args_lines)))
 
 
 class MitmImage:
