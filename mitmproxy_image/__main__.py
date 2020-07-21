@@ -590,9 +590,9 @@ def run(
 
     try:
         args = parser.parse_args(arguments)
-    except SystemExit:
+    except SystemExit as err:
         arg_check.check()
-        sys.exit(1)
+        raise err
 
     try:
         opts.set(*args.setoptions, defer=True)
@@ -608,17 +608,19 @@ def run(
                 server = proxy.server.ProxyServer(pconf)
             except exceptions.ServerException as v:
                 print(str(v), file=sys.stderr)
-                sys.exit(1)
+                raise v
         else:
             server = proxy.server.DummyServer(pconf)
 
         master.server = server
         if args.options:
             print(optmanager.dump_defaults(opts))
-            sys.exit(0)
+            #  on original function it exit with zode 0
+            return master
         if args.commands:
             master.commands.dump()
-            sys.exit(0)
+            #  on original function it exit with zode 0
+            return master
         if extra:
             if(args.filter_args):
                 master.log.info(
@@ -646,7 +648,7 @@ def run(
         master.run()
     except exceptions.OptionsError as e:
         print("%s: %s" % (sys.argv[0], e), file=sys.stderr)
-        sys.exit(1)
+        raise e
     except (KeyboardInterrupt, RuntimeError):
         pass
     return master
@@ -661,7 +663,7 @@ def run_custom_mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
     from mitmproxy.tools import console
     try:
         run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
-    except SystemExit as err:
+    except (SystemExit, Exception) as err:
         print(err)
         import pdb
         pdb.set_trace()
