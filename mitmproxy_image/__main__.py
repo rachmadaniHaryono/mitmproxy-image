@@ -845,6 +845,13 @@ class MitmImage:
         import pdb
         pdb.set_trace()
 
+    @command.command('mitmimage.cache_info')
+    def cache_info(self):
+        ctx.log.info('cache info:\n{},{}\n{},{}'.format(
+            'get_client_file', self.get_client_file.cache_info(),
+            'get_url_files', self.get_url_files.cache_info()
+        ))
+
 
 addons = [
     MitmImage()
