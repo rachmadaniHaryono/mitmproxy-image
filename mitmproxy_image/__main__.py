@@ -9,6 +9,7 @@ https://stackoverflow.com/a/44873382/1766261
 import argparse
 import asyncio
 import cgi
+import functools
 import io
 import logging
 import os
@@ -21,6 +22,7 @@ import tempfile
 import threading
 import traceback
 import typing
+from collections import defaultdict
 from datetime import date, datetime
 from typing import Any, List, Optional, Tuple, TypeVar, Union
 
@@ -84,6 +86,7 @@ KNOWN_IMAGE_EXTS = (
     'webp', 'x-icon',)
 KNOWN_CONTENT_TYPES = tuple('image/{}'.format(x) for x in KNOWN_IMAGE_EXTS)
 INVALID_IMAGE_EXTS = ['svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
+CACHE_SIZE = 1024
 
 
 # MODEL
@@ -739,42 +742,80 @@ class MitmImage:
             return False
         return True
 
+    @functools.lru_cache(CACHE_SIZE)
+    def get_client_file(self, hash_: str):
+        return self.client.get_file(hash_=hash_)
+
+    @functools.lru_cache(CACHE_SIZE)
+    def get_url_files(self, url: str):
+        return self.client.get_url_files(url)
+
+    @concurrent
+    def request(self, flow: http.HTTPFlow):
+        url = flow.request.pretty_url
+        with self.lock:
+            if (url not in self.data) or (not self.data[url]['hydrus']):
+                return
+            url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
+        if not url_file_statuses:
+            return
+        # turn url_file_statuses from list of hashes to hash dict
+        hash_dict = defaultdict(list)
+        for status in url_file_statuses:
+            hash_dict[status['hash']].append(status['status'])
+        if len(hash_dict.keys()) != 1:
+            self.logger.debug('following url have multiple hashes:\n{}'.format(url))
+            return
+        url_hash, statuses = list(hash_dict.items())[0]
+        statuses = list(set(statuses))
+        if statuses == [3]:
+            return
+        elif not all(x in [1, 2] for x in statuses):
+            self.logger.debug(
+                'mixed status:{},{}'.format(statuses, url))
+            return
+        file_data = self.get_client_file(hash_=url_hash)
+        flow.response = http.HTTPResponse.make(
+            content=file_data.content,
+            headers={'Content-Type': file_data.headers['Content-Type']})
+        self.logger.info('cached:{},{},{}'.format(statuses, url_hash[:7], url))
+
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         if not self.is_valid_content_type(flow, logger=self.logger):
             return
-        # hydrus url files response
-        url = flow.request.url
-        if url not in self.data:
-            self.data[url] = {'hydrus': None}
-        url_data = self.data[url].get('hydrus', None)
-        if not url_data:
-            huf_resp = self.client.get_url_files(flow.request.url)
-            self.data[url]['hydrus'] = url_data = huf_resp
-            url_file_statuses = huf_resp.get('url_file_statuses', None)
-            if (url_file_statuses and self.show_downloaded_url and
-                    any(x['status'] == 2 for x in url_file_statuses)):
-                self.client.add_url(url, page_name='mitmimage')
-        if url_data.get('url_file_statuses', None):
-            return
         if flow.response is None:
-            self.logger.debug('url dont have response\n:{}'.format(url))
             return
-        content = flow.response.get_content()
-        if content is None:
-            self.logger.debug('url dont have content\n:{}'.format(url))
-            return
-        # upload file
-        upload_resp = self.client.add_file(io.BytesIO(content))
-        self.logger.info('file uploaded:\nhash:{}, status:{}\nurl:{}'.format(
-            upload_resp['hash'], upload_resp['status'], url
-        ))
-        # update data
-        if 'url_file_statuses' in self.data[url]['hydrus']:
-            self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
-        else:
-            self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
+        # hydrus url files response
+        url = flow.request.pretty_url
+        with self.lock:
+            if url not in self.data:
+                self.data[url] = {'hydrus': None}
+            url_data = self.data[url].get('hydrus', None)
+            if not url_data:
+                huf_resp = self.get_url_files(flow.request.url)
+                self.data[url]['hydrus'] = url_data = huf_resp
+                url_file_statuses = huf_resp.get('url_file_statuses', None)
+                if (url_file_statuses and self.show_downloaded_url and
+                        any(x['status'] == 2 for x in url_file_statuses)):
+                    self.client.add_url(url, page_name='mitmimage')
+            if url_data.get('url_file_statuses', None):
+                return
+            content = flow.response.get_content()
+            if content is None:
+                self.logger.debug('url dont have content\n:{}'.format(url))
+                return
+            # upload file
+            upload_resp = self.client.add_file(io.BytesIO(content))
+            self.logger.info('uploaded:{},{},{}'.format(
+                upload_resp['status'], upload_resp['hash'][:7], url
+            ))
+            # update data
+            if 'url_file_statuses' in self.data[url]['hydrus']:
+                self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
+            else:
+                self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
         normalised_url = url_data.get('normalised_url', None)
         if normalised_url:
             associated_url = normalised_url
