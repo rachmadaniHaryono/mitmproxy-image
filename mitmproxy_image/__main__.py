@@ -743,10 +743,6 @@ class MitmImage:
         return True
 
     @functools.lru_cache(CACHE_SIZE)
-    def get_client_file(self, hash_: str):
-        return self.client.get_file(hash_=hash_)
-
-    @functools.lru_cache(CACHE_SIZE)
     def get_url_files(self, url: str):
         return self.client.get_url_files(url)
 
@@ -774,7 +770,7 @@ class MitmImage:
             self.logger.debug(
                 'mixed status:{},{}'.format(statuses, url))
             return
-        file_data = self.get_client_file(hash_=url_hash)
+        file_data = self.client.get_file(hash_=url_hash)
         flow.response = http.HTTPResponse.make(
             content=file_data.content,
             headers={'Content-Type': file_data.headers['Content-Type']})
@@ -845,11 +841,11 @@ class MitmImage:
         import pdb
         pdb.set_trace()
 
-    @command.command('mitmimage.cache_info')
-    def cache_info(self):
-        ctx.log.info('cache info:\n{},{}\n{},{}'.format(
-            'get_client_file', self.get_client_file.cache_info(),
-            'get_url_files', self.get_url_files.cache_info()
+    @command.command('mitmimage.log_info')
+    def log_info(self):
+        ctx.log.info('cache:{},{}\nurl:{}'.format(
+            'get_url_files', self.get_url_files.cache_info(),
+            len(list(self.data.keys()))
         ))
 
 
