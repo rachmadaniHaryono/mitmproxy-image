@@ -47,6 +47,7 @@ from mitmproxy import (
     optmanager,
     proxy
 )
+from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
 from mitmproxy.tools import cmdline
 from mitmproxy.tools._main import assert_utf8_env, process_options
@@ -841,12 +842,31 @@ class MitmImage:
         import pdb
         pdb.set_trace()
 
+    @command.command('mitmimage.ipdb')
+    def ipdb(self):
+        import ipdb
+        ipdb.set_trace()
+
+    @command.command('mitmimage.ipdb_flow')
+    def ipdb(self, flows: typing.Sequence[Flow]) -> None:
+        import ipdb
+        ipdb.set_trace()
+
     @command.command('mitmimage.log_info')
     def log_info(self):
         ctx.log.info('cache:{},{}\nurl:{}'.format(
             'get_url_files', self.get_url_files.cache_info(),
             len(list(self.data.keys()))
         ))
+
+    @command.command('mitmimage.remove_flow_with_data')
+    def remove_flow_with_data(self):
+        view = ctx.master.addons.get('view')
+        items = filter(
+            lambda item: item[1].response and 
+            item[1].response.content is not None,
+            view._store.items())
+        view.remove([x[1] for x in items])
 
 
 addons = [
