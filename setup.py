@@ -9,7 +9,7 @@ TEST = [
 
 setup(
     name='mitmproxy-image',
-    version='1.0.0',
+    version='1.0.1',
     descriptioin='Download image using mitmproxy',
     long_description=__doc__,
     long_description_content_type="text/markdown",
