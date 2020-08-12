@@ -690,8 +690,7 @@ def run_mitmproxy(
         args_lines.append('--listen-port {}'.format(listen_port))
     args_lines.append('-s {}'.format(__file__))
     args_lines.append('--view-filter {}'.format(shlex.quote(
-        '~t "image\\/'
-        '(?!cur|gif|svg\\+xml|vnd.microsoft.icon|x-icon).+"')))
+        '~t "image\\/(?!cur|gif|svg.xml|vnd.microsoft.icon|x-icon).+"')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
     run_custom_mitmproxy(shlex.split(' '.join(args_lines)))
