@@ -24,7 +24,7 @@ import traceback
 import typing
 from collections import defaultdict
 from datetime import date, datetime
-from typing import Any, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 import click
 from appdirs import user_data_dir
@@ -754,6 +754,33 @@ class MitmImage:
             view._view.remove(f)
             view.sig_view_remove.send(view, flow=f, index=idx)
 
+    @classmethod
+    def upload(
+            cls,
+            flow: http.HTTPFlow,
+            client: Client,
+            logger: Optional[Any]=None,
+            associated_url: Optional[str]=None) -> Optional[Dict[str, str]]:
+        content = flow.response.get_content()
+        url = flow.request.pretty_url
+        if content is None:
+            if logger:
+                logger.debug('url dont have content:\n{}'.format(url))
+            return
+        # upload file
+        upload_resp = client.add_file(io.BytesIO(content))
+        if logger:
+            logger.info('uploaded:{},{},{}'.format(
+                upload_resp['status'], upload_resp['hash'][:7], url
+            ))
+
+        if associated_url is None:
+            associated_url = url
+        client.associate_url([upload_resp['hash'], ], [associated_url])
+        # show uploaded image
+        client.add_url(associated_url, page_name='mitmimage')
+        return upload_resp
+
     @functools.lru_cache(CACHE_SIZE)
     def get_url_files(self, url: str):
         return self.client.get_url_files(url)
@@ -811,36 +838,21 @@ class MitmImage:
                         any(x['status'] == 2 for x in url_file_statuses)):
                     self.client.add_url(url, page_name='mitmimage')
             if url_data.get('url_file_statuses', None):
-                try:
-                    if flow.response.get_content():
-                        self.remove_from_view(self.view, flow)
-                except ValueError as err:
-                    self.logger.exception("content value error on url with file status")
-                return
-            content = flow.response.get_content()
-            if content is None:
-                self.logger.debug('url dont have content\n:{}'.format(url))
+                self.remove_from_view(self.view, flow)
                 return
             # upload file
-            upload_resp = self.client.add_file(io.BytesIO(content))
-            self.logger.info('uploaded:{},{},{}'.format(
-                upload_resp['status'], upload_resp['hash'][:7], url
-            ))
+            upload_resp = self.upload(
+                flow, self.client, self.logger,
+                url_data.get('normalised_url', None))
+            # remove from view
+            self.remove_from_view(self.view, flow)
+            if not upload_resp:
+                return
             # update data
             if 'url_file_statuses' in self.data[url]['hydrus']:
                 self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
             else:
                 self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
-        normalised_url = url_data.get('normalised_url', None)
-        if normalised_url:
-            associated_url = normalised_url
-        else:
-            associated_url = url
-        self.client.associate_url([upload_resp['hash'], ], [associated_url])
-        # show uploaded image
-        self.client.add_url(associated_url, page_name='mitmimage')
-        # remove from view
-        self.remove_from_view(self.view, flow)
 
     # command
 
@@ -886,6 +898,12 @@ class MitmImage:
             item[1].response.content is not None,
             self.view._store.items())
         self.view.remove([x[1] for x in items])
+
+    @command.command('mitmimage.upload_flow')
+    def upload_flow(self, flows: typing.Sequence[Flow]) -> None:
+        list(map(
+            lambda flow: self.upload(flow, self.client, self.logger), flows))
+
 
 
 addons = [
