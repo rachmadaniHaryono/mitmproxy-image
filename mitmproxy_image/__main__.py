@@ -707,11 +707,13 @@ class MitmImage:
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.DEBUG)
         # create file handler which logs even debug messages
-        fh = logging.FileHandler('mitmimage.log')
+        fh = logging.FileHandler('/home/r3r/mitmimage.log')
         fh.setLevel(logging.DEBUG)
         logger.addHandler(fh)
         self.logger = logger
         self.show_downloaded_url = True
+        master = getattr(ctx, 'master', None)
+        self.view = master.addons.get('view') if master else None
 
     @classmethod
     def is_valid_content_type(
@@ -741,6 +743,16 @@ class MitmImage:
                 logger.info('unknown subtype:{}'.format(subtype))
             return False
         return True
+
+    @classmethod
+    def remove_from_view(cls, view, flow):
+        f = flow  # compatibility
+        if f in view._view:
+            # We manually pass the index here because multiple flows may have the same
+            # sorting key, and we cannot reconstruct the index from that.
+            idx = view._view.index(f)
+            view._view.remove(f)
+            view.sig_view_remove.send(view, flow=f, index=idx)
 
     @functools.lru_cache(CACHE_SIZE)
     def get_url_files(self, url: str):
@@ -775,6 +787,7 @@ class MitmImage:
             content=file_data.content,
             headers={'Content-Type': file_data.headers['Content-Type']})
         self.logger.info('cached:{},{},{}'.format(statuses, url_hash[:7], url))
+        self.remove_from_view(self.view, flow)
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -790,6 +803,7 @@ class MitmImage:
                 self.data[url] = {'hydrus': None}
             url_data = self.data[url].get('hydrus', None)
             if not url_data:
+                #  huf = hydrus url files
                 huf_resp = self.get_url_files(flow.request.url)
                 self.data[url]['hydrus'] = url_data = huf_resp
                 url_file_statuses = huf_resp.get('url_file_statuses', None)
@@ -797,6 +811,11 @@ class MitmImage:
                         any(x['status'] == 2 for x in url_file_statuses)):
                     self.client.add_url(url, page_name='mitmimage')
             if url_data.get('url_file_statuses', None):
+                try:
+                    if flow.response.get_content():
+                        self.remove_from_view(self.view, flow)
+                except ValueError as err:
+                    self.logger.exception("content value error on url with file status")
                 return
             content = flow.response.get_content()
             if content is None:
@@ -820,6 +839,8 @@ class MitmImage:
         self.client.associate_url([upload_resp['hash'], ], [associated_url])
         # show uploaded image
         self.client.add_url(associated_url, page_name='mitmimage')
+        # remove from view
+        self.remove_from_view(self.view, flow)
 
     # command
 
@@ -847,7 +868,7 @@ class MitmImage:
         ipdb.set_trace()
 
     @command.command('mitmimage.ipdb_flow')
-    def ipdb(self, flows: typing.Sequence[Flow]) -> None:
+    def ipdb_flow(self, flows: typing.Sequence[Flow]) -> None:
         import ipdb
         ipdb.set_trace()
 
@@ -860,12 +881,11 @@ class MitmImage:
 
     @command.command('mitmimage.remove_flow_with_data')
     def remove_flow_with_data(self):
-        view = ctx.master.addons.get('view')
         items = filter(
             lambda item: item[1].response and 
             item[1].response.content is not None,
-            view._store.items())
-        view.remove([x[1] for x in items])
+            self.view._store.items())
+        self.view.remove([x[1] for x in items])
 
 
 addons = [
