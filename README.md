@@ -1,30 +1,25 @@
 # mitmproxy_image
 
-Download image using mitmproxy
+Download image using mitmproxy on hydrus.
 
 
 ## Quick Start
 
-To run it, set your browser for mitmproxy.
+- Set up your browser for mitmproxy or
+use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 
-To Run application server on host `127.0.0.1` and port `5012`, run following command:
-
-```console
-$ mitmproxy-image run -p 5012
-```
-
-After the server is running, run mitmproxy with this script.
-
-Example command to run it on 
-host `127.0.0.1` and port `5007` with redirect host `127.0.0.1` and redirect port `5012`:
+- Run the application (by default it will use `127.0.0.1:5007`):
 
 ```console
-$ mitmproxy --listen-host 127.0.0.1 --listen-port 5007 -s $(mitmproxy-image echo-path) \
-$ --set redirect_host=127.0.0.1 --set redirect_port=5012
+$ mitmproxy-image run-mitmproxy
 ```
 
-To use it with hydrus, run the server as stated above and import the downloaders script.
+If configuration is succesful, 
+each time your browser load an image
+it will also be shown on `mitmimage` downloader page on hydrus.
 
+Downloaded image is not presented as new files,
+so change presentation option on `mitmimage` downloader page.
 
 ## Prerequisites
 
@@ -44,8 +39,6 @@ $ python setup.py install
  - create virtualenv with Flask and mitmproxy_image installed into it (latter is installed in
    [develop mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode) which allows
    modifying source code directly without a need to re-install the app): `make venv`
-
- - run development server in debug mode: `mitmproxy-image run --debug`; Flask will restart if source code is modified
 
  - run tests: tba
 
