@@ -901,8 +901,20 @@ class MitmImage:
 
     @command.command('mitmimage.upload_flow')
     def upload_flow(self, flows: typing.Sequence[Flow]) -> None:
+        cls_logger = self.logger
+        class CustomLogger:
+
+            def debug(self, msg):
+                cls_logger.debug(msg)
+                ctx.log.debug(msg)
+
+            def info(self, msg):
+                cls_logger.info(msg)
+                ctx.log.info(msg)
+
+        logger = CustomLogger() 
         list(map(
-            lambda flow: self.upload(flow, self.client, self.logger), flows))
+            lambda flow: self.upload(flow, self.client, logger), flows))
 
 
 
