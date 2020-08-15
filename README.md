@@ -21,6 +21,12 @@ it will also be shown on `mitmimage` downloader page on hydrus.
 Downloaded image is not presented as new files,
 so change presentation option on `mitmimage` downloader page.
 
+It is also recommended to install browser extension that will load bigger image,
+such as imagus (
+[chrome](https://chrome.google.com/webstore/detail/imagus/immpkjjlgappgfkkfieppnmlhakdmaab?hl=en),
+[firefox](https://addons.mozilla.org/en-US/firefox/addon/imagus/)
+)
+
 ## Prerequisites
 
 This is built to be used with Python 3.
