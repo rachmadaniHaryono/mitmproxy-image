@@ -141,7 +141,7 @@ def test_mitmimage_response(valid_ct, data, url, url_files):
     upload_resp = {'hash': '123', 'status': 1}
     inst = MitmImage()
     mock_flow = mock.Mock()
-    mock_flow.request.url = url
+    mock_flow.request.pretty_url = url
     mock_flow.response.get_content.return_value = b''
     inst.is_valid_content_type = mock.Mock()
     inst.is_valid_content_type.return_value = valid_ct
