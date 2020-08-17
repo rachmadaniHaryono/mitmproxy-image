@@ -702,8 +702,9 @@ class MitmImage:
         self.data = {}
         self.lock = threading.Lock()
         self.logger = logging.getLogger()
-        access_key = '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
-        self.client = Client(access_key)
+        self.default_access_key = \
+            '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
+        self.client = Client(self.default_access_key)
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.DEBUG)
         # create file handler which logs even debug messages
@@ -714,6 +715,8 @@ class MitmImage:
         self.show_downloaded_url = True
         master = getattr(ctx, 'master', None)
         self.view = master.addons.get('view') if master else None
+
+    # classmethod
 
     @classmethod
     def is_valid_content_type(
@@ -747,7 +750,7 @@ class MitmImage:
     @classmethod
     def remove_from_view(cls, view, flow):
         f = flow  # compatibility
-        if f in view._view:
+        if view is not None and f in view._view:
             # We manually pass the index here because multiple flows may have the same
             # sorting key, and we cannot reconstruct the index from that.
             idx = view._view.index(f)
@@ -759,14 +762,19 @@ class MitmImage:
             cls,
             flow: http.HTTPFlow,
             client: Client,
-            logger: Optional[Any]=None,
-            associated_url: Optional[str]=None) -> Optional[Dict[str, str]]:
-        content = flow.response.get_content()
+            logger: Optional[Any] = None,
+            associated_url: Optional[str] = None
+    ) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url
+        if flow.response is None:
+            if logger:
+                logger.debug('url dont have response:\n{}'.format(url))
+            return None
+        content = flow.response.get_content()
         if content is None:
             if logger:
                 logger.debug('url dont have content:\n{}'.format(url))
-            return
+            return None
         # upload file
         upload_resp = client.add_file(io.BytesIO(content))
         if logger:
@@ -781,9 +789,28 @@ class MitmImage:
         client.add_url(associated_url, page_name='mitmimage')
         return upload_resp
 
+    # method
+
     @functools.lru_cache(CACHE_SIZE)
     def get_url_files(self, url: str):
         return self.client.get_url_files(url)
+
+    # mitmproxy add on class' method
+
+    def load(self, loader):
+        loader.add_option(
+            name="hydrus_access_key",
+            typespec=str,
+            default=False,
+            help="Hydrus Access Key",
+        )
+
+    def configure(self, updates):
+        if "hydrus_access_key" in updates:
+            if not ctx.options.hydrus_access_key:
+                ctx.log.info('mitmimage: client is initiated with default access key.')
+            else:
+                ctx.log.info('mitmimage: client initiated.')
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
@@ -894,14 +921,15 @@ class MitmImage:
     @command.command('mitmimage.remove_flow_with_data')
     def remove_flow_with_data(self):
         items = filter(
-            lambda item: item[1].response and 
+            lambda item: item[1].response and
             item[1].response.content is not None,
             self.view._store.items())
         self.view.remove([x[1] for x in items])
 
     @command.command('mitmimage.upload_flow')
-    def upload_flow(self, flows: typing.Sequence[Flow]) -> None:
+    def upload_flow(self, flows: typing.Sequence[http.HTTPFlow]) -> None:
         cls_logger = self.logger
+
         class CustomLogger:
 
             def debug(self, msg):
@@ -912,10 +940,9 @@ class MitmImage:
                 cls_logger.info(msg)
                 ctx.log.info(msg)
 
-        logger = CustomLogger() 
+        logger = CustomLogger()
         list(map(
             lambda flow: self.upload(flow, self.client, logger), flows))
-
 
 
 addons = [
