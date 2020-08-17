@@ -4,6 +4,9 @@ from setuptools import setup, find_packages
 TEST = [
     'flake8>=3.6.0',
     'mypy>=0.761',
+    'pytest',
+    'pytest-flake8',
+    'pytest-mypy',
 ]
 
 
