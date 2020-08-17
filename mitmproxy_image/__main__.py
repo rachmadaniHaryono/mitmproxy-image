@@ -801,7 +801,7 @@ class MitmImage:
         loader.add_option(
             name="hydrus_access_key",
             typespec=str,
-            default=False,
+            default=self.default_access_key,
             help="Hydrus Access Key",
         )
 
@@ -927,7 +927,7 @@ class MitmImage:
         self.view.remove([x[1] for x in items])
 
     @command.command('mitmimage.upload_flow')
-    def upload_flow(self, flows: typing.Sequence[http.HTTPFlow]) -> None:
+    def upload_flow(self, flows: typing.Sequence[Flow]) -> None:
         cls_logger = self.logger
 
         class CustomLogger:
