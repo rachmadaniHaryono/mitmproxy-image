@@ -116,9 +116,12 @@ dmypy.json
 
 # custom
 *.jpeg
+*.pickle
 *.png
+Makefile
 mitmproxy_image.db
 note.md
 settings.cfg
-Makefile
+tests/pickle/*
+todo.md
 youtube_wl*
