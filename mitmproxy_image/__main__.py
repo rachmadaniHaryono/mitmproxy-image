@@ -27,6 +27,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 import click
+import urwid
 from appdirs import user_data_dir
 from flask import Flask, abort, current_app, jsonify
 from flask import request as flask_request
@@ -667,7 +668,7 @@ def run_custom_mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
     from mitmproxy.tools import console
     try:
         run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
-    except (SystemExit, Exception) as err:
+    except (SystemExit, Exception, urwid.canvas.CanvasError) as err:
         print(err)
         import pdb
         pdb.set_trace()
