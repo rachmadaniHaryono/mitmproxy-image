@@ -739,7 +739,12 @@ class MitmImage:
             return False
         content_type = flow.response.data.headers['Content-type']
         mimetype = cgi.parse_header(content_type)[0]
-        maintype, subtype = mimetype.lower().split('/')
+        try:
+            maintype, subtype = mimetype.lower().split('/')
+        except ValueError:
+            if logger:
+                logger.info('unknown mimetype:{}'.format(mimetype))
+            return False
         if maintype != 'image':
             return False
         if subtype not in allowed_subtype:
