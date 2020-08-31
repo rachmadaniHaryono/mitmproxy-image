@@ -31,6 +31,7 @@ setup(
         'Flask-SQLAlchemy>=2.3.2',
         'Flask>=1.0.2',
         'hashfile>=2.1.5',
+        'hydrus-api>=2.12.0',
         'ipdb>=0.13.3',
         'mitmproxy>=5.0.0',
         'Pillow>=5.3.0',
