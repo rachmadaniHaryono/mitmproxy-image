@@ -784,11 +784,6 @@ class MitmImage:
     def clear_url_data(self, show: bool) -> None:
         self.show_downloaded_url = show
 
-    @command.command('mitmimage.pdb')
-    def pdb(self):
-        import pdb
-        pdb.set_trace()
-
     @command.command('mitmimage.ipdb')
     def ipdb(self):
         import ipdb
