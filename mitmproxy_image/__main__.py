@@ -6,8 +6,6 @@ https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_m
 https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
-import argparse
-import asyncio
 import cgi
 import functools
 import io
@@ -16,7 +14,6 @@ import os
 import pathlib
 import shlex
 import shutil
-import signal
 import sys
 import tempfile
 import threading
@@ -27,7 +24,6 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 import click
-import urwid
 from appdirs import user_data_dir
 from flask import Flask, abort, current_app, jsonify
 from flask import request as flask_request
@@ -38,21 +34,10 @@ from flask_admin import Admin, AdminIndexView
 from flask_sqlalchemy import SQLAlchemy
 from hashfile import hash_file
 from hydrus import Client
-from mitmproxy import (
-    command,
-    ctx,
-    exceptions,
-    http,
-    master,
-    options,
-    optmanager,
-    proxy
-)
+from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
-from mitmproxy.tools import cmdline
-from mitmproxy.tools._main import assert_utf8_env, process_options
-from mitmproxy.utils import arg_check, debug
+from mitmproxy.tools._main import mitmproxy
 from PIL import Image
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.scoping import scoped_session
@@ -572,109 +557,6 @@ def scan_image_folder_command():
     scan_image_folder()
 
 
-def run(
-        master_cls: typing.Type[master.Master],
-        make_parser: typing.Callable[[options.Options], argparse.ArgumentParser],
-        arguments: typing.Sequence[str],
-        extra: typing.Callable[[typing.Any], dict] = None
-) -> master.Master:  # pragma: no cover
-    """
-        extra: Extra argument processing callable which returns a dict of
-        options.
-    """
-    debug.register_info_dumpers()
-
-    opts = options.Options()
-    master = master_cls(opts)
-
-    parser = make_parser(opts)
-
-    # To make migration from 2.x to 3.0 bearable.
-    if "-R" in sys.argv and sys.argv[sys.argv.index("-R") + 1].startswith("http"):
-        print("To use mitmproxy in reverse mode please use --mode reverse:SPEC instead")
-
-    try:
-        args = parser.parse_args(arguments)
-    except SystemExit as err:
-        arg_check.check()
-        raise err
-
-    try:
-        opts.set(*args.setoptions, defer=True)
-        optmanager.load_paths(
-            opts,
-            os.path.join(opts.confdir, "config.yaml"),
-            os.path.join(opts.confdir, "config.yml"),
-        )
-        pconf = process_options(parser, opts, args)
-        server: typing.Any = None
-        if pconf.options.server:
-            try:
-                server = proxy.server.ProxyServer(pconf)
-            except exceptions.ServerException as v:
-                print(str(v), file=sys.stderr)
-                raise v
-        else:
-            server = proxy.server.DummyServer(pconf)
-
-        master.server = server
-        if args.options:
-            print(optmanager.dump_defaults(opts))
-            #  on original function it exit with zode 0
-            return master
-        if args.commands:
-            master.commands.dump()
-            #  on original function it exit with zode 0
-            return master
-        if extra:
-            if(args.filter_args):
-                master.log.info(
-                    f"Only processing flows that match "
-                    f"\"{' & '.join(args.filter_args)}\"")
-            opts.update(**extra(args))
-
-        loop = asyncio.get_event_loop()
-        try:
-            loop.add_signal_handler(
-                signal.SIGINT, getattr(master, "prompt_for_exit", master.shutdown))
-            loop.add_signal_handler(signal.SIGTERM, master.shutdown)
-        except NotImplementedError:
-            # Not supported on Windows
-            pass
-
-        # Make sure that we catch KeyboardInterrupts on Windows.
-        # https://stackoverflow.com/a/36925722/934719
-        if os.name == "nt":
-            async def wakeup():
-                while True:
-                    await asyncio.sleep(0.2)
-            asyncio.ensure_future(wakeup())
-
-        master.run()
-    except exceptions.OptionsError as e:
-        print("%s: %s" % (sys.argv[0], e), file=sys.stderr)
-        raise e
-    except (KeyboardInterrupt, RuntimeError):
-        pass
-    return master
-
-
-def run_custom_mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
-    if os.name == "nt":
-        print("Error: mitmproxy's console interface is not supported on Windows. "
-              "You can run mitmdump or mitmweb instead.", file=sys.stderr)
-        return 1
-    assert_utf8_env()
-    from mitmproxy.tools import console
-    try:
-        run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
-    except (SystemExit, Exception, urwid.canvas.CanvasError) as err:
-        print(err)
-        import pdb
-        pdb.set_trace()
-    return None
-
-
 @cli.command('run-mitmproxy')
 @click.option(
     '--listen-host',
@@ -694,7 +576,7 @@ def run_mitmproxy(
         '~t "image\\/(?!cur|gif|svg.xml|vnd.microsoft.icon|x-icon).+"')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
-    run_custom_mitmproxy(shlex.split(' '.join(args_lines)))
+    mitmproxy(shlex.split(' '.join(args_lines)))
 
 
 class MitmImage:
