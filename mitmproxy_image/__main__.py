@@ -19,7 +19,7 @@ import tempfile
 import threading
 import traceback
 import typing
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
@@ -810,7 +810,11 @@ class MitmImage:
         self.view.remove([x[1] for x in items])
 
     @command.command('mitmimage.upload_flow')
-    def upload_flow(self, flows: typing.Sequence[Flow]) -> None:
+    def upload_flow(
+        self,
+        flows: typing.Sequence[Flow],
+        remove: bool = False
+    ) -> None:
         cls_logger = self.logger
 
         class CustomLogger:
@@ -824,8 +828,14 @@ class MitmImage:
                 ctx.log.info(msg)
 
         logger = CustomLogger()
-        list(map(
-            lambda flow: self.upload(flow, self.client, logger), flows))
+        resp_history = []
+        for flow in flows:
+            resp = self.upload(flow, self.client, logger)
+            resp_history.append(resp)
+            if remove and resp is not None:
+                self.remove_from_view(self.view, flow)
+        logger.info(Counter([
+            x['status'] for x in resp_history if x is not None]))
 
 
 addons = [
