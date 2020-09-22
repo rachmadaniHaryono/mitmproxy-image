@@ -722,6 +722,8 @@ class MitmImage:
                     if not valid_content_type:
                         return
                     else:
+                        if url not in self.data:
+                            self.data[url] = {'hydrus': None}
                         self.data[url]['hydrus'] = self.get_url_files(url)
             url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
         if not url_file_statuses:
