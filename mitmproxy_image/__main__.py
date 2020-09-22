@@ -23,7 +23,7 @@ from collections import Counter, defaultdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 from unittest import mock
-import mimetype
+import mimetypes
 
 import click
 from appdirs import user_data_dir
@@ -622,12 +622,12 @@ class MitmImage:
         if 'Content-type' not in flow.response.data.headers:
             return False
         content_type = flow.response.data.headers['Content-type']
-        mimetype_ = cgi.parse_header(content_type)[0]
+        mimetype = cgi.parse_header(content_type)[0]
         try:
-            maintype, subtype = mimetype_.lower().split('/')
+            maintype, subtype = mimetype.lower().split('/')
         except ValueError:
             if logger:
-                logger.info('unknown mimetype:{}'.format(mimetype_))
+                logger.info('unknown mimetype:{}'.format(mimetype))
             return False
         if maintype != 'image':
             return False
@@ -705,18 +705,18 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
-        mimetype_: Optional[str] = None
+        mimetype: Optional[str] = None
         try:
-            mimetype_ = cgi.parse_header(mimetype.guess_type(url)[0])[0]
+            mimetype = cgi.parse_header(mimetypes.guess_type(url)[0])[0]
         except Exception:
             pass
         with self.lock:
             if (url not in self.data) or (not self.data[url]['hydrus']):
-                if not mimetype_:
+                if not mimetype:
                     return
                 else:
                     mock_flow = mock.Mock()
-                    mock_flow.response.data.headers = {'Content-type': mimetype_}
+                    mock_flow.response.data.headers = {'Content-type': mimetype}
                     valid_content_type = \
                         self.is_valid_content_type(mock_flow, self.logger)
                     if not valid_content_type:
