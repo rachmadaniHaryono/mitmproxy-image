@@ -658,12 +658,12 @@ class MitmImage:
         url = flow.request.pretty_url
         if flow.response is None:
             if logger:
-                logger.debug('url dont have response:\n{}'.format(url))
+                logger.debug('no response url:{}'.format(url))
             return None
         content = flow.response.get_content()
         if content is None:
             if logger:
-                logger.debug('url dont have content:\n{}'.format(url))
+                logger.debug('no content url:{}'.format(url))
             return None
         # upload file
         upload_resp = client.add_file(io.BytesIO(content))
