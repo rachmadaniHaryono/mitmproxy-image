@@ -22,6 +22,7 @@ import typing
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+import mimetype
 
 import click
 from appdirs import user_data_dir
@@ -617,15 +618,15 @@ class MitmImage:
             'vnd.microsoft.icon',
             'x-icon',
         ]
-        if not flow.response or 'Content-type' not in flow.response.data.headers:
+        if 'Content-type' not in flow.response.data.headers:
             return False
         content_type = flow.response.data.headers['Content-type']
-        mimetype = cgi.parse_header(content_type)[0]
+        mimetype_ = cgi.parse_header(content_type)[0]
         try:
-            maintype, subtype = mimetype.lower().split('/')
+            maintype, subtype = mimetype_.lower().split('/')
         except ValueError:
             if logger:
-                logger.info('unknown mimetype:{}'.format(mimetype))
+                logger.info('unknown mimetype:{}'.format(mimetype_))
             return False
         if maintype != 'image':
             return False
@@ -703,9 +704,18 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
+        mimetype_: Optional[str] = None
+        try:
+            mimetype_ = cgi.parse_header(mimetype.guess_type(url)[0])[0]
+        except Exception:
+            pass
         with self.lock:
             if (url not in self.data) or (not self.data[url]['hydrus']):
-                return
+                if mimetype_ is None:
+                    return
+                else:
+                    # TODO
+                    return
             url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
         if not url_file_statuses:
             return
@@ -734,9 +744,8 @@ class MitmImage:
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        if not self.is_valid_content_type(flow, logger=self.logger):
-            return
-        if flow.response is None:
+        if (not flow.response) or (
+                not self.is_valid_content_type(flow, logger=self.logger)):
             return
         # hydrus url files response
         url = flow.request.pretty_url
