@@ -22,6 +22,7 @@ import typing
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from unittest import mock
 import mimetype
 
 import click
@@ -711,11 +712,17 @@ class MitmImage:
             pass
         with self.lock:
             if (url not in self.data) or (not self.data[url]['hydrus']):
-                if mimetype_ is None:
+                if not mimetype_:
                     return
                 else:
-                    # TODO
-                    return
+                    mock_flow = mock.Mock()
+                    mock_flow.response.data.headers = {'Content-type': mimetype_}
+                    valid_content_type = \
+                        self.is_valid_content_type(mock_flow, self.logger)
+                    if not valid_content_type:
+                        return
+                    else:
+                        self.data[url]['hydrus'] = self.get_url_files(url)
             url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
         if not url_file_statuses:
             return
@@ -755,7 +762,7 @@ class MitmImage:
             url_data = self.data[url].get('hydrus', None)
             if not url_data:
                 #  huf = hydrus url files
-                huf_resp = self.get_url_files(flow.request.url)
+                huf_resp = self.get_url_files(url)
                 self.data[url]['hydrus'] = url_data = huf_resp
                 url_file_statuses = huf_resp.get('url_file_statuses', None)
                 if (url_file_statuses and self.show_downloaded_url and
