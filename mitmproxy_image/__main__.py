@@ -706,26 +706,26 @@ class MitmImage:
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
         mimetype: Optional[str] = None
+        valid_content_type = False
         try:
             mimetype = cgi.parse_header(mimetypes.guess_type(url)[0])[0]
+            mock_flow = mock.Mock()
+            mock_flow.response.data.headers = {'Content-type': mimetype}
+            valid_content_type = \
+                self.is_valid_content_type(mock_flow, self.logger)
         except Exception:
             pass
-        with self.lock:
-            if (url not in self.data) or (not self.data[url]['hydrus']):
-                if not mimetype:
-                    return
-                else:
-                    mock_flow = mock.Mock()
-                    mock_flow.response.data.headers = {'Content-type': mimetype}
-                    valid_content_type = \
-                        self.is_valid_content_type(mock_flow, self.logger)
-                    if not valid_content_type:
-                        return
-                    else:
-                        if url not in self.data:
-                            self.data[url] = {'hydrus': None}
-                        self.data[url]['hydrus'] = self.get_url_files(url)
-            url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
+        if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
+            return
+        elif not valid_content_type:
+            self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
+            return
+        else:
+            self.logger.debug('valid guessed mimetype:{},{}'.format(mimetype, url))
+            if url not in self.data:
+                self.data[url] = {'hydrus': None}
+            self.data[url]['hydrus'] = self.get_url_files(url)
+        url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
         if not url_file_statuses:
             return
         # turn url_file_statuses from list of hashes to hash dict
