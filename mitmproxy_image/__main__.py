@@ -22,6 +22,8 @@ import typing
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from unittest import mock
+import mimetypes
 
 import click
 from appdirs import user_data_dir
@@ -617,7 +619,7 @@ class MitmImage:
             'vnd.microsoft.icon',
             'x-icon',
         ]
-        if not flow.response or 'Content-type' not in flow.response.data.headers:
+        if 'Content-type' not in flow.response.data.headers:
             return False
         content_type = flow.response.data.headers['Content-type']
         mimetype = cgi.parse_header(content_type)[0]
@@ -656,12 +658,12 @@ class MitmImage:
         url = flow.request.pretty_url
         if flow.response is None:
             if logger:
-                logger.debug('url dont have response:\n{}'.format(url))
+                logger.debug('no response url:{}'.format(url))
             return None
         content = flow.response.get_content()
         if content is None:
             if logger:
-                logger.debug('url dont have content:\n{}'.format(url))
+                logger.debug('no content url:{}'.format(url))
             return None
         # upload file
         upload_resp = client.add_file(io.BytesIO(content))
@@ -703,10 +705,27 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
-        with self.lock:
-            if (url not in self.data) or (not self.data[url]['hydrus']):
-                return
-            url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
+        mimetype: Optional[str] = None
+        valid_content_type = False
+        try:
+            mimetype = cgi.parse_header(mimetypes.guess_type(url)[0])[0]
+            mock_flow = mock.Mock()
+            mock_flow.response.data.headers = {'Content-type': mimetype}
+            valid_content_type = \
+                self.is_valid_content_type(mock_flow, self.logger)
+        except Exception:
+            pass
+        if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
+            return
+        elif not valid_content_type:
+            self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
+            return
+        else:
+            self.logger.debug('valid guessed mimetype:{},{}'.format(mimetype, url))
+            if url not in self.data:
+                self.data[url] = {'hydrus': None}
+            self.data[url]['hydrus'] = self.get_url_files(url)
+        url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
         if not url_file_statuses:
             return
         # turn url_file_statuses from list of hashes to hash dict
@@ -734,9 +753,8 @@ class MitmImage:
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        if not self.is_valid_content_type(flow, logger=self.logger):
-            return
-        if flow.response is None:
+        if (not flow.response) or (
+                not self.is_valid_content_type(flow, logger=self.logger)):
             return
         # hydrus url files response
         url = flow.request.pretty_url
@@ -746,7 +764,7 @@ class MitmImage:
             url_data = self.data[url].get('hydrus', None)
             if not url_data:
                 #  huf = hydrus url files
-                huf_resp = self.get_url_files(flow.request.url)
+                huf_resp = self.get_url_files(url)
                 self.data[url]['hydrus'] = url_data = huf_resp
                 url_file_statuses = huf_resp.get('url_file_statuses', None)
                 if (url_file_statuses and self.show_downloaded_url and
