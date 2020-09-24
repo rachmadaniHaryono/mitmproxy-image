@@ -5,6 +5,7 @@ import functools
 import io
 import logging
 import mimetypes
+import re
 import threading
 import typing
 from collections import Counter, defaultdict
@@ -36,6 +37,20 @@ class MitmImage:
         self.show_downloaded_url = True
         master = getattr(ctx, 'master', None)
         self.view = master.addons.get('view') if master else None
+        self.block_regex = [
+            [
+                r'https:\/.yt3.ggpht.com\/a\/.+=s48-c-k-c0xffffffff-no-rj-mo',
+                'yt3.ggpht.com a48'],
+            [
+                r'https:\/.yt3.ggpht.com\/a\/.+=s32-c-k-c0x00ffffff-no-rj-mo',
+                'yt3.ggpht.com a32'],
+            [
+                r'https:\/.yt3.ggpht.com\/a-\/.+=s48-mo-c-c0xffffffff-rj-k-no',
+                'yt3.ggpht.com a-48'],
+            [
+                r'https:\/.yt3.ggpht.com\/.+\/AAAAAAAAAAI\/AAAAAAAAAAA\/.+\/s32-c-k-no-mo-rj-c0xffffff\/photo.jpg',  # NOQA
+                'yt3.ggpht.com 32']
+        ]
 
     # classmethod
 
@@ -194,6 +209,11 @@ class MitmImage:
             return
         # hydrus url files response
         url = flow.request.pretty_url
+        for item in self.block_regex:
+            if re.match(item[0], url):
+                self.logger.info('regex skip url:{},{}'.format(item[1], url))
+                self.remove_from_view(self.view, flow)
+                return
         with self.lock:
             if url not in self.data:
                 self.data[url] = {'hydrus': None}
