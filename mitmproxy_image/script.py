@@ -9,6 +9,7 @@ import re
 import threading
 import typing
 from collections import Counter, defaultdict
+from functools import partial
 from typing import Any, Dict, List, Optional
 from unittest import mock
 
@@ -209,10 +210,11 @@ class MitmImage:
             return
         # hydrus url files response
         url = flow.request.pretty_url
+        remove_from_view = partial(self.remove_from_view, view=self.view)
         for item in self.block_regex:
             if re.match(item[0], url):
                 self.logger.info('regex skip url:{},{}'.format(item[1], url))
-                self.remove_from_view(self.view, flow)
+                remove_from_view(flow=flow)
                 return
         with self.lock:
             if url not in self.data:
@@ -227,14 +229,14 @@ class MitmImage:
                         any(x['status'] == 2 for x in url_file_statuses)):
                     self.client.add_url(url, page_name='mitmimage')
             if url_data.get('url_file_statuses', None):
-                self.remove_from_view(self.view, flow)
+                remove_from_view(flow=flow)
                 return
             # upload file
             upload_resp = self.upload(
                 flow, self.client, self.logger,
                 url_data.get('normalised_url', None))
             # remove from view
-            self.remove_from_view(self.view, flow)
+            remove_from_view(flow=flow)
             if not upload_resp:
                 return
             # update data
