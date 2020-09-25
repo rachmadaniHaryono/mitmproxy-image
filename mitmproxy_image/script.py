@@ -157,6 +157,12 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
+        remove_from_view = partial(self.remove_from_view, view=self.view)
+        for item in self.block_regex:
+            if re.match(item[0], url):
+                self.logger.info('regex skip url:{},{}'.format(item[1], url))
+                remove_from_view(flow=flow)
+                return
         mimetype: Optional[str] = None
         valid_content_type = False
         try:
@@ -200,7 +206,7 @@ class MitmImage:
             content=file_data.content,
             headers={'Content-Type': file_data.headers['Content-Type']})
         self.logger.info('cached:{},{},{}'.format(statuses, url_hash[:7], url))
-        self.remove_from_view(self.view, flow)
+        remove_from_view(flow=flow)
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
