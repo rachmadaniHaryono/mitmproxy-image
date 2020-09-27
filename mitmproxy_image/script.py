@@ -300,8 +300,8 @@ class MitmImage:
     def clear_url_data(self, show: bool) -> None:
         self.show_downloaded_url = show
 
-    @command.command('mitmimage.ipdb_flow')
-    def ipdb(self, flows: Optional[typing.Sequence[Flow]] = None) -> None:
+    @command.command('mitmimage.ipdb')
+    def ipdb(self, flows: typing.Sequence[Flow] = None) -> None:
         import ipdb
         ipdb.set_trace()
 
