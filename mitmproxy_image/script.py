@@ -175,7 +175,10 @@ class MitmImage:
                 ctx.log.info('mitmimage: client initiated with new access key.')
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(ctx.options.mitmimage_config)
+            self.get_url_filename.cache_clear()
+            self.skip_url.cache_clear()
 
+    @functools.lru_cache(1024)
     def get_url_filename(self, url):
         url_filename = None
         try:
@@ -188,15 +191,21 @@ class MitmImage:
             pass
         return url_filename
 
+    @functools.lru_cache(1024)
+    def skip_url(self, url):
+        for item in self.config.get('block_regex', []):
+            if re.match(item[0], url):
+                return item
+
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
         remove_from_view = partial(self.remove_from_view, view=self.view)
-        for item in self.config.get('block_regex', []):
-            if re.match(item[0], url):
-                self.logger.info('regex skip url:{},{}'.format(item[1], url))
-                remove_from_view(flow=flow)
-                return
+        match_regex = self.skip_url(url)
+        if match_regex:
+            self.logger.info('regex skip url:{},{}'.format(match_regex[1], url))
+            remove_from_view(flow=flow)
+            return
         mimetype: Optional[str] = None
         valid_content_type = False
         try:
@@ -251,11 +260,11 @@ class MitmImage:
         # hydrus url files response
         url = flow.request.pretty_url
         remove_from_view = partial(self.remove_from_view, view=self.view)
-        for item in self.config.get('block_regex', []):
-            if re.match(item[0], url):
-                self.logger.info('regex skip url:{},{}'.format(item[1], url))
-                remove_from_view(flow=flow)
-                return
+        match_regex = self.skip_url(url)
+        if match_regex:
+            self.logger.info('regex skip url:{},{}'.format(match_regex[1], url))
+            remove_from_view(flow=flow)
+            return
         with self.lock:
             if url not in self.data:
                 self.data[url] = {'hydrus': None}
