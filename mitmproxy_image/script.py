@@ -181,7 +181,7 @@ class MitmImage:
         try:
             url_filename = Path(urlparse(url).path).stem
             for item in self.config.get('block_url_filename_regex', []):
-                if re.match(item[0], url_filename):
+                if re.match(item[0], url_filename.lower()):
                     self.logger.info('regex skip url filename:{},{}'.format(item[1], url))
                     url_filename = None
         except Exception:
@@ -250,7 +250,6 @@ class MitmImage:
             return
         # hydrus url files response
         url = flow.request.pretty_url
-        url_filename = self.get_url_filename(url)
         remove_from_view = partial(self.remove_from_view, view=self.view)
         for item in self.config.get('block_regex', []):
             if re.match(item[0], url):
@@ -268,6 +267,7 @@ class MitmImage:
                 url_file_statuses = huf_resp.get('url_file_statuses', None)
                 if (url_file_statuses and self.show_downloaded_url and
                         any(x['status'] == 2 for x in url_file_statuses)):
+                    url_filename = self.get_url_filename(url)
                     if url_filename:
                         self.client.add_url(url, page_name='mitmimage')
                     else:
