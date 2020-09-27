@@ -44,7 +44,6 @@ class MitmImage:
         master = getattr(ctx, 'master', None)
         self.view = master.addons.get('view') if master else None
         self.config = {}
-        self.block_regex = []
         self.load_config(self.default_config_path)
 
     # classmethod
@@ -142,9 +141,9 @@ class MitmImage:
         try:
             with open(config_path) as f:
                 self.config = yaml.safe_load(f)
-                self.block_regex = self.config.get('block_regex', None)
                 ctx.log.info(
-                    'mitmimage: load {} block regex.'.format(len(self.block_regex)))
+                    'mitmimage: load {} block regex.'.format(
+                        len(self.config.get('block_regex', []))))
         except Exception as err:
             ctx.log.error('mitmimage: error loading config, {}'.format(err))
 
@@ -177,11 +176,23 @@ class MitmImage:
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(ctx.options.mitmimage_config)
 
+    def get_url_filename(self, url):
+        url_filename = None
+        try:
+            url_filename = Path(urlparse(url).path).stem
+            for item in self.config.get('block_url_filename_regex', []):
+                if re.match(item[0], url_filename):
+                    self.logger.info('regex skip url filename:{},{}'.format(item[1], url))
+                    url_filename = None
+        except Exception:
+            pass
+        return url_filename
+
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
         remove_from_view = partial(self.remove_from_view, view=self.view)
-        for item in self.block_regex:
+        for item in self.config.get('block_regex', []):
             if re.match(item[0], url):
                 self.logger.info('regex skip url:{},{}'.format(item[1], url))
                 remove_from_view(flow=flow)
@@ -239,12 +250,9 @@ class MitmImage:
             return
         # hydrus url files response
         url = flow.request.pretty_url
-        try:
-            url_filename = Path(urlparse(url).path).stem
-        except Exception:
-            url_filename = None
+        url_filename = self.get_url_filename(url)
         remove_from_view = partial(self.remove_from_view, view=self.view)
-        for item in self.block_regex:
+        for item in self.config.get('block_regex', []):
             if re.match(item[0], url):
                 self.logger.info('regex skip url:{},{}'.format(item[1], url))
                 remove_from_view(flow=flow)
