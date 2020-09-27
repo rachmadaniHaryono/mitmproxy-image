@@ -10,8 +10,10 @@ import threading
 import typing
 from collections import Counter, defaultdict
 from functools import partial
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest import mock
+from urllib.parse import urlparse
 
 from hydrus import Client
 from mitmproxy import command, ctx, http
@@ -108,6 +110,10 @@ class MitmImage:
             associated_url: Optional[str] = None
     ) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url
+        try:
+            url_filename = Path(urlparse(url).path).stem
+        except Exception:
+            url_filename = None
         if flow.response is None:
             if logger:
                 logger.debug('no response url:{}'.format(url))
@@ -128,7 +134,14 @@ class MitmImage:
             associated_url = url
         client.associate_url([upload_resp['hash'], ], [associated_url])
         # show uploaded image
-        client.add_url(associated_url, page_name='mitmimage')
+        if url_filename:
+            client.add_url(
+                associated_url, page_name='mitmimage',
+                service_names_to_tags={
+                    'my tags': 'filename:{}'.format(url_filename)
+                })
+        else:
+            client.add_url(associated_url, page_name='mitmimage')
         return upload_resp
 
     # method
@@ -216,6 +229,10 @@ class MitmImage:
             return
         # hydrus url files response
         url = flow.request.pretty_url
+        try:
+            url_filename = Path(urlparse(url).path).stem
+        except Exception:
+            url_filename = None
         remove_from_view = partial(self.remove_from_view, view=self.view)
         for item in self.block_regex:
             if re.match(item[0], url):
@@ -233,7 +250,15 @@ class MitmImage:
                 url_file_statuses = huf_resp.get('url_file_statuses', None)
                 if (url_file_statuses and self.show_downloaded_url and
                         any(x['status'] == 2 for x in url_file_statuses)):
-                    self.client.add_url(url, page_name='mitmimage')
+                    if url_filename:
+                        self.client.add_url(url, page_name='mitmimage')
+                    else:
+                        self.client.add_url(
+                            url,
+                            page_name='mitmimage',
+                            service_names_to_tags={
+                                'my tags': 'filename:{}'.format(url_filename)
+                            })
             if url_data.get('url_file_statuses', None):
                 remove_from_view(flow=flow)
                 return
