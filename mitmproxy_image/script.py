@@ -31,6 +31,7 @@ class MitmImage:
         self.logger = logging.getLogger()
         self.default_access_key = \
             '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
+        self.default_config_path = os.path.expanduser('~/mitmimage.yaml')
         self.client = Client(self.default_access_key)
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.DEBUG)
@@ -44,7 +45,7 @@ class MitmImage:
         self.view = master.addons.get('view') if master else None
         self.config = {}
         self.block_regex = []
-        self.load_config(os.path.expanduser('~/mitmimage.yaml'))
+        self.load_config(self.default_config_path)
 
     # classmethod
 
@@ -129,7 +130,7 @@ class MitmImage:
             client.add_url(
                 associated_url, page_name='mitmimage',
                 service_names_to_tags={
-                    'my tags': 'filename:{}'.format(url_filename)
+                    'my tags': ['filename:{}'.format(url_filename), ]
                 })
         else:
             client.add_url(associated_url, page_name='mitmimage')
@@ -140,7 +141,7 @@ class MitmImage:
     def load_config(self, config_path):
         try:
             with open(config_path) as f:
-                self.config = yaml.load(f)
+                self.config = yaml.safe_load(f)
                 self.block_regex = self.config.get('block_regex', None)
                 ctx.log.info(
                     'mitmimage: load {} block regex.'.format(len(self.block_regex)))
@@ -163,7 +164,7 @@ class MitmImage:
         loader.add_option(
             name="mitmimage_config",
             typespec=typing.Optional[str],
-            default=None,
+            default=self.default_config_path,
             help="mitmimage config file",
         )
 
@@ -266,7 +267,7 @@ class MitmImage:
                             url,
                             page_name='mitmimage',
                             service_names_to_tags={
-                                'my tags': 'filename:{}'.format(url_filename)
+                                'my tags': ['filename:{}'.format(url_filename), ]
                             })
             if url_data.get('url_file_statuses', None):
                 remove_from_view(flow=flow)
