@@ -5,6 +5,7 @@ import functools
 import io
 import logging
 import mimetypes
+import os
 import re
 import threading
 import typing
@@ -15,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from unittest import mock
 from urllib.parse import urlparse
 
+import yaml
 from hydrus import Client
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
@@ -40,20 +42,9 @@ class MitmImage:
         self.show_downloaded_url = True
         master = getattr(ctx, 'master', None)
         self.view = master.addons.get('view') if master else None
-        self.block_regex = [
-            [
-                r'https:\/.yt3.ggpht.com\/a\/.+=s48-c-k-c0xffffffff-no-rj-mo',
-                'yt3.ggpht.com a48'],
-            [
-                r'https:\/.yt3.ggpht.com\/a\/.+=s32-c-k-c0x00ffffff-no-rj-mo',
-                'yt3.ggpht.com a32'],
-            [
-                r'https:\/.yt3.ggpht.com\/a-\/.+=s48-mo-c-c0xffffffff-rj-k-no',
-                'yt3.ggpht.com a-48'],
-            [
-                r'https:\/.yt3.ggpht.com\/.+\/AAAAAAAAAAI\/AAAAAAAAAAA\/.+\/s32-c-k-no-mo-rj-c0xffffff\/photo.jpg',  # NOQA
-                'yt3.ggpht.com 32']
-        ]
+        self.config = {}
+        self.block_regex = []
+        self.load_config(os.path.expanduser('~/mitmimage.yaml'))
 
     # classmethod
 
@@ -146,6 +137,16 @@ class MitmImage:
 
     # method
 
+    def load_config(self, config_path):
+        try:
+            with open(config_path) as f:
+                self.config = yaml.load(f)
+                self.block_regex = self.config.get('block_regex', None)
+                ctx.log.info(
+                    'mitmimage: load {} block regex.'.format(len(self.block_regex)))
+        except Exception as err:
+            ctx.log.error('mitmimage: error loading config, {}'.format(err))
+
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
         return self.client.get_url_files(url)
@@ -159,13 +160,21 @@ class MitmImage:
             default=self.default_access_key,
             help="Hydrus Access Key",
         )
+        loader.add_option(
+            name="mitmimage_config",
+            typespec=typing.Optional[str],
+            default=None,
+            help="mitmimage config file",
+        )
 
     def configure(self, updates):
         if "hydrus_access_key" in updates:
-            if not ctx.options.hydrus_access_key:
-                ctx.log.info('mitmimage: client is initiated with default access key.')
-            else:
-                ctx.log.info('mitmimage: client initiated.')
+            hydrus_access_key = ctx.options.hydrus_access_key
+            if hydrus_access_key and hydrus_access_key != self.client._access_key:
+                self.client = Client(hydrus_access_key)
+                ctx.log.info('mitmimage: client initiated with new access key.')
+        if "mitmimage_config" in updates and ctx.options.mitmimage_config:
+            self.load_config(ctx.options.mitmimage_config)
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
