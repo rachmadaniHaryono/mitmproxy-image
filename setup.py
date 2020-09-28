@@ -35,6 +35,7 @@ setup(
         'ipdb>=0.13.3',
         'mitmproxy>=5.0.0',
         'Pillow>=5.3.0',
+        'PyYAML>=5.3.1',
         'requests>=2.21.0',
         'SQLAlchemy-Utils>=0.33.6',
         'SQLAlchemy>=1.2.14',
