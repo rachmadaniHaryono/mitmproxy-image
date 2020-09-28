@@ -144,6 +144,9 @@ class MitmImage:
                 ctx.log.info(
                     'mitmimage: load {} block regex.'.format(
                         len(self.config.get('block_regex', []))))
+                ctx.log.info(
+                    'mitmimage: load {} url filename block regex.'.format(
+                        len(self.config.get('block_url_filename_regex', []))))
         except Exception as err:
             ctx.log.error('mitmimage: error loading config, {}'.format(err))
 
