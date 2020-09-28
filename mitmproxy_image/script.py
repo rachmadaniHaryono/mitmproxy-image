@@ -180,13 +180,18 @@ class MitmImage:
             self.skip_url.cache_clear()
 
     @functools.lru_cache(1024)
-    def get_url_filename(self, url):
+    def get_url_filename(self, url, max_len=120):
         url_filename = None
         try:
             url_filename = Path(urlparse(url).path).stem
             for item in self.config.get('block_url_filename_regex', []):
                 if re.match(item[0], url_filename.lower()):
                     self.logger.info('regex skip url filename:{},{}'.format(item[1], url))
+                    url_filename = None
+                if url_filename and len(url_filename) > max_len:
+                    self.logger.info(
+                        'url filename too long:{}...,{}'.format(
+                            url_filename[:max_len], url))
                     url_filename = None
         except Exception:
             pass
@@ -220,7 +225,7 @@ class MitmImage:
         if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
             return
         elif not valid_content_type:
-            self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
+            #  self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
             return
         else:
             self.logger.debug('valid guessed mimetype:{},{}'.format(mimetype, url))
@@ -240,6 +245,7 @@ class MitmImage:
         url_hash, statuses = list(hash_dict.items())[0]
         statuses = list(set(statuses))
         if statuses == [3]:
+            remove_from_view(flow=flow)
             return
         elif not all(x in [1, 2] for x in statuses):
             self.logger.debug(
@@ -287,17 +293,15 @@ class MitmImage:
                         service_names_to_tags={
                             'my tags': ['filename:{}'.format(url_filename), ]
                         })
+                remove_from_view(flow=flow)
+                return
         if url_data.get('url_file_statuses', None):
             remove_from_view(flow=flow)
             return
         # upload file
         upload_resp = self.upload(
-            flow, self.client, self.logger,
-            url_data.get('normalised_url', None))
-        # remove from view
+            flow, self.client, self.logger, url_data.get('normalised_url', None))
         remove_from_view(flow=flow)
-        if not upload_resp:
-            return
         # update data
         if 'url_file_statuses' in self.data[url]['hydrus']:
             self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
