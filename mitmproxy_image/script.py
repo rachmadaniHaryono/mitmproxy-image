@@ -7,7 +7,6 @@ import logging
 import mimetypes
 import os
 import re
-import threading
 import typing
 from collections import Counter, defaultdict
 from functools import partial
@@ -17,7 +16,7 @@ from unittest import mock
 from urllib.parse import urlparse
 
 import yaml
-from hydrus import Client
+from hydrus import Client, ImportStatus
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -27,7 +26,6 @@ class MitmImage:
 
     def __init__(self):
         self.data = {}
-        self.lock = threading.Lock()
         self.logger = logging.getLogger()
         self.default_access_key = \
             '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
@@ -268,43 +266,43 @@ class MitmImage:
             self.logger.info('regex skip url:{},{}'.format(match_regex[1], url))
             remove_from_view(flow=flow)
             return
-        with self.lock:
-            if url not in self.data:
-                self.data[url] = {'hydrus': None}
-            url_data = self.data[url].get('hydrus', None)
-            if not url_data:
-                #  huf = hydrus url files
-                huf_resp = self.get_url_files(url)
-                self.data[url]['hydrus'] = url_data = huf_resp
-                url_file_statuses = huf_resp.get('url_file_statuses', None)
-                if (url_file_statuses and self.show_downloaded_url and
-                        any(x['status'] == 2 for x in url_file_statuses)):
-                    url_filename = self.get_url_filename(url)
-                    if url_filename:
-                        self.client.add_url(url, page_name='mitmimage')
-                    else:
-                        self.client.add_url(
-                            url,
-                            page_name='mitmimage',
-                            service_names_to_tags={
-                                'my tags': ['filename:{}'.format(url_filename), ]
-                            })
-            if url_data.get('url_file_statuses', None):
-                remove_from_view(flow=flow)
-                return
-            # upload file
-            upload_resp = self.upload(
-                flow, self.client, self.logger,
-                url_data.get('normalised_url', None))
-            # remove from view
+        if url not in self.data:
+            self.data[url] = {'hydrus': None}
+        url_data = self.data[url].get('hydrus', None)
+        if not url_data:
+            #  huf = hydrus url files
+            huf_resp = self.get_url_files(url)
+            self.data[url]['hydrus'] = huf_resp
+            url_data = huf_resp
+            url_file_statuses = huf_resp.get('url_file_statuses', None)
+            if (url_file_statuses and self.show_downloaded_url and
+                    any(x['status'] == ImportStatus.Exists for x in url_file_statuses)):
+                url_filename = self.get_url_filename(url)
+                if url_filename:
+                    self.client.add_url(url, page_name='mitmimage')
+                else:
+                    self.client.add_url(
+                        url,
+                        page_name='mitmimage',
+                        service_names_to_tags={
+                            'my tags': ['filename:{}'.format(url_filename), ]
+                        })
+        if url_data.get('url_file_statuses', None):
             remove_from_view(flow=flow)
-            if not upload_resp:
-                return
-            # update data
-            if 'url_file_statuses' in self.data[url]['hydrus']:
-                self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
-            else:
-                self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
+            return
+        # upload file
+        upload_resp = self.upload(
+            flow, self.client, self.logger,
+            url_data.get('normalised_url', None))
+        # remove from view
+        remove_from_view(flow=flow)
+        if not upload_resp:
+            return
+        # update data
+        if 'url_file_statuses' in self.data[url]['hydrus']:
+            self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
+        else:
+            self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
 
     # command
 
