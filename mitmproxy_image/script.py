@@ -34,7 +34,7 @@ class MitmImage:
         logger.setLevel(logging.DEBUG)
         # create file handler which logs even debug messages
         fh = logging.FileHandler('/home/r3r/mitmimage.log')
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(logging.INFO)
         logger.addHandler(fh)
         self.logger = logger
         master = getattr(ctx, 'master', None)
@@ -335,6 +335,14 @@ class MitmImage:
             item[1].response.content is not None,
             self.view._store.items())
         self.view.remove([x[1] for x in items])
+
+    @command.command('mitmimage.toggle_debug')
+    def toggle_debug(self):
+        if self.logger.level == logging.DEBUG:
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
+        ctx.log.debug('log level:{}'.format(self.logger.level))
 
     @command.command('mitmimage.upload_flow')
     def upload_flow(
