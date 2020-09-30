@@ -46,7 +46,6 @@ class MitmImage:
     # classmethod
 
     @classmethod
-    @functools.lru_cache(1024)
     def is_valid_content_type(
             cls, flow: http.HTTPFlow,
             logger: Optional[Any] = None,
