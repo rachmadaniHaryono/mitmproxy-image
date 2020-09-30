@@ -15,7 +15,7 @@ from unittest import mock
 from urllib.parse import urlparse
 
 import yaml
-from hydrus import Client, ImportStatus
+from hydrus import Client
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
