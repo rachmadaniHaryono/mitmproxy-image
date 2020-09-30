@@ -79,37 +79,24 @@ class MitmImage:
             view._view.remove(f)
             view.sig_view_remove.send(view, flow=f, index=idx)
 
-    @classmethod
-    def upload(
-            cls,
-            flow: http.HTTPFlow,
-            client: Client,
-            logger: Optional[Any] = None,
-            associated_url: Optional[str] = None
-    ) -> Optional[Dict[str, str]]:
+    # method
+
+    def upload(self, flow: http.HTTPFlow) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url
         if flow.response is None:
-            if logger:
-                logger.debug('no response url:{}'.format(url))
+            self.logger.debug('no response url:{}'.format(url))
             return None
         content = flow.response.get_content()
         if content is None:
-            if logger:
-                logger.debug('no content url:{}'.format(url))
+            self.logger.debug('no content url:{}'.format(url))
             return None
         # upload file
-        upload_resp = client.add_file(io.BytesIO(content))
-        if logger:
-            logger.info('uploaded:{},{},{}'.format(
-                upload_resp['status'], upload_resp['hash'][:7], url
-            ))
-
-        if associated_url is None:
-            associated_url = url
-        client.associate_url([upload_resp['hash'], ], [associated_url])
+        upload_resp = self.client.add_file(io.BytesIO(content))
+        self.logger.info('uploaded:{},{},{}'.format(
+            upload_resp['status'], upload_resp['hash'][:7], url
+        ))
+        self.client.associate_url([upload_resp['hash'], ], [url])
         return upload_resp
-
-    # method
 
     def load_config(self, config_path):
         try:
@@ -287,8 +274,7 @@ class MitmImage:
             self.logger.debug('url_file_statuses:{},{}'.format(url, url_file_statuses))
         else:
             # upload file
-            upload_resp = self.upload(
-                flow, self.client, self.logger, url_data.get('normalised_url', None))
+            upload_resp = self.upload(flow)
             # update data
             if 'url_file_statuses' in self.data[url]['hydrus']:
                 self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
@@ -371,7 +357,7 @@ class MitmImage:
                     'manual upload regex skip url:{},{}'.format(match_regex[1], url))
                 self.remove_from_view(self.view, flow)
                 continue
-            resp = self.upload(flow, self.client, logger)
+            resp = self.upload(flow)
             self.client.add_url(url, page_name='mitmimage')
             resp_history.append(resp)
             if remove and resp is not None:
