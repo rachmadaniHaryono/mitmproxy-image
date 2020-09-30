@@ -10,7 +10,7 @@ import re
 import typing
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -46,12 +46,8 @@ class MitmImage:
         self.config = {}
         self.load_config(self.default_config_path)
 
-    # classmethod
-
-    @classmethod
     def is_valid_content_type(
-            cls, flow: http.HTTPFlow,
-            logger: Optional[Any] = None,
+            self, flow: http.HTTPFlow,
             mimetype_sets: Optional[List[Tuple[str, str]]] = None
     ) -> bool:
         if 'Content-type' not in flow.response.data.headers:
@@ -62,8 +58,7 @@ class MitmImage:
             maintype, subtype = mimetype.lower().split('/')
             subtype = subtype.lower()
         except ValueError:
-            if logger:
-                logger.info('unknown mimetype:{}'.format(mimetype))
+            self.logger.info('unknown mimetype:{}'.format(mimetype))
             return False
         if mimetype_sets is None and maintype == 'image':
             return True
@@ -209,7 +204,7 @@ class MitmImage:
             mock_flow.response.data.headers = {'Content-type': mimetype}
             valid_content_type = \
                 self.is_valid_content_type(
-                    mock_flow, self.logger, self.config.get('mimetype_regex', None))
+                    mock_flow, self.config.get('mimetype_regex', None))
         except Exception:
             pass
         if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
@@ -258,8 +253,7 @@ class MitmImage:
             self.remove_from_view(flow)
             return
         valid_content_type = self.is_valid_content_type(
-            flow, logger=self.logger,
-            mimetype_sets=self.config.get('mimetype_regex', None))
+            flow, mimetype_sets=self.config.get('mimetype_regex', None))
         if not valid_content_type:
             self.remove_from_view(flow)
             return
