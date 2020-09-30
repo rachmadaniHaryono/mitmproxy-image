@@ -121,6 +121,8 @@ class MitmImage:
                 })
         else:
             client.add_url(associated_url, page_name='mitmimage')
+        if logger:
+            logger.info('add url:{}'.format(url))
         return upload_resp
 
     # method
@@ -216,7 +218,7 @@ class MitmImage:
         if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
             return
         elif not valid_content_type:
-            #  self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
+            self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
             return
         else:
             self.logger.debug('valid guessed mimetype:{},{}'.format(mimetype, url))
