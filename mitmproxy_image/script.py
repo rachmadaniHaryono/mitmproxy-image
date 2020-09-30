@@ -73,17 +73,19 @@ class MitmImage:
             return True
         return False
 
-    @classmethod
-    def remove_from_view(cls, view, flow):
-        f = flow  # compatibility
+    # method
+
+    def remove_from_view(self, flow: http.HTTPFlow):
+        # compatibility
+        f = flow
+        view = self.view
+
         if view is not None and f in view._view:
             # We manually pass the index here because multiple flows may have the same
             # sorting key, and we cannot reconstruct the index from that.
             idx = view._view.index(f)
             view._view.remove(f)
             view.sig_view_remove.send(view, flow=f, index=idx)
-
-    # method
 
     def upload(self, flow: http.HTTPFlow) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url
@@ -197,7 +199,7 @@ class MitmImage:
         match_regex = self.skip_url(url)
         if match_regex:
             self.logger.info('request regex skip url:{},{}'.format(match_regex[1], url))
-            self.remove_from_view(view=self.view, flow=flow)
+            self.remove_from_view(flow=flow)
             return
         mimetype: Optional[str] = None
         valid_content_type = False
@@ -233,7 +235,7 @@ class MitmImage:
         url_hash, statuses = list(hash_dict.items())[0]
         statuses = list(set(statuses))
         if statuses == [3]:
-            self.remove_from_view(view=self.view, flow=flow)
+            self.remove_from_view(flow=flow)
             return
         elif not all(x in [1, 2] for x in statuses):
             self.logger.debug(
@@ -244,7 +246,7 @@ class MitmImage:
             content=file_data.content,
             headers={'Content-Type': file_data.headers['Content-Type']})
         self.logger.info('cached:{},{},{}'.format(statuses, url_hash[:7], url))
-        self.remove_from_view(view=self.view, flow=flow)
+        self.remove_from_view(flow=flow)
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -253,13 +255,13 @@ class MitmImage:
         match_regex = self.skip_url(url)
         if match_regex:
             self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
-            self.remove_from_view(view=self.view, flow=flow)
+            self.remove_from_view(flow)
             return
         valid_content_type = self.is_valid_content_type(
             flow, logger=self.logger,
             mimetype_sets=self.config.get('mimetype_regex', None))
         if not valid_content_type:
-            self.remove_from_view(view=self.view, flow=flow)
+            self.remove_from_view(flow)
             return
         if url not in self.data:
             self.data[url] = {'hydrus': {}}
@@ -292,7 +294,7 @@ class MitmImage:
         self.client.add_url(url, **kwargs)
         self.logger.info('add url:{}'.format(url))
         self.add_additional_url(url)
-        self.remove_from_view(view=self.view, flow=flow)
+        self.remove_from_view(flow)
 
     # command
 
@@ -359,13 +361,13 @@ class MitmImage:
             if match_regex:
                 self.logger.info(
                     'manual upload regex skip url:{},{}'.format(match_regex[1], url))
-                self.remove_from_view(self.view, flow)
+                self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
             self.client.add_url(url, page_name='mitmimage')
             resp_history.append(resp)
             if remove and resp is not None:
-                self.remove_from_view(self.view, flow)
+                self.remove_from_view(flow)
         logger.info(Counter([
             x['status'] for x in resp_history if x is not None]))
 
