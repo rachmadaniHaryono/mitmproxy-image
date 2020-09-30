@@ -65,7 +65,7 @@ class MitmImage:
         if mimetype_sets is None and maintype == 'image':
             return True
         if mimetype_sets and \
-                any(mimetype == x[0] for x in mimetype_sets) and \
+                any(maintype == x[0] for x in mimetype_sets) and \
                 any(subtype.lower() == x[1] for x in mimetype_sets):
             return True
         return False
