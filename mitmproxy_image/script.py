@@ -267,36 +267,21 @@ class MitmImage:
         if not valid_content_type:
             self.remove_from_view(flow)
             return
-        if url not in self.data:
-            self.data[url] = {'hydrus': {}}
-        url_data = self.data[url].get('hydrus', {})
-        if not url_data:
-            #  huf = hydrus url files
-            huf_resp = self.get_url_files(url)
-            self.logger.debug('huf response:{},{}'.format(url, huf_resp))
-            self.data[url]['hydrus'] = huf_resp
-            url_data = huf_resp
-        else:
-            huf_resp = url_data
-        url_file_statuses = huf_resp.get('url_file_statuses', None)
-        if (url_file_statuses and
-                any(x['status'] == ImportStatus.Exists for x in url_file_statuses)):
-            self.logger.debug('url_file_statuses:{},{}'.format(url, url_file_statuses))
-        else:
-            # upload file
+        normalised_url = self.get_normalised_url(url)
+        hashes = list(set(self.url_data.get(normalised_url, [])))
+        if not hashes:
             upload_resp = self.upload(flow)
-            # update data
-            if 'url_file_statuses' in self.data[url]['hydrus']:
-                self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
-            else:
-                self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
+            self.url_data[normalised_url] = upload_resp['hash']
+            self.hash_data[upload_resp['hash']] = upload_resp['status']
         url_filename = self.get_url_filename(url)
         kwargs = {'page_name': 'mitmimage'}
         if url_filename:
             kwargs['service_names_to_tags'] = {
                 'my tags': ['filename:{}'.format(url_filename), ]}
-        self.client.add_url(url, **kwargs)
+        self.client.add_url(normalised_url, **kwargs)
         self.logger.info('add url:{}'.format(url))
+        if normalised_url != url:
+            self.logger.debug('add url(normalised):{}'.format(normalised_url))
         self.add_additional_url(url)
         self.remove_from_view(flow)
 
