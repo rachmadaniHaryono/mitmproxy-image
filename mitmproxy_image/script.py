@@ -24,12 +24,11 @@ from mitmproxy.script import concurrent
 class MitmImage:
 
     def __init__(self):
-        self.data = {}
-        self.logger = logging.getLogger()
-        self.default_access_key = \
-            '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
-        self.default_config_path = os.path.expanduser('~/mitmimage.yaml')
-        self.client = Client(self.default_access_key)
+        # data
+        self.url_data = {}
+        self.normalized_url_data = {}
+        self.hash_data = {}
+        # logger
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.DEBUG)
         # create file handler which logs even debug messages
@@ -37,6 +36,11 @@ class MitmImage:
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)
         self.logger = logger
+        #  other
+        self.default_access_key = \
+            '918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1'
+        self.default_config_path = os.path.expanduser('~/mitmimage.yaml')
+        self.client = Client(self.default_access_key)
         master = getattr(ctx, 'master', None)
         self.view = master.addons.get('view') if master else None
         self.config = {}
