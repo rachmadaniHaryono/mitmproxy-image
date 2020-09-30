@@ -18,6 +18,7 @@ from datetime import date, datetime
 from typing import Any, Optional, Tuple, TypeVar, Union
 
 import click
+import yaml
 from appdirs import user_data_dir
 from flask import Flask, abort, current_app, jsonify
 from flask import request as flask_request
@@ -563,9 +564,17 @@ def run_mitmproxy(
         args_lines.append('--listen-port {}'.format(listen_port))
     args_lines.append('-s {}'.format(os.path.join(
         os.path.dirname(__file__), 'script.py')))
-    args_lines.append('--view-filter {}'.format(shlex.quote(
-        '~t "(image\\/(?!cur|svg.xml|vnd.microsoft.icon|x-icon).+)|'
-        'video\\/(mp2t|MP2T|webm)"')))
+    view_filter = '~t "(image\\/(?!cur|svg.xml|vnd.microsoft.icon|x-icon).+)|' \
+        'video\\/(mp2t|MP2T|webm)"'
+    config_path = os.path.expanduser('~/mitmimage.yaml')
+    if os.path.isfile(config_path):
+        with open(config_path) as f:
+            config_view_filter = yaml.safe_load(f).get('view_filter', None)
+            if config_view_filter:
+                view_filter = config_view_filter
+                print('view filter:{}'.format(config_view_filter))
+    args_lines.append('--view-filter {}'.format(shlex.quote(view_filter)))
+
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
     mitmproxy(shlex.split(' '.join(args_lines)))
