@@ -182,6 +182,25 @@ class MitmImage:
             if re.match(item[0], url):
                 return item
 
+    def add_additional_url(self, url):
+        additional_url = []
+        match = re.match(r'https:\/\/nitter.net\/pic\/media%2F(.*)%3F', url)
+        if match and match.groups():
+            additional_url.append(
+                'https://nitter.net/pic/media%2F{}%3Fname%3Dorig'.format(
+                    match.groups()[0])
+            )
+        match = re.match(r'https:\/\/i.ytimg.com\/vi\/(.*)\/hqdefault.*', url)
+        if match and match.groups():
+            additional_url.append(
+                'https://www.youtube.com/watch?v={}'.format(
+                    match.groups()[0])
+            )
+        if additional_url:
+            for new_url in additional_url:
+                self.client.add_url(new_url, page_name='mitimimage_plus')
+                self.logger.info('additional_url:{}'.format(new_url))
+
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
@@ -281,8 +300,9 @@ class MitmImage:
         if url_filename:
             kwargs['service_names_to_tags'] = {
                 'my tags': ['filename:{}'.format(url_filename), ]}
-        self.add_url(url, **kwargs)
+        self.client.add_url(url, **kwargs)
         self.logger.info('add url:{}'.format(url))
+        self.add_additional_url(url)
         self.remove_from_view(view=self.view, flow=flow)
 
     # command
