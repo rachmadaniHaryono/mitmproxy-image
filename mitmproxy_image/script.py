@@ -96,7 +96,8 @@ class MitmImage:
         self.logger.info('uploaded:{},{},{}'.format(
             upload_resp['status'], upload_resp['hash'][:7], url
         ))
-        self.client.associate_url([upload_resp['hash'], ], [url])
+        normalised_url = self.get_normalised_url(url)
+        self.client.associate_url([upload_resp['hash'], ], [normalised_url])
         return upload_resp
 
     def load_config(self, config_path):
@@ -187,6 +188,13 @@ class MitmImage:
             for new_url in additional_url:
                 self.client.add_url(new_url, page_name='mitimimage_plus')
                 self.logger.info('additional_url:{}'.format(new_url))
+
+    def get_normalised_url(self, url: str) -> str:
+        if url in self.normalised_url_data:
+            return self.normalised_url_data[url]
+        normalised_url = self.client.get_url_info(url)['normalised_url']
+        self.normalised_url_data[url] = normalised_url
+        return normalised_url
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
