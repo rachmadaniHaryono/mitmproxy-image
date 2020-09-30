@@ -350,6 +350,13 @@ class MitmImage:
         logger = CustomLogger()
         resp_history = []
         for flow in flows:
+            url = flow.request.pretty_url
+            match_regex = self.skip_url(url)
+            if match_regex:
+                self.logger.info(
+                    'manual upload regex skip url:{},{}'.format(match_regex[1], url))
+                self.remove_from_view(self.view, flow)
+                continue
             resp = self.upload(flow, self.client, logger)
             resp_history.append(resp)
             if remove and resp is not None:
