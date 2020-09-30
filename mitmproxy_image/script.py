@@ -37,7 +37,6 @@ class MitmImage:
         fh.setLevel(logging.DEBUG)
         logger.addHandler(fh)
         self.logger = logger
-        self.show_downloaded_url = True
         master = getattr(ctx, 'master', None)
         self.view = master.addons.get('view') if master else None
         self.config = {}
@@ -249,24 +248,22 @@ class MitmImage:
             content=file_data.content,
             headers={'Content-Type': file_data.headers['Content-Type']})
         self.logger.info('cached:{},{},{}'.format(statuses, url_hash[:7], url))
-        remove_from_view(flow=flow)
+        self.remove_from_view(view=self.view, flow=flow)
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        if (not flow.response) or (
-                not self.is_valid_content_type(
-                    flow, logger=self.logger,
-                    mimetype_sets=self.config.get('mimetype_regex', None))
-        ):
-            return
-        # hydrus url files response
         url = flow.request.pretty_url
-        remove_from_view = partial(self.remove_from_view, view=self.view)
         match_regex = self.skip_url(url)
         if match_regex:
-            self.logger.info('regex skip url:{},{}'.format(match_regex[1], url))
-            remove_from_view(flow=flow)
+            self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
+            self.remove_from_view(view=self.view, flow=flow)
+            return
+        valid_content_type = self.is_valid_content_type(
+            flow, logger=self.logger,
+            mimetype_sets=self.config.get('mimetype_regex', None))
+        if not valid_content_type:
+            self.remove_from_view(view=self.view, flow=flow)
             return
         if url not in self.data:
             self.data[url] = {'hydrus': None}
@@ -274,35 +271,32 @@ class MitmImage:
         if not url_data:
             #  huf = hydrus url files
             huf_resp = self.get_url_files(url)
+            self.logger.debug('huf response:{},{}'.format(url, huf_resp))
             self.data[url]['hydrus'] = huf_resp
             url_data = huf_resp
-            url_file_statuses = huf_resp.get('url_file_statuses', None)
-            if (url_file_statuses and self.show_downloaded_url and
-                    any(x['status'] == ImportStatus.Exists for x in url_file_statuses)):
-                url_filename = self.get_url_filename(url)
-                if url_filename:
-                    self.client.add_url(url, page_name='mitmimage')
-                else:
-                    self.client.add_url(
-                        url,
-                        page_name='mitmimage',
-                        service_names_to_tags={
-                            'my tags': ['filename:{}'.format(url_filename), ]
-                        })
-                remove_from_view(flow=flow)
-                return
-        if url_data.get('url_file_statuses', None):
-            remove_from_view(flow=flow)
-            return
-        # upload file
-        upload_resp = self.upload(
-            flow, self.client, self.logger, url_data.get('normalised_url', None))
-        remove_from_view(flow=flow)
-        # update data
-        if 'url_file_statuses' in self.data[url]['hydrus']:
-            self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
         else:
-            self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
+            huf_resp = url_data
+        url_file_statuses = huf_resp.get('url_file_statuses', None)
+        if (url_file_statuses and
+                any(x['status'] == ImportStatus.Exists for x in url_file_statuses)):
+            pass
+        else:
+            # upload file
+            upload_resp = self.upload(
+                flow, self.client, self.logger, url_data.get('normalised_url', None))
+            # update data
+            if 'url_file_statuses' in self.data[url]['hydrus']:
+                self.data[url]['hydrus']['url_file_statuses'].append(upload_resp)
+            else:
+                self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
+        url_filename = self.get_url_filename(url)
+        kwargs = {'page_name': 'mitmimage'}
+        if not url_filename:
+            kwargs['service_names_to_tags'] = {
+                'my tags': ['filename:{}'.format(url_filename), ]}
+        self.add_url(url, **kwargs)
+        self.logger.info('add url:{}'.format(url))
+        self.remove_from_view(view=self.view, flow=flow)
 
     # command
 
