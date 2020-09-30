@@ -33,7 +33,7 @@ class MitmImage:
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.DEBUG)
         # create file handler which logs even debug messages
-        fh = logging.FileHandler('/home/r3r/mitmimage.log')
+        fh = logging.FileHandler(os.path.expanduser('~/mitmimage.log'))
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)
         self.logger = logger
