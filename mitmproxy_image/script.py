@@ -50,6 +50,7 @@ class MitmImage:
     def is_valid_content_type(
             cls, flow: http.HTTPFlow, logger: Optional[Any] = None) -> bool:
         allowed_subtype: List[str] = [
+            'gif',
             'jpeg',
             'jpg',
             'png',
@@ -57,7 +58,6 @@ class MitmImage:
         ]
         disallowed_subtype: List[str] = [
             'cur',
-            'gif',
             'svg+xml',
             'vnd.microsoft.icon',
             'x-icon',
@@ -68,11 +68,14 @@ class MitmImage:
         mimetype = cgi.parse_header(content_type)[0]
         try:
             maintype, subtype = mimetype.lower().split('/')
+            subtype = subtype.lower()
         except ValueError:
             if logger:
                 logger.info('unknown mimetype:{}'.format(mimetype))
             return False
-        if maintype != 'image':
+        if maintype == 'video' and subtype in ['webm', 'mp2t']:
+            return True
+        elif maintype != 'image':
             return False
         if subtype not in allowed_subtype:
             if subtype not in disallowed_subtype and logger:
