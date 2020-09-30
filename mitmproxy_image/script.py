@@ -107,8 +107,6 @@ class MitmImage:
         if associated_url is None:
             associated_url = url
         client.associate_url([upload_resp['hash'], ], [associated_url])
-        if logger:
-            logger.info('add url:{}'.format(url))
         return upload_resp
 
     # method
@@ -373,6 +371,7 @@ class MitmImage:
                 self.remove_from_view(self.view, flow)
                 continue
             resp = self.upload(flow, self.client, logger)
+            self.client.add_url(url, page_name='mitmimage')
             resp_history.append(resp)
             if remove and resp is not None:
                 self.remove_from_view(self.view, flow)
