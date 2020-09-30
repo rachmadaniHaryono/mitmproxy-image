@@ -564,7 +564,8 @@ def run_mitmproxy(
     args_lines.append('-s {}'.format(os.path.join(
         os.path.dirname(__file__), 'script.py')))
     args_lines.append('--view-filter {}'.format(shlex.quote(
-        '~t "image\\/(?!cur|gif|svg.xml|vnd.microsoft.icon|x-icon).+"')))
+        '~t "(image\\/(?!cur|svg.xml|vnd.microsoft.icon|x-icon).+)|'
+        'video\\/(mp2t|MP2T|webm)"')))
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
     mitmproxy(shlex.split(' '.join(args_lines)))
