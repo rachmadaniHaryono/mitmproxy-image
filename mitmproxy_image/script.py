@@ -8,7 +8,7 @@ import mimetypes
 import os
 import re
 import typing
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from unittest import mock
@@ -26,7 +26,7 @@ class MitmImage:
     def __init__(self):
         # data
         self.url_data = {}
-        self.normalized_url_data = {}
+        self.normalised_url_data = {}
         self.hash_data = {}
         # logger
         logger = logging.getLogger('mitmimage')
@@ -207,41 +207,43 @@ class MitmImage:
                     mock_flow, self.config.get('mimetype_regex', None))
         except Exception:
             pass
-        if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
+        normalised_url = self.get_normalised_url(url)
+        hashes = list(set(self.url_data.get(normalised_url, [])))
+        if not hashes:
+            if not valid_content_type:
+                self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
+                return
+            huf_resp = self.get_url_files(url)
+            self.normalised_url_data[url] = normalised_url = huf_resp['normalised_url']
+            # ufs = get_url_status
+            for ufs in huf_resp['url_file_statuses']:
+                ufs_hash = ufs['hash']
+                if normalised_url not in self.url_data:
+                    self.url_data[normalised_url] = [ufs_hash]
+                else:
+                    self.url_data[normalised_url].append(ufs_hash)
+                    self.url_data[normalised_url] = \
+                        list(set(self.url_data[normalised_url]))
+                hashes.append(ufs_hash)
+        if len(hashes) > 1:
+            self.logger.debug('url have multiple hashes:\n{}'.format(url))
             return
-        elif not valid_content_type:
-            self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
-            return
-        else:
-            self.logger.debug('valid guessed mimetype:{},{}'.format(mimetype, url))
-            if url not in self.data:
-                self.data[url] = {'hydrus': None}
-            self.data[url]['hydrus'] = self.get_url_files(url)
-        url_file_statuses = self.data[url]['hydrus'].get('url_file_statuses', None)
-        if not url_file_statuses:
-            return
-        # turn url_file_statuses from list of hashes to hash dict
-        hash_dict = defaultdict(list)
-        for status in url_file_statuses:
-            hash_dict[status['hash']].append(status['status'])
-        if len(hash_dict.keys()) != 1:
-            self.logger.debug('following url have multiple hashes:\n{}'.format(url))
-            return
-        url_hash, statuses = list(hash_dict.items())[0]
-        statuses = list(set(statuses))
-        if statuses == [3]:
-            self.remove_from_view(flow=flow)
-            return
-        elif not all(x in [1, 2] for x in statuses):
-            self.logger.debug(
-                'mixed status:{},{}'.format(statuses, url))
-            return
-        file_data = self.client.get_file(hash_=url_hash)
-        flow.response = http.HTTPResponse.make(
-            content=file_data.content,
-            headers={'Content-Type': file_data.headers['Content-Type']})
-        self.logger.info('cached:{},{},{}'.format(statuses, url_hash[:7], url))
-        self.remove_from_view(flow=flow)
+        if len(hashes) == 1:
+            hash_ = hashes[0]
+            if not self.hash_data.get(hash_, None):
+                return
+            try:
+                file_data = self.client.get_file(hash_=hash_)
+                flow.response = http.HTTPResponse.make(
+                    content=file_data.content,
+                    headers={'Content-Type': file_data.headers['Content-Type']})
+                self.logger.info('cached:{},{}'.format(hash_[:7], url))
+                if normalised_url != url:
+                    self.logger.debug('cached:{},{}'.format(hash_[:7], normalised_url))
+                self.remove_from_view(flow=flow)
+            except Exception as err:
+                self.logger.error("error:{}\nurl:{}\ndata:{},{}".format(
+                    err, url, hash_, self.hash_data.get(hash_, None)))
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
