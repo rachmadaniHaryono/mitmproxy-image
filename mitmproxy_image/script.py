@@ -11,7 +11,7 @@ import typing
 from collections import Counter, defaultdict
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -47,21 +47,12 @@ class MitmImage:
     # classmethod
 
     @classmethod
+    @functools.lru_cache(1024)
     def is_valid_content_type(
-            cls, flow: http.HTTPFlow, logger: Optional[Any] = None) -> bool:
-        allowed_subtype: List[str] = [
-            'gif',
-            'jpeg',
-            'jpg',
-            'png',
-            'webp',
-        ]
-        disallowed_subtype: List[str] = [
-            'cur',
-            'svg+xml',
-            'vnd.microsoft.icon',
-            'x-icon',
-        ]
+            cls, flow: http.HTTPFlow,
+            logger: Optional[Any] = None,
+            mimetype_sets: Optional[List[Tuple[str, str]]] = None
+    ) -> bool:
         if 'Content-type' not in flow.response.data.headers:
             return False
         content_type = flow.response.data.headers['Content-type']
@@ -73,15 +64,13 @@ class MitmImage:
             if logger:
                 logger.info('unknown mimetype:{}'.format(mimetype))
             return False
-        if maintype == 'video' and subtype in ['webm', 'mp2t']:
+        if mimetype_sets is None and maintype == 'image':
             return True
-        elif maintype != 'image':
-            return False
-        if subtype not in allowed_subtype:
-            if subtype not in disallowed_subtype and logger:
-                logger.info('unknown subtype:{}'.format(subtype))
-            return False
-        return True
+        if mimetype_sets and \
+                any(mimetype == x[0] for x in mimetype_sets) and \
+                any(subtype.lower() == x[1] for x in mimetype_sets):
+            return True
+        return False
 
     @classmethod
     def remove_from_view(cls, view, flow):
@@ -181,6 +170,7 @@ class MitmImage:
             self.load_config(ctx.options.mitmimage_config)
             self.get_url_filename.cache_clear()
             self.skip_url.cache_clear()
+            self.is_valid_content_type.cache_clear()
 
     @functools.lru_cache(1024)
     def get_url_filename(self, url, max_len=120):
@@ -222,7 +212,8 @@ class MitmImage:
             mock_flow = mock.Mock()
             mock_flow.response.data.headers = {'Content-type': mimetype}
             valid_content_type = \
-                self.is_valid_content_type(mock_flow, self.logger)
+                self.is_valid_content_type(
+                    mock_flow, self.logger, self.config.get('mimetype_regex', None))
         except Exception:
             pass
         if ((url not in self.data) or (not self.data[url]['hydrus'])) and not mimetype:
@@ -265,7 +256,10 @@ class MitmImage:
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         if (not flow.response) or (
-                not self.is_valid_content_type(flow, logger=self.logger)):
+                not self.is_valid_content_type(
+                    flow, logger=self.logger,
+                    mimetype_sets=self.config.get('mimetype_regex', None))
+        ):
             return
         # hydrus url files response
         url = flow.request.pretty_url
