@@ -293,7 +293,9 @@ class MitmImage:
 
     @command.command("mitmimage.clear_data")
     def clear_data(self) -> None:
-        self.data = {}
+        self.url_data = {}
+        self.normalised_url = {}
+        self.hash_data = {}
         ctx.log.info('mitmimage: data cleared')
 
     @command.command('mitmimage.ipdb')
