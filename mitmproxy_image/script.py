@@ -88,10 +88,6 @@ class MitmImage:
             associated_url: Optional[str] = None
     ) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url
-        try:
-            url_filename = Path(urlparse(url).path).stem
-        except Exception:
-            url_filename = None
         if flow.response is None:
             if logger:
                 logger.debug('no response url:{}'.format(url))
@@ -111,15 +107,6 @@ class MitmImage:
         if associated_url is None:
             associated_url = url
         client.associate_url([upload_resp['hash'], ], [associated_url])
-        # show uploaded image
-        if url_filename:
-            client.add_url(
-                associated_url, page_name='mitmimage',
-                service_names_to_tags={
-                    'my tags': ['filename:{}'.format(url_filename), ]
-                })
-        else:
-            client.add_url(associated_url, page_name='mitmimage')
         if logger:
             logger.info('add url:{}'.format(url))
         return upload_resp
@@ -291,7 +278,7 @@ class MitmImage:
                 self.data[url]['hydrus']['url_file_statuses'] = [upload_resp]
         url_filename = self.get_url_filename(url)
         kwargs = {'page_name': 'mitmimage'}
-        if not url_filename:
+        if url_filename:
             kwargs['service_names_to_tags'] = {
                 'my tags': ['filename:{}'.format(url_filename), ]}
         self.add_url(url, **kwargs)
