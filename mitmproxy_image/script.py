@@ -9,7 +9,6 @@ import os
 import re
 import typing
 from collections import Counter, defaultdict
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
@@ -199,11 +198,10 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
-        remove_from_view = partial(self.remove_from_view, view=self.view)
         match_regex = self.skip_url(url)
         if match_regex:
-            self.logger.info('regex skip url:{},{}'.format(match_regex[1], url))
-            remove_from_view(flow=flow)
+            self.logger.info('request regex skip url:{},{}'.format(match_regex[1], url))
+            self.remove_from_view(view=self.view, flow=flow)
             return
         mimetype: Optional[str] = None
         valid_content_type = False
@@ -239,7 +237,7 @@ class MitmImage:
         url_hash, statuses = list(hash_dict.items())[0]
         statuses = list(set(statuses))
         if statuses == [3]:
-            remove_from_view(flow=flow)
+            self.remove_from_view(view=self.view, flow=flow)
             return
         elif not all(x in [1, 2] for x in statuses):
             self.logger.debug(
