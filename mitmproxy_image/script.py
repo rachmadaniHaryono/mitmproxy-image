@@ -309,10 +309,6 @@ class MitmImage:
         self.data = {}
         ctx.log.info('mitmimage: data cleared')
 
-    @command.command("mitmimage.show_downloaded_url")
-    def clear_url_data(self, show: bool) -> None:
-        self.show_downloaded_url = show
-
     @command.command('mitmimage.ipdb')
     def ipdb(self, flows: typing.Sequence[Flow] = None) -> None:
         import ipdb
