@@ -6,14 +6,8 @@ import pytest
 from PIL import Image
 from sqlalchemy_utils import database_exists
 
-from mitmproxy_image.__main__ import (
-    DB,
-    MitmImage,
-    Sha256Checksum,
-    Url,
-    create_app,
-)
-
+from mitmproxy_image.__main__ import DB, Sha256Checksum, Url, create_app
+from mitmproxy_image.script import MitmImage
 
 PICKLE_PATH = os.path.join(
     os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')

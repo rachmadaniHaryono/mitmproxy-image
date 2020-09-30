@@ -122,7 +122,8 @@ class MitmImage:
                     'mitmimage: load {} url filename block regex.'.format(
                         len(self.config.get('block_url_filename_regex', []))))
         except Exception as err:
-            ctx.log.error('mitmimage: error loading config, {}'.format(err))
+            if hasattr(ctx, 'log'):
+                ctx.log.error('mitmimage: error loading config, {}'.format(err))
 
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
@@ -270,8 +271,8 @@ class MitmImage:
             self.remove_from_view(view=self.view, flow=flow)
             return
         if url not in self.data:
-            self.data[url] = {'hydrus': None}
-        url_data = self.data[url].get('hydrus', None)
+            self.data[url] = {'hydrus': {}}
+        url_data = self.data[url].get('hydrus', {})
         if not url_data:
             #  huf = hydrus url files
             huf_resp = self.get_url_files(url)
