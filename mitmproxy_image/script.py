@@ -285,7 +285,7 @@ class MitmImage:
         url_file_statuses = huf_resp.get('url_file_statuses', None)
         if (url_file_statuses and
                 any(x['status'] == ImportStatus.Exists for x in url_file_statuses)):
-            pass
+            self.logger.debug('url_file_statuses:{},{}'.format(url, url_file_statuses))
         else:
             # upload file
             upload_resp = self.upload(
