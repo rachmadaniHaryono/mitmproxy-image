@@ -254,6 +254,19 @@ class MitmImage:
                     err, url, hash_, self.hash_data.get(hash_, None)))
 
     @concurrent
+    def responseheaders(self, flow: http.HTTPFlow):
+        url = flow.request.pretty_url
+        match_regex = self.skip_url(url)
+        if match_regex:
+            self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
+            self.remove_from_view(flow)
+            return
+        valid_content_type = self.is_valid_content_type(
+            flow, mimetype_sets=self.config.get('mimetype_regex', None))
+        if not valid_content_type:
+            self.remove_from_view(flow)
+
+    @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         url = flow.request.pretty_url
