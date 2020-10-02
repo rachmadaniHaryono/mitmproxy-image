@@ -172,18 +172,11 @@ class MitmImage:
 
     def add_additional_url(self, url):
         additional_url = []
-        match = re.match(r'https:\/\/nitter.net\/pic\/media%2F(.*)%3F', url)
-        if match and match.groups():
-            additional_url.append(
-                'https://nitter.net/pic/media%2F{0}%3Fname%3Dorig'.format(*match.groups()))
-        match = re.match(r'https:\/\/i.ytimg.com\/vi\/(.*)\/hqdefault.*', url)
-        if match and match.groups():
-            additional_url.append(
-                'https://youtube.com/watch?v={0}'.format(*match.groups()))
-        match = re.match(r'https:\/\/pbs.twimg.com\/profile_images\/(.*)\/(.*)_(.*).(.*)', url)
-        if match and match.groups():
-            additional_url.append(
-                'https://pbs.twimg.com/profile_images/{0}/{1}.{3}'.format(*match.groups()))
+        regex_set = self.config.get('add_url_regex', [])
+        for regex, url_fmt in regex_set:
+            match = re.match(regex, url)
+            if match and match.groups():
+                additional_url.append(url_fmt.format(*match.groups()))
         if additional_url:
             for new_url in additional_url:
                 self.client.add_url(new_url, page_name='mitimimage_plus')
