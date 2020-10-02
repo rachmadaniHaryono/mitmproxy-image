@@ -283,7 +283,6 @@ class MitmImage:
         self.logger.info('add url:{}'.format(url))
         if normalised_url != url:
             self.logger.debug('add url(normalised):{}'.format(normalised_url))
-        self.add_additional_url(url)
         self.remove_from_view(flow)
 
     # command
