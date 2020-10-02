@@ -98,6 +98,9 @@ class MitmImage:
         ))
         normalised_url = self.get_normalised_url(url)
         self.client.associate_url([upload_resp['hash'], ], [normalised_url])
+        # update data
+        self.url_data[normalised_url] = upload_resp['hash']
+        self.hash_data[upload_resp['hash']] = upload_resp['status']
         return upload_resp
 
     def load_config(self, config_path):
@@ -282,9 +285,7 @@ class MitmImage:
         normalised_url = self.get_normalised_url(url)
         hashes = list(set(self.url_data.get(normalised_url, [])))
         if not hashes:
-            upload_resp = self.upload(flow)
-            self.url_data[normalised_url] = upload_resp['hash']
-            self.hash_data[upload_resp['hash']] = upload_resp['status']
+            self.upload(flow)
         url_filename = self.get_url_filename(url)
         kwargs = {'page_name': 'mitmimage'}
         if url_filename:
