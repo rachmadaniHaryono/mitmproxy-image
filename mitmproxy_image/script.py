@@ -178,15 +178,15 @@ class MitmImage:
         match = re.match(r'https:\/\/nitter.net\/pic\/media%2F(.*)%3F', url)
         if match and match.groups():
             additional_url.append(
-                'https://nitter.net/pic/media%2F{}%3Fname%3Dorig'.format(
-                    match.groups()[0])
-            )
+                'https://nitter.net/pic/media%2F{0}%3Fname%3Dorig'.format(*match.groups()))
         match = re.match(r'https:\/\/i.ytimg.com\/vi\/(.*)\/hqdefault.*', url)
         if match and match.groups():
             additional_url.append(
-                'https://www.youtube.com/watch?v={}'.format(
-                    match.groups()[0])
-            )
+                'https://youtube.com/watch?v={0}'.format(*match.groups()))
+        match = re.match(r'https:\/\/pbs.twimg.com\/profile_images\/(.*)\/(.*)_(.*).(.*)', url)
+        if match and match.groups():
+            additional_url.append(
+                'https://pbs.twimg.com/profile_images/{0}/{1}.{3}'.format(*match.groups()))
         if additional_url:
             for new_url in additional_url:
                 self.client.add_url(new_url, page_name='mitimimage_plus')
