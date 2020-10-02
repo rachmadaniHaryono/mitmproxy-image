@@ -46,10 +46,7 @@ class MitmImage:
         self.config = {}
         self.load_config(self.default_config_path)
 
-    def is_valid_content_type(
-            self, flow: http.HTTPFlow,
-            mimetype_sets: Optional[List[Tuple[str, str]]] = None
-    ) -> bool:
+    def is_valid_content_type(self, flow: http.HTTPFlow) -> bool:
         if 'Content-type' not in flow.response.data.headers:
             return False
         content_type = flow.response.data.headers['Content-type']
@@ -60,7 +57,8 @@ class MitmImage:
         except ValueError:
             self.logger.info('unknown mimetype:{}'.format(mimetype))
             return False
-        if mimetype_sets is None and maintype == 'image':
+        mimetype_sets = self.config.get('mimetype_regex', [])
+        if not mimetype_sets and maintype == 'image':
             return True
         if mimetype_sets and \
                 any(maintype == x[0] for x in mimetype_sets) and \
@@ -147,7 +145,6 @@ class MitmImage:
             self.load_config(ctx.options.mitmimage_config)
             self.get_url_filename.cache_clear()
             self.skip_url.cache_clear()
-            self.is_valid_content_type.cache_clear()
 
     @functools.lru_cache(1024)
     def get_url_filename(self, url, max_len=120):
@@ -215,8 +212,7 @@ class MitmImage:
             mock_flow = mock.Mock()
             mock_flow.response.data.headers = {'Content-type': mimetype}
             valid_content_type = \
-                self.is_valid_content_type(
-                    mock_flow, self.config.get('mimetype_regex', None))
+                self.is_valid_content_type(mock_flow)
         except Exception:
             pass
         normalised_url = self.get_normalised_url(url)
@@ -264,8 +260,7 @@ class MitmImage:
             self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
             self.remove_from_view(flow)
             return
-        valid_content_type = self.is_valid_content_type(
-            flow, mimetype_sets=self.config.get('mimetype_regex', None))
+        valid_content_type = self.is_valid_content_type(flow)
         if not valid_content_type:
             self.remove_from_view(flow)
 
@@ -278,8 +273,7 @@ class MitmImage:
             self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
             self.remove_from_view(flow)
             return
-        valid_content_type = self.is_valid_content_type(
-            flow, mimetype_sets=self.config.get('mimetype_regex', None))
+        valid_content_type = self.is_valid_content_type(flow)
         if not valid_content_type:
             self.remove_from_view(flow)
             return
