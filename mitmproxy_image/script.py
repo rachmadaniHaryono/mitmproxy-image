@@ -202,6 +202,7 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
+        self.add_additional_url(url)
         match_regex = self.skip_url(url)
         if match_regex:
             self.logger.info('request regex skip url:{},{}'.format(match_regex[1], url))
