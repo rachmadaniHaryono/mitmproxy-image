@@ -253,7 +253,6 @@ class MitmImage:
                 self.logger.error("error:{}\nurl:{}\ndata:{},{}".format(
                     err, url, hash_, self.hash_data.get(hash_, None)))
 
-    @concurrent
     def responseheaders(self, flow: http.HTTPFlow):
         url = flow.request.pretty_url
         match_regex = self.skip_url(url)
