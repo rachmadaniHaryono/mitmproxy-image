@@ -10,7 +10,7 @@ import re
 import typing
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -191,99 +191,114 @@ class MitmImage:
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
-        url = flow.request.pretty_url
-        self.add_additional_url(url)
-        match_regex = self.skip_url(url)
-        if match_regex:
-            self.logger.info('request regex skip url:{},{}'.format(match_regex[1], url))
-            self.remove_from_view(flow=flow)
-            return
-        mimetype: Optional[str] = None
-        valid_content_type = False
         try:
-            mimetype = cgi.parse_header(mimetypes.guess_type(url)[0])[0]
-            mock_flow = mock.Mock()
-            mock_flow.response.data.headers = {'Content-type': mimetype}
-            valid_content_type = \
-                self.is_valid_content_type(mock_flow)
-        except Exception:
-            pass
-        normalised_url = self.get_normalised_url(url)
-        hashes = list(set(self.url_data.get(normalised_url, [])))
-        if not hashes:
-            if not valid_content_type:
-                self.logger.debug('invalid guessed mimetype:{},{}'.format(mimetype, url))
-                return
-            huf_resp = self.get_url_files(url)
-            self.normalised_url_data[url] = normalised_url = huf_resp['normalised_url']
-            # ufs = get_url_status
-            for ufs in huf_resp['url_file_statuses']:
-                ufs_hash = ufs['hash']
-                if normalised_url not in self.url_data:
-                    self.url_data[normalised_url] = [ufs_hash]
-                else:
-                    self.url_data[normalised_url].append(ufs_hash)
-                    self.url_data[normalised_url] = \
-                        list(set(self.url_data[normalised_url]))
-                hashes.append(ufs_hash)
-        if len(hashes) > 1:
-            self.logger.debug('url have multiple hashes:\n{}'.format(url))
-            return
-        if len(hashes) == 1:
-            hash_ = hashes[0]
-            if not self.hash_data.get(hash_, None):
-                return
-            try:
-                file_data = self.client.get_file(hash_=hash_)
-                flow.response = http.HTTPResponse.make(
-                    content=file_data.content,
-                    headers={'Content-Type': file_data.headers['Content-Type']})
-                self.logger.info('cached:{},{}'.format(hash_[:7], url))
-                if normalised_url != url:
-                    self.logger.debug('cached:{},{}'.format(hash_[:7], normalised_url))
+            url = flow.request.pretty_url
+            self.add_additional_url(url)
+            match_regex = self.skip_url(url)
+            if match_regex:
+                self.logger.info(
+                    'request regex skip url:{},{}'.format(match_regex[1], url))
                 self.remove_from_view(flow=flow)
-            except Exception as err:
-                self.logger.error("error:{}\nurl:{}\ndata:{},{}".format(
-                    err, url, hash_, self.hash_data.get(hash_, None)))
+                return
+            mimetype: Optional[str] = None
+            valid_content_type = False
+            try:
+                mimetype = cgi.parse_header(mimetypes.guess_type(url)[0])[0]
+                mock_flow = mock.Mock()
+                mock_flow.response.data.headers = {'Content-type': mimetype}
+                valid_content_type = \
+                    self.is_valid_content_type(mock_flow)
+            except Exception:
+                pass
+            normalised_url = self.get_normalised_url(url)
+            hashes = list(set(self.url_data.get(normalised_url, [])))
+            if not hashes:
+                if not valid_content_type:
+                    self.logger.debug(
+                        'invalid guessed mimetype:{},{}'.format(mimetype, url))
+                    return
+                huf_resp = self.get_url_files(url)
+                self.normalised_url_data[url] = huf_resp['normalised_url']
+                normalised_url = huf_resp['normalised_url']
+                # ufs = get_url_status
+                for ufs in huf_resp['url_file_statuses']:
+                    ufs_hash = ufs['hash']
+                    if normalised_url not in self.url_data:
+                        self.url_data[normalised_url] = [ufs_hash]
+                    else:
+                        self.url_data[normalised_url].append(ufs_hash)
+                        self.url_data[normalised_url] = \
+                            list(set(self.url_data[normalised_url]))
+                    hashes.append(ufs_hash)
+            if len(hashes) > 1:
+                self.logger.debug('url have multiple hashes:\n{}'.format(url))
+                return
+            if len(hashes) == 1:
+                hash_ = hashes[0]
+                if not self.hash_data.get(hash_, None):
+                    return
+                try:
+                    file_data = self.client.get_file(hash_=hash_)
+                    flow.response = http.HTTPResponse.make(
+                        content=file_data.content,
+                        headers={'Content-Type': file_data.headers['Content-Type']})
+                    self.logger.info('cached:{},{}'.format(hash_[:7], url))
+                    if normalised_url != url:
+                        self.logger.debug(
+                            'cached:{},{}'.format(hash_[:7], normalised_url))
+                    self.remove_from_view(flow=flow)
+                except Exception as err:
+                    self.logger.error("error:{}\nurl:{}\ndata:{},{}".format(
+                        err, url, hash_, self.hash_data.get(hash_, None)))
+        except Exception:
+            self.exception('request error')
 
     def responseheaders(self, flow: http.HTTPFlow):
-        url = flow.request.pretty_url
-        match_regex = self.skip_url(url)
-        if match_regex:
-            self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
-            self.remove_from_view(flow)
-            return
-        valid_content_type = self.is_valid_content_type(flow)
-        if not valid_content_type:
-            self.remove_from_view(flow)
+        try:
+            url = flow.request.pretty_url
+            match_regex = self.skip_url(url)
+            if match_regex:
+                self.logger.info(
+                    'response regex skip url:{},{}'.format(match_regex[1], url))
+                self.remove_from_view(flow)
+                return
+            valid_content_type = self.is_valid_content_type(flow)
+            if not valid_content_type:
+                self.remove_from_view(flow)
+        except Exception:
+            self.exception('responseheaders error')
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
-        url = flow.request.pretty_url
-        match_regex = self.skip_url(url)
-        if match_regex:
-            self.logger.info('response regex skip url:{},{}'.format(match_regex[1], url))
+        try:
+            url = flow.request.pretty_url
+            match_regex = self.skip_url(url)
+            if match_regex:
+                self.logger.info(
+                    'response regex skip url:{},{}'.format(match_regex[1], url))
+                self.remove_from_view(flow)
+                return
+            valid_content_type = self.is_valid_content_type(flow)
+            if not valid_content_type:
+                self.remove_from_view(flow)
+                return
+            normalised_url = self.get_normalised_url(url)
+            hashes = list(set(self.url_data.get(normalised_url, [])))
+            if not hashes:
+                self.upload(flow)
+            url_filename = self.get_url_filename(url)
+            kwargs = {'page_name': 'mitmimage'}
+            if url_filename:
+                kwargs['service_names_to_tags'] = {
+                    'my tags': ['filename:{}'.format(url_filename), ]}
+            self.client.add_url(normalised_url, **kwargs)
+            self.logger.info('add url:{}'.format(url))
+            if normalised_url != url:
+                self.logger.debug('add url(normalised):{}'.format(normalised_url))
             self.remove_from_view(flow)
-            return
-        valid_content_type = self.is_valid_content_type(flow)
-        if not valid_content_type:
-            self.remove_from_view(flow)
-            return
-        normalised_url = self.get_normalised_url(url)
-        hashes = list(set(self.url_data.get(normalised_url, [])))
-        if not hashes:
-            self.upload(flow)
-        url_filename = self.get_url_filename(url)
-        kwargs = {'page_name': 'mitmimage'}
-        if url_filename:
-            kwargs['service_names_to_tags'] = {
-                'my tags': ['filename:{}'.format(url_filename), ]}
-        self.client.add_url(normalised_url, **kwargs)
-        self.logger.info('add url:{}'.format(url))
-        if normalised_url != url:
-            self.logger.debug('add url(normalised):{}'.format(normalised_url))
-        self.remove_from_view(flow)
+        except Exception:
+            self.exception('response error')
 
     # command
 
