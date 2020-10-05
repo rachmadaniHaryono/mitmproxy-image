@@ -363,6 +363,7 @@ class MitmImage:
         resp_history = []
         for flow in flows:
             url = flow.request.pretty_url
+            self.add_additional_url(url)
             match_regex = self.skip_url(url)
             if match_regex:
                 self.logger.info(
