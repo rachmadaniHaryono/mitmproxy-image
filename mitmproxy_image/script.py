@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Dict, Optional
 from unittest import mock
-from urllib.parse import urlparse
+from urllib.parse import unquote_plus, urlparse
 
 import yaml
 from hydrus import Client
@@ -150,7 +150,7 @@ class MitmImage:
     def get_url_filename(self, url, max_len=120):
         url_filename = None
         try:
-            url_filename = Path(urlparse(url).path).stem
+            url_filename = unquote_plus(Path(urlparse(url).path).stem)
             for item in self.config.get('block_url_filename_regex', []):
                 if re.match(item[0], url_filename.lower()):
                     self.logger.info('rskip filename:{},{}'.format(item[1], url))
