@@ -183,7 +183,7 @@ class MitmImage:
                 additional_url.append(url_fmt.format(*match.groups()))
         if additional_url:
             for new_url in additional_url:
-                self.client.add_url(new_url, page_name='mitimimage_plus')
+                self.client.add_url(new_url, page_name='mitmimage_plus')
                 self.logger.info('+url:{}'.format(new_url))
 
     def get_normalised_url(self, url: str) -> str:
