@@ -201,8 +201,7 @@ class MitmImage:
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'req:rskip url:{},{}'.format(match_regex[1], url)
-                log_msg = self.logger.debug if match_regex[2] else self.logger.debug
-                log_msg(msg)
+                self.logger.debug(msg)
                 self.remove_from_view(flow=flow)
                 return
             mimetype: Optional[str] = None
@@ -264,8 +263,7 @@ class MitmImage:
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'resph:rskip url:{},{}'.format(match_regex[1], url)
-                log_msg = self.logger.debug if match_regex[2] else self.logger.debug
-                log_msg(msg)
+                self.logger.debug(msg)
                 self.remove_from_view(flow)
                 return
             valid_content_type = self.is_valid_content_type(flow)
@@ -282,8 +280,7 @@ class MitmImage:
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'resp:rskip url:{},{}'.format(match_regex[1], url)
-                log_msg = self.logger.debug if match_regex[2] else self.logger.debug
-                log_msg(msg)
+                self.logger.debug(msg)
                 self.remove_from_view(flow)
                 return
             valid_content_type = self.is_valid_content_type(flow)
@@ -345,10 +342,12 @@ class MitmImage:
     @command.command('mitmimage.toggle_debug')
     def toggle_debug(self):
         if self.logger.level == logging.DEBUG:
-            self.logger.setLevel(logging.DEBUG)
-        else:
             self.logger.setLevel(logging.INFO)
-        ctx.log.debug('log level:{}'.format(self.logger.level))
+            self.logger.handlers[0].setLevel(logging.INFO)
+        else:
+            self.logger.setLevel(logging.DEBUG)
+            self.logger.handlers[0].setLevel(logging.DEBUG)
+        ctx.log.info('log level:{}'.format(self.logger.level))
 
     @command.command('mitmimage.upload_flow')
     def upload_flow(
@@ -376,8 +375,7 @@ class MitmImage:
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'upl:rskip url:{},{}'.format(match_regex[1], url)
-                log_msg = self.logger.debug if match_regex[2] else self.logger.debug
-                log_msg(msg)
+                self.logger.debug(msg)
                 self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
