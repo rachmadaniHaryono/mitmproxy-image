@@ -76,12 +76,18 @@ class MitmImage:
         f = flow
         view = self.view
 
-        if view is not None and f in view._view:
-            # We manually pass the index here because multiple flows may have the same
-            # sorting key, and we cannot reconstruct the index from that.
-            idx = view._view.index(f)
-            view._view.remove(f)
-            view.sig_view_remove.send(view, flow=f, index=idx)
+        if view is None:
+            return
+
+        if f.id in view._store:
+            if f in view._view:
+                # We manually pass the index here because multiple flows may have the same
+                # sorting key, and we cannot reconstruct the index from that.
+                idx = view._view.index(f)
+                view._view.remove(f)
+                view.sig_view_remove.send(view, flow=f, index=idx)
+            del view._store[f.id]
+            view.sig_store_remove.send(view, flow=f)
 
     def upload(self, flow: http.HTTPFlow) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url
