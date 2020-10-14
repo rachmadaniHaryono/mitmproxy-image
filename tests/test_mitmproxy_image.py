@@ -121,33 +121,6 @@ def test_mitmimage_init():
 
 
 @pytest.mark.parametrize(
-    'valid_ct,data,url,url_files', [
-        [False, {}, None, {}],
-        [
-            True,
-            {'http://example.com/1.jpg': {'hydrus': {}}},
-            'http://example.com/1.jpg',
-            {}
-        ],
-    ]
-)
-def test_mitmimage_response(valid_ct, data, url, url_files):
-    upload_resp = {'hash': '123', 'status': 1}
-    inst = MitmImage()
-    mock_flow = mock.Mock()
-    mock_flow.request.pretty_url = url
-    mock_flow.response.get_content.return_value = b''
-    inst.is_valid_content_type = mock.Mock()
-    inst.is_valid_content_type.return_value = valid_ct
-    mock_client = mock.Mock()
-    mock_client.get_url_files.return_value = url_files
-    mock_client.add_file.return_value = upload_resp
-    inst.client = mock_client
-    inst.response(mock_flow)
-    assert inst.data == data
-
-
-@pytest.mark.parametrize(
     'headers,res', [
         [{}, False],
         [{'Content-type': 'text/html'}, False],
@@ -157,7 +130,8 @@ def test_mitmimage_response(valid_ct, data, url, url_files):
 def test_mitmimage_is_valid_content_type(headers, res):
     mock_flow = mock.Mock()
     mock_flow.response.data.headers = headers
-    assert MitmImage.is_valid_content_type(mock_flow) == res
+    obj = MitmImage()
+    assert obj.is_valid_content_type(mock_flow) == res
 
 
 if __name__ == '__main__':
