@@ -29,7 +29,7 @@ setup(
         'appdirs>=1.4.3',
         'click>=7.0',
         'Flask>=1.0.2',
-        'hydrus-api>=2.12.0',
+        'hydrus-api>=2.14.3',
         'ipdb>=0.13.3',
         'mitmproxy>=5.0.0',
         'Pillow>=5.3.0',

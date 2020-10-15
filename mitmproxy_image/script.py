@@ -10,7 +10,7 @@ import re
 import typing
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from unittest import mock
 from urllib.parse import unquote_plus, urlparse
 
@@ -73,7 +73,7 @@ class MitmImage:
 
     # method
 
-    def remove_from_view(self, flow: http.HTTPFlow):
+    def remove_from_view(self, flow: Union[http.HTTPFlow, Flow]):
         # compatibility
         f = flow
         view = self.view
@@ -91,12 +91,13 @@ class MitmImage:
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
-    def upload(self, flow: http.HTTPFlow) -> Optional[Dict[str, str]]:
-        url = flow.request.pretty_url
-        if flow.response is None:
+    def upload(self, flow: Union[http.HTTPFlow, Flow]) -> Optional[Dict[str, str]]:
+        url = flow.request.pretty_url  # type: ignore
+        response = flow.response  # type: ignore
+        if response is None:
             self.logger.debug('no response url:{}'.format(url))
             return None
-        content = flow.response.get_content()
+        content = response.get_content()
         if content is None:
             self.logger.debug('no content url:{}'.format(url))
             return None
@@ -307,7 +308,7 @@ class MitmImage:
             url_filename = self.get_url_filename(url)
             kwargs: Dict[str, Any] = {'page_name': 'mitmimage'}
             if url_filename:
-                kwargs['service_names_to_tags'] = {
+                kwargs['service_names_to_additional_tags'] = {
                     'my tags': ['filename:{}'.format(url_filename), ]}
             self.client.add_url(normalised_url, **kwargs)
             log_msg = self.logger.info if not upload_resp else self.logger.debug
@@ -364,7 +365,7 @@ class MitmImage:
     @command.command('mitmimage.upload_flow')
     def upload_flow(
         self,
-        flows: typing.Sequence[http.HTTPFlow],
+        flows: typing.Sequence[Flow],
         remove: bool = False
     ) -> None:
         cls_logger = self.logger
@@ -382,7 +383,7 @@ class MitmImage:
         logger = CustomLogger()
         resp_history = []
         for flow in flows:
-            url = flow.request.pretty_url
+            url = flow.request.pretty_url  # type: ignore
             self.add_additional_url(url)
             match_regex = self.skip_url(url)
             if match_regex:
