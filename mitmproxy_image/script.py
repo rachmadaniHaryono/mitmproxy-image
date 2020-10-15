@@ -10,7 +10,7 @@ import re
 import typing
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 from unittest import mock
 from urllib.parse import unquote_plus, urlparse
 
@@ -23,11 +23,12 @@ from mitmproxy.script import concurrent
 
 class MitmImage:
 
+    url_data: Dict[str, List[str]] = {}
+    normalised_url_data: Dict[str, str] = {}
+    hash_data: Dict[str, str] = {}
+    config: Dict[str, Any] = {}
+
     def __init__(self):
-        # data
-        self.url_data = {}
-        self.normalised_url_data = {}
-        self.hash_data = {}
         # logger
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.INFO)
@@ -46,11 +47,12 @@ class MitmImage:
             self.view = ctx.master.addons.get('view')
         except Exception:
             self.view = None
-        self.config = {}
         self.load_config(self.default_config_path)
 
     def is_valid_content_type(self, flow: http.HTTPFlow) -> bool:
-        if 'Content-type' not in flow.response.data.headers:
+        if flow.response is None or (
+                hasattr(flow.response, 'data') and
+                'Content-type' not in flow.response.data.headers):
             return False
         content_type = flow.response.data.headers['Content-type']
         mimetype = cgi.parse_header(content_type)[0]
@@ -215,11 +217,13 @@ class MitmImage:
             mimetype: Optional[str] = None
             valid_content_type = False
             try:
-                mimetype = cgi.parse_header(mimetypes.guess_type(url)[0])[0]
-                mock_flow = mock.Mock()
-                mock_flow.response.data.headers = {'Content-type': mimetype}
-                valid_content_type = \
-                    self.is_valid_content_type(mock_flow)
+                guessed_type = mimetypes.guess_type(url)
+                if guessed_type[0] is not None:
+                    mimetype = cgi.parse_header(guessed_type[0])[0]
+                    mock_flow = mock.Mock()
+                    mock_flow.response.data.headers = {'Content-type': mimetype}
+                    valid_content_type = \
+                        self.is_valid_content_type(mock_flow)
             except Exception:
                 pass
             normalised_url = self.get_normalised_url(url)
@@ -301,7 +305,7 @@ class MitmImage:
             if not hashes:
                 upload_resp = self.upload(flow)
             url_filename = self.get_url_filename(url)
-            kwargs = {'page_name': 'mitmimage'}
+            kwargs: Dict[str, Any] = {'page_name': 'mitmimage'}
             if url_filename:
                 kwargs['service_names_to_tags'] = {
                     'my tags': ['filename:{}'.format(url_filename), ]}
@@ -323,7 +327,7 @@ class MitmImage:
     @command.command("mitmimage.clear_data")
     def clear_data(self) -> None:
         self.url_data = {}
-        self.normalised_url = {}
+        self.normalised_url_data = {}
         self.hash_data = {}
         ctx.log.info('mitmimage: data cleared')
 
@@ -360,7 +364,7 @@ class MitmImage:
     @command.command('mitmimage.upload_flow')
     def upload_flow(
         self,
-        flows: typing.Sequence[Flow],
+        flows: typing.Sequence[http.HTTPFlow],
         remove: bool = False
     ) -> None:
         cls_logger = self.logger
