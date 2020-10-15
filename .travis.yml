@@ -4,8 +4,9 @@ python:
 # command to install dependencies
 install:
   - pip install -e .[test]
+  - pip install --user codecov
 # command to run tests
 script:
-  - pytest .
-  - mypy .
-  - flake8 .
+  - pytest --mypy --flake8 --cov=mitmproxy_image .
+after_success:
+  - codecov
