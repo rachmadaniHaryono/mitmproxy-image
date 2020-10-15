@@ -5,7 +5,7 @@ Download image using mitmproxy on hydrus.
 
 ## Quick Start
 
-- Set up your browser for mitmproxy or
+- Set up your browser for mitmproxy ([guide](https://docs.mitmproxy.org/stable/overview-getting-started/)) or
 use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 
 - Run the application (by default it will use `127.0.0.1:5007`):
@@ -46,9 +46,10 @@ $ python setup.py install
    [develop mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode) which allows
    modifying source code directly without a need to re-install the app): `make venv`
 
- - run tests: tba
+ - run tests: pytest --flake8 --mypy 
 
  - create source distribution: `python setup.py sdist`
 
-License
+ ## License
+
 This project is licensed under the MIT License
