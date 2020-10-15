@@ -23,7 +23,7 @@ class Mitmproxy_imageTestCase(unittest.TestCase):
 
     def test_index(self):
         rv = self.app.get('/')
-        self.assertIn('Mitmproxy-Image', rv.data.decode())
+        self.assertIn('mitmproxy_image', rv.data.decode())
 
 
 def test_create_app():

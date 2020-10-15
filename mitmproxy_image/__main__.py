@@ -16,7 +16,7 @@ from typing import Optional, Union
 import click
 import yaml
 from appdirs import user_data_dir
-from flask import Flask
+from flask import Flask, render_template
 from flask.cli import FlaskGroup
 from mitmproxy.tools._main import mitmproxy
 
@@ -94,10 +94,7 @@ def create_app(
         app.logger.debug('test page')
         return 'hello world'
     app.add_url_rule('/test', 'test', test)
-
-    def home():
-        return 'Mitmproxy-Image'
-    app.add_url_rule('/', 'home', home)
+    app.add_url_rule('/', 'home', lambda: render_template('index.html', title='Home'))
     return app
 
 
