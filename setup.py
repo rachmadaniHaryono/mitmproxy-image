@@ -5,6 +5,7 @@ TEST = [
     'flake8>=3.6.0',
     'mypy>=0.761',
     'pytest',
+    'pytest-cov',
     'pytest-flake8',
     'pytest-mypy',
 ]
@@ -23,22 +24,17 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     install_requires=[
         'appdirs>=1.4.3',
         'click>=7.0',
-        'Flask-Admin>=1.5.2',
-        'Flask-SQLAlchemy>=2.3.2',
         'Flask>=1.0.2',
-        'hashfile>=2.1.5',
         'hydrus-api>=2.12.0',
         'ipdb>=0.13.3',
         'mitmproxy>=5.0.0',
         'Pillow>=5.3.0',
         'PyYAML>=5.3.1',
         'requests>=2.21.0',
-        'SQLAlchemy-Utils>=0.33.6',
-        'SQLAlchemy>=1.2.14',
     ],
     extras_require={
         'dev': [
