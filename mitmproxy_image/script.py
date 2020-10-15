@@ -23,12 +23,16 @@ from mitmproxy.script import concurrent
 
 class MitmImage:
 
-    url_data: Dict[str, List[str]] = {}
-    normalised_url_data: Dict[str, str] = {}
-    hash_data: Dict[str, str] = {}
-    config: Dict[str, Any] = {}
+    url_data: Dict[str, List[str]]
+    normalised_url_data: Dict[str, str]
+    hash_data: Dict[str, str]
+    config: Dict[str, Any]
 
     def __init__(self):
+        self.url_data = {}
+        self.normalised_url_data = {}
+        self.hash_data = {}
+        self.config = {}
         # logger
         logger = logging.getLogger('mitmimage')
         logger.setLevel(logging.INFO)
