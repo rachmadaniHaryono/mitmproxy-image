@@ -131,7 +131,7 @@ class MitmImage:
 
     # mitmproxy add on class' method
 
-    def load(self, loader):
+    def load(self, loader):  # pragma: no cover
         loader.add_option(
             name="hydrus_access_key",
             typespec=str,
@@ -321,7 +321,7 @@ class MitmImage:
     # command
 
     @command.command('mitmimage.log_hello')
-    def log_hello(self):
+    def log_hello(self):  # pragma: no cover
         ctx.log.info('mitmimage: hello')
 
     @command.command("mitmimage.clear_data")
@@ -332,7 +332,7 @@ class MitmImage:
         ctx.log.info('mitmimage: data cleared')
 
     @command.command('mitmimage.ipdb')
-    def ipdb(self, flows: typing.Sequence[Flow] = None) -> None:
+    def ipdb(self, flows: typing.Sequence[Flow] = None) -> None:  # pragma: no cover
         import ipdb
         ipdb.set_trace()
 

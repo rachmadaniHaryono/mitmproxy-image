@@ -87,10 +87,10 @@ def create_app(
 
     @app.shell_context_processor
     def shell_context():
-        return {'app': app, }
+        return {'app': app, }  # pragma: no cover
 
     # route
-    def test():
+    def test():  # pragma: no cover
         app.logger.debug('test page')
         return 'hello world'
     app.add_url_rule('/test', 'test', test)
@@ -101,7 +101,7 @@ def create_app(
 @click.group(cls=FlaskGroup, create_app=create_app)
 def cli():
     """This is a script for application."""
-    pass
+    pass  # pragma: no cover
 
 
 @cli.command('run-mitmproxy')
