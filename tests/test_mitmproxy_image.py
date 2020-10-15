@@ -74,8 +74,8 @@ def test_empty_db(client):
         key: val for key, val in vars_rv.items()
         if key in ['_on_close', '_status', '_status_code', 'direct_passthrough']}
 
-    assert list(rv.headers.items()) == [
-        ('Content-Type', 'text/html; charset=utf-8'), ('Content-Length', '2584')]
+    assert rv.headers['Content-Type'] == "text/html; charset=utf-8"
+    assert int(rv.headers['Content-Length']) > 0
 
 
 if __name__ == '__main__':

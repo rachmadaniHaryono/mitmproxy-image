@@ -94,6 +94,10 @@ def create_app(
         app.logger.debug('test page')
         return 'hello world'
     app.add_url_rule('/test', 'test', test)
+
+    def home():
+        return 'Mitmproxy-Image'
+    app.add_url_rule('/', 'home', home)
     return app
 
 
