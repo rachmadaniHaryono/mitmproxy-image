@@ -46,7 +46,7 @@ $ python setup.py install
    [develop mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode) which allows
    modifying source code directly without a need to re-install the app): `make venv`
 
- - run tests: pytest --flake8 --mypy 
+ - run tests: `pytest --flake8 --mypy .`
 
  - create source distribution: `python setup.py sdist`
 
