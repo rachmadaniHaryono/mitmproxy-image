@@ -19,7 +19,6 @@ from appdirs import user_data_dir
 from flask import Flask
 from flask.cli import FlaskGroup
 from mitmproxy.tools._main import mitmproxy
-from sqlalchemy.sql import func  # type: ignore  # NOQA
 
 # app dir
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
