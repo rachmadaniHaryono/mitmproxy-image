@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from unittest import mock
 
@@ -132,6 +133,36 @@ def test_mitmimage_is_valid_content_type(headers, res):
     mock_flow.response.data.headers = headers
     obj = MitmImage()
     assert obj.is_valid_content_type(mock_flow) == res
+
+
+@pytest.fixture
+def client():
+    app = create_app()
+    db_fd, app.config['DATABASE'] = tempfile.mkstemp()
+    app.config['TESTING'] = True
+
+    with app.test_client() as client:
+        yield client
+
+    os.close(db_fd)
+    os.unlink(app.config['DATABASE'])
+
+
+def test_empty_db(client):
+    """Start with a blank database."""
+    rv = client.get('/')
+    vars_rv = vars(rv)
+    assert {
+        '_on_close': [],
+        '_status': '200 OK',
+        '_status_code': 200,
+        'direct_passthrough': False,
+    } == {
+        key: val for key, val in vars_rv.items()
+        if key in ['_on_close', '_status', '_status_code', 'direct_passthrough']}
+
+    assert list(rv.headers.items()) == [
+        ('Content-Type', 'text/html; charset=utf-8'), ('Content-Length', '2584')]
 
 
 if __name__ == '__main__':
