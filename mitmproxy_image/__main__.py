@@ -18,7 +18,6 @@ import yaml
 from appdirs import user_data_dir
 from flask import Flask
 from flask.cli import FlaskGroup
-from flask_admin import Admin, AdminIndexView
 from mitmproxy.tools._main import mitmproxy
 from sqlalchemy.sql import func  # type: ignore  # NOQA
 
@@ -96,11 +95,6 @@ def create_app(
         app.logger.debug('test page')
         return 'hello world'
     app.add_url_rule('/test', 'test', test)
-
-    Admin(
-        app, name='Mitmproxy-Image', template_mode='bootstrap3',
-        index_view=AdminIndexView(name='Home', url='/')
-    )
     return app
 
 
