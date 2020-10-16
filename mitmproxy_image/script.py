@@ -51,7 +51,6 @@ class MitmImage:
             self.view = ctx.master.addons.get('view')
         except Exception:
             self.view = None
-        self.load_config(self.default_config_path)
 
     def is_valid_content_type(self, flow: http.HTTPFlow) -> bool:
         if flow.response is None or (
@@ -120,6 +119,10 @@ class MitmImage:
         try:
             with open(config_path) as f:
                 self.config = yaml.safe_load(f)
+                view_filter = self.config.get('view_filter', None)
+                if view_filter:
+                    ctx.options.view_filter = view_filter
+                    ctx.log.info("view_filter: {}".format(view_filter))
                 ctx.log.info(
                     'mitmimage: load {} block regex.'.format(
                         len(self.config.get('block_regex', []))))
