@@ -1,0 +1,40 @@
+block_regex:
+# description: regex rule to exclude url to be downloaded.
+# it consist of regex, name, skip log flag
+# example:
+# - - https:\/\/domain1.com\/.*
+#   - domain1
+# - - https:\/\/domain2.com\/.*
+#   - domain2
+#   - true
+
+block_url_filename_regex:
+# description: regex rule exclude filename
+# it consist of regex, name
+# example:
+# - - profile_images.*
+#   - profile_images
+
+
+mimetype:
+# description: allowed mimetype
+# it consist of  type and subtype
+# example:
+# - - 'image'
+#   - 'jpeg'
+# - - 'image'
+#   - 'gif'
+
+# view_filter 
+# description: view_filter for mitmproxy
+# example:
+# view_filter: ~t "(image\\/(?!cur|svg.xml|vnd.microsoft.icon|x-icon).+)"
+
+
+add_url_regex:
+# description: regex rule to add additional url to hydrus
+# example:
+# - - https:\/\/domain1\/.*
+#   - https://domain2/{0}
+# - - https:\/\/domain3\/.*
+#   - https://domain4/{0}

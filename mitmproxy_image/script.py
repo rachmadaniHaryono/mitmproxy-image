@@ -65,7 +65,7 @@ class MitmImage:
         except ValueError:
             self.logger.info('unknown mimetype:{}'.format(mimetype))
             return False
-        mimetype_sets = self.config.get('mimetype_regex', [])
+        mimetype_sets = self.config.get('mimetype', [])
         if not mimetype_sets and maintype == 'image':
             return True
         if mimetype_sets and \
