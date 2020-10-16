@@ -194,11 +194,20 @@ class MitmImage:
 
     def add_additional_url(self, url):
         additional_url = []
-        regex_set = self.config.get('add_url_regex', [])
-        for regex, url_fmt in regex_set:
+        regex_sets = self.config.get('add_url_regex', [])
+        for regex_set in regex_sets:
+            regex, url_fmt = regex_set[:2]
+            try:
+                log_flag = regex_set[2]
+            except IndexError:
+                log_flag = False
             match = re.match(regex, url)
             if match and match.groups():
-                additional_url.append(url_fmt.format(*match.groups()))
+                new_url = url_fmt.format(*match.groups())
+                additional_url.append(new_url)
+                log_msg = 'original:{}\ntarget:{}'.format(url, new_url)
+                log_func = self.logger.info if log_flag else self.logger.debug
+                log_func(log_msg)
         if additional_url:
             for new_url in additional_url:
                 self.client.add_url(new_url, page_name='mitmimage_plus')

@@ -1,6 +1,6 @@
 block_regex:
 # description: regex rule to exclude url to be downloaded.
-# it consist of regex, name, skip log flag
+# it consist of regex, name and skip log flag (optional, default: false)
 # example:
 # - - https:\/\/domain1.com\/.*
 #   - domain1
@@ -33,8 +33,10 @@ mimetype:
 
 add_url_regex:
 # description: regex rule to add additional url to hydrus
+# it consist of  regex, target url string format and log flag (optional, default false)
 # example:
 # - - https:\/\/domain1\/.*
 #   - https://domain2/{0}
 # - - https:\/\/domain3\/.*
 #   - https://domain4/{0}
+#   - true
