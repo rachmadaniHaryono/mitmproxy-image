@@ -15,7 +15,7 @@ from unittest import mock
 from urllib.parse import unquote_plus, urlparse
 
 import yaml
-from hydrus import Client
+from hydrus import Client, ConnectionError
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -243,14 +243,22 @@ class MitmImage:
                         self.is_valid_content_type(mock_flow)
             except Exception:
                 pass
-            normalised_url = self.get_normalised_url(url)
+            try:
+                normalised_url = self.get_normalised_url(url)
+            except ConnectionError as err:
+                self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
+                return
             hashes = list(set(self.url_data.get(normalised_url, [])))
             if not hashes:
                 if not valid_content_type:
                     self.logger.debug(
                         'invalid guessed mimetype:{},{}'.format(mimetype, url))
                     return
-                huf_resp = self.get_url_files(url)
+                try:
+                    huf_resp = self.get_url_files(url)
+                except ConnectionError as err:
+                    self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
+                    return
                 self.normalised_url_data[url] = huf_resp['normalised_url']
                 normalised_url = huf_resp['normalised_url']
                 # ufs = get_url_status
