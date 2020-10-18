@@ -223,7 +223,7 @@ class MitmImage:
     @concurrent
     def request(self, flow: http.HTTPFlow):
         try:
-            url = flow.request.pretty_url
+            url: str = flow.request.pretty_url
             self.add_additional_url(url)
             match_regex = self.skip_url(url)
             if match_regex:
@@ -248,7 +248,7 @@ class MitmImage:
             except ConnectionError as err:
                 self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
                 return
-            hashes = list(set(self.url_data.get(normalised_url, [])))
+            hashes: List[str] = list(set(self.url_data.get(normalised_url, [])))
             if not hashes:
                 if not valid_content_type:
                     self.logger.debug(
@@ -271,11 +271,9 @@ class MitmImage:
                         self.url_data[normalised_url] = \
                             list(set(self.url_data[normalised_url]))
                     hashes.append(ufs_hash)
-            if len(hashes) > 1:
-                self.logger.debug('url have multiple hashes:\n{}'.format(url))
-                return
-            if len(hashes) == 1:
-                hash_ = hashes[0]
+            hashes = list(set(hashes))
+            if len(list(set(hashes))) == 1:
+                hash_: str = hashes[0]
                 if not self.hash_data.get(hash_, None):
                     return
                 try:
@@ -291,6 +289,8 @@ class MitmImage:
                 except Exception as err:
                     self.logger.error("error:{}\nurl:{}\ndata:{},{}".format(
                         err, url, hash_, self.hash_data.get(hash_, None)))
+            else:
+                self.logger.info('req:hash count:{},{}'.format(len(hashes), url))
         except Exception:
             self.logger.exception('request error')
 
