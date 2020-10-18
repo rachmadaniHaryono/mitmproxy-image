@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Union
 from urllib.parse import unquote_plus, urlparse
 
 import yaml
-from hydrus import Client, ConnectionError, APIError
+from hydrus import APIError, Client, ConnectionError, ImportStatus
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -259,6 +259,9 @@ class MitmImage:
                 return
             if len(hashes) == 1:
                 hash_: str = hashes[0]
+                status = self.hash_data.get(hash_, None)
+                if status is not None and status == ImportStatus.PreviouslyDeleted:
+                    return
                 try:
                     file_data = self.client.get_file(hash_=hash_)
                 except APIError as err:
