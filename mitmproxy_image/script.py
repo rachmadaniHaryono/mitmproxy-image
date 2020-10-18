@@ -273,11 +273,11 @@ class MitmImage:
                     headers={'Content-Type': file_data.headers['Content-Type']})
                 self.logger.info('cached:{}'.format(url))
                 self.remove_from_view(flow=flow)
+            elif hashes:
+                self.logger.debug('req:hash count:{},{}\nn url:{}\nurl hash:\n{}'.format(
+                    len(hashes), url, normalised_url, '\n'.join(hashes)))
             else:
-                self.logger.info('req:hash count:{},{}\nn url:{}'.format(
-                    len(hashes), url, normalised_url))
-                if hashes:
-                    self.logger.debug('url hash:{}\n{}'.format(url, '\n'.join(hashes)))
+                self.logger.debug('req:no hash:{}\nn url:{}'.format(url, normalised_url))
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
         except Exception:
