@@ -10,6 +10,7 @@ import re
 import typing
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 from unittest import mock
 from urllib.parse import unquote_plus, urlparse
@@ -392,19 +393,14 @@ class MitmImage:
         flows: typing.Sequence[Flow],
         remove: bool = False
     ) -> None:
-        cls_logger = self.logger
-
-        class CustomLogger:
-
-            def debug(self, msg):
-                cls_logger.debug(msg)
-                ctx.log.debug(msg)
-
-            def info(self, msg):
-                cls_logger.info(msg)
-                ctx.log.info(msg)
-
-        logger = CustomLogger()
+        logger = SimpleNamespace(
+            debug=lambda msg: list(map(
+                lambda func_log: func_log.debug(msg),
+                [self.logger, ctx.log])),
+            info=lambda msg: list(map(
+                lambda func_log: func_log.info(msg),
+                [self.logger, ctx.log]))
+        )
         resp_history = []
         for flow in flows:
             url = flow.request.pretty_url  # type: ignore
