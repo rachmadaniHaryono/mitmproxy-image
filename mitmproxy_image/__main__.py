@@ -125,9 +125,10 @@ def run_mitmproxy(listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT
     '--listen-port',
     show_default=True, default=LISTEN_PORT, help='Port for mitmproxy')
 def run_mitmproxy_cmd(
-        listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT,
+        listen_host: str = LISTEN_HOST,
+        listen_port: int = LISTEN_PORT
 ):
-    run_mitmproxy_cmd(listen_host, listen_port)  # pragma: no cover
+    run_mitmproxy(listen_host, listen_port)  # pragma: no cover
 
 
 if __name__ == '__main__':
