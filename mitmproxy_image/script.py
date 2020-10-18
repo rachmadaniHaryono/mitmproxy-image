@@ -104,9 +104,7 @@ class MitmImage:
     def get_hashes(self, url: str, from_hydrus: bool = False) -> Optional[List[str]]:
         n_url = self.get_normalised_url(url)
         hashes = self.url_data.get(n_url, [])
-        if not from_hydrus:
-            return hashes
-        if not self.is_valid_content_type(url=url):
+        if not from_hydrus or not self.is_valid_content_type(url=url):
             return hashes
         huf_resp = self.get_url_files(url)
         self.normalised_url_data[url] = huf_resp['normalised_url']
