@@ -101,6 +101,21 @@ class MitmImage:
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
+    def get_hashes(self, url: str, from_hydrus: bool = False) -> Optional[List[str]]:
+        n_url = self.get_normalised_url(url)
+        hashes = self.url_data.get(n_url, [])
+        if not from_hydrus:
+            return hashes
+        if not self.is_valid_content_type(url=url):
+            return hashes
+        huf_resp = self.get_url_files(url)
+        self.normalised_url_data[url] = huf_resp['normalised_url']
+        n_url = huf_resp['normalised_url']
+        # ufs = get_url_status
+        self.url_data[n_url].extend(x['hash'] for x in huf_resp['url_file_statuses'])
+        hashes = self.url_data[n_url] = list(set(self.url_data[n_url]))
+        return hashes
+
     def upload(self, flow: Union[http.HTTPFlow, Flow]) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url  # type: ignore
         response = flow.response  # type: ignore
