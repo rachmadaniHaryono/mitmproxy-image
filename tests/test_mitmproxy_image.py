@@ -49,6 +49,12 @@ def test_mitmimage_is_valid_content_type(headers, res):
     assert obj.is_valid_content_type(mock_flow) == res
 
 
+def test_is_valid_content_type_url():
+    url = 'https://net/v/t1.0-9/4_o.jpg?_nc_cat=100'
+    obj = MitmImage()
+    assert obj.is_valid_content_type(url=url)
+
+
 @pytest.fixture
 def client():
     app = create_app()
