@@ -253,66 +253,30 @@ class MitmImage:
                 self.logger.debug(msg)
                 self.remove_from_view(flow=flow)
                 return
-            mimetype: Optional[str] = None
-            valid_content_type = False
-            try:
-                guessed_type = mimetypes.guess_type(url)
-                if guessed_type[0] is not None:
-                    mimetype = cgi.parse_header(guessed_type[0])[0]
-                    mock_flow = mock.Mock()
-                    mock_flow.response.data.headers = {'Content-type': mimetype}
-                    valid_content_type = \
-                        self.is_valid_content_type(mock_flow)
-            except Exception:
-                pass
-            try:
-                normalised_url = self.get_normalised_url(url)
-            except ConnectionError as err:
-                self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
+            normalised_url = self.get_normalised_url(url)
+            hashes: List[str] = self.get_hashes(url, True)
+            if not hashes and not self.is_valid_content_type(url=url):
                 return
-            hashes: List[str] = list(set(self.url_data.get(normalised_url, [])))
-            if not hashes:
-                if not valid_content_type:
-                    self.logger.debug(
-                        'invalid guessed mimetype:{},{}'.format(mimetype, url))
-                    return
-                try:
-                    huf_resp = self.get_url_files(url)
-                except ConnectionError as err:
-                    self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
-                    return
-                self.normalised_url_data[url] = huf_resp['normalised_url']
-                normalised_url = huf_resp['normalised_url']
-                # ufs = get_url_status
-                for ufs in huf_resp['url_file_statuses']:
-                    ufs_hash = ufs['hash']
-                    if normalised_url not in self.url_data:
-                        self.url_data[normalised_url] = [ufs_hash]
-                    else:
-                        self.url_data[normalised_url].append(ufs_hash)
-                        self.url_data[normalised_url] = \
-                            list(set(self.url_data[normalised_url]))
-                    hashes.append(ufs_hash)
-            hashes = list(set(hashes))
-            if len(list(set(hashes))) == 1:
+            if len(hashes) == 1:
                 hash_: str = hashes[0]
-                if not self.hash_data.get(hash_, None):
-                    return
                 try:
                     file_data = self.client.get_file(hash_=hash_)
-                    flow.response = http.HTTPResponse.make(
-                        content=file_data.content,
-                        headers={'Content-Type': file_data.headers['Content-Type']})
-                    self.logger.info('cached:{},{}'.format(hash_[:7], url))
-                    if normalised_url != url:
-                        self.logger.debug(
-                            'cached:{},{}'.format(hash_[:7], normalised_url))
-                    self.remove_from_view(flow=flow)
-                except Exception as err:
-                    self.logger.error("error:{}\nurl:{}\ndata:{},{}".format(
-                        err, url, hash_, self.hash_data.get(hash_, None)))
+                except APIError as err:
+                    self.logger.error('get file error:{}:{}\nurl:{}\nhash:{},{}'.format(
+                        type(err), err, url, self.hash_data.get(hash_, None), hash_))
+                    return
+                flow.response = http.HTTPResponse.make(
+                    content=file_data.content,
+                    headers={'Content-Type': file_data.headers['Content-Type']})
+                self.logger.info('cached:{}'.format(url))
+                self.remove_from_view(flow=flow)
             else:
-                self.logger.info('req:hash count:{},{}'.format(len(hashes), url))
+                self.logger.info('req:hash count:{},{}\nn url:{}'.format(
+                    len(hashes), url, normalised_url))
+                if hashes:
+                    self.logger.debug('url hash:{}\n{}'.format(url, '\n'.join(hashes)))
+        except ConnectionError as err:
+            self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
         except Exception:
             self.logger.exception('request error')
 
