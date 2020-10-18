@@ -326,6 +326,8 @@ class MitmImage:
             if normalised_url != url:
                 self.logger.debug('add url(normalised):{}'.format(normalised_url))
             self.remove_from_view(flow)
+        except ConnectionError as err:
+            self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
         except Exception:
             self.logger.exception('response error')
 
