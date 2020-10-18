@@ -112,7 +112,9 @@ class MitmImage:
         self.normalised_url_data[url] = huf_resp['normalised_url']
         n_url = huf_resp['normalised_url']
         # ufs = get_url_status
-        self.url_data[n_url].extend(x['hash'] for x in huf_resp['url_file_statuses'])
+        for ufs in huf_resp['url_file_statuses']:
+            self.url_data[n_url].append(ufs['hash'])
+            self.hash_data[ufs['hash']] = ufs['status']
         hashes = self.url_data[n_url] = list(set(self.url_data[n_url]))
         return hashes
 
@@ -314,7 +316,7 @@ class MitmImage:
                 self.remove_from_view(flow)
                 return
             normalised_url = self.get_normalised_url(url)
-            hashes = list(set(self.url_data.get(normalised_url, [])))
+            hashes = self.get_hashes(url, True)
             upload_resp = None
             if not hashes:
                 upload_resp = self.upload(flow)
