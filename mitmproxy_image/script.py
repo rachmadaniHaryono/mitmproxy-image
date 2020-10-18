@@ -50,13 +50,24 @@ class MitmImage:
         except Exception:
             self.view = None
 
-    def is_valid_content_type(self, flow: http.HTTPFlow) -> bool:
-        if flow.response is None or (
-                hasattr(flow.response, 'data') and
-                'Content-type' not in flow.response.data.headers):
+    def is_valid_content_type(self, flow: http.HTTPFlow = None, url: str = None) -> bool:
+        if all([flow, url]):
+            raise ValueError("Only require flow or url")
+        mimetype = None
+        if flow is None:
+            try:
+                mimetype = cgi.parse_header(
+                    mimetypes.guess_type(urlparse(url)._replace(query='').geturl())[0])[0]
+            except TypeError:
+                return False
+        elif flow.response is None or (
+                    hasattr(flow.response, 'data') and
+                    'Content-type' not in flow.response.data.headers):
             return False
-        content_type = flow.response.data.headers['Content-type']
-        mimetype = cgi.parse_header(content_type)[0]
+        else:
+            mimetype = cgi.parse_header(flow.response.data.headers['Content-type'])[0]
+        if mimetype is None:
+            return False
         try:
             maintype, subtype = mimetype.lower().split('/')
             subtype = subtype.lower()
@@ -71,8 +82,6 @@ class MitmImage:
                 any(subtype.lower() == x[1] for x in mimetype_sets):
             return True
         return False
-
-    # method
 
     def remove_from_view(self, flow: Union[http.HTTPFlow, Flow]):
         # compatibility
