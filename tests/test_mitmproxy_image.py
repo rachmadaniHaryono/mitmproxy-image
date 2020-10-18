@@ -5,8 +5,9 @@ from unittest import mock
 
 import pytest
 
-from mitmproxy_image.__main__ import create_app
+from mitmproxy_image.__main__ import create_app, run_mitmproxy
 from mitmproxy_image.script import MitmImage
+from mitmproxy_image import __main__
 
 PICKLE_PATH = os.path.join(
     os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
@@ -76,6 +77,12 @@ def test_empty_db(client):
 
     assert rv.headers['Content-Type'] == "text/html; charset=utf-8"
     assert int(rv.headers['Content-Length']) > 0
+
+
+def test_run_mitmproxy(monkeypatch):
+    m_mitmproxy = mock.Mock()
+    monkeypatch.setattr(__main__, 'mitmproxy', m_mitmproxy)
+    assert run_mitmproxy('127.0.0.1', 500)
 
 
 if __name__ == '__main__':

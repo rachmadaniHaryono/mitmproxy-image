@@ -43,6 +43,8 @@ KNOWN_IMAGE_EXTS = (
 KNOWN_CONTENT_TYPES = tuple('image/{}'.format(x) for x in KNOWN_IMAGE_EXTS)
 INVALID_IMAGE_EXTS = ['svg+xml', 'x-icon', 'gif', 'vnd.microsoft.icon', 'cur']
 CACHE_SIZE = 1024
+LISTEN_HOST = '127.0.0.1'
+LISTEN_PORT = 5007
 
 # MODEL
 
@@ -103,17 +105,7 @@ def cli():
     pass  # pragma: no cover
 
 
-@cli.command('run-mitmproxy')
-@click.option(
-    '--listen-host',
-    show_default=True, default='127.0.0.1', help='Host for mitmproxy')
-@click.option(
-    '--listen-port',
-    show_default=True, default=5007, help='Host for mitmproxy')
-def run_mitmproxy(
-        listen_host: Optional[str] = '127.0.0.1',
-        listen_port: Optional[int] = 5007,
-):
+def run_mitmproxy(listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT):
     args_lines = ['--listen-host {}'.format(listen_host)]
     if listen_port:
         args_lines.append('--listen-port {}'.format(listen_port))
@@ -122,8 +114,21 @@ def run_mitmproxy(
 
     args_lines.append(
         '--set console_focus_follow={}'.format(shlex.quote('true')))
-    mitmproxy(shlex.split(' '.join(args_lines)))
+    return mitmproxy(shlex.split(' '.join(args_lines)))
+
+
+@cli.command('run-mitmproxy')
+@click.option(
+    '--listen-host',
+    show_default=True, default=LISTEN_HOST, help='Host for mitmproxy')
+@click.option(
+    '--listen-port',
+    show_default=True, default=LISTEN_PORT, help='Port for mitmproxy')
+def run_mitmproxy_cmd(
+        listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT,
+):
+    run_mitmproxy_cmd(listen_host, listen_port)  # pragma: no cover
 
 
 if __name__ == '__main__':
-    cli()
+    cli()  # pragma: no cover
