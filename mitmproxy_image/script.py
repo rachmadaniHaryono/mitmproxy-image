@@ -8,15 +8,14 @@ import mimetypes
 import os
 import re
 import typing
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
-from unittest import mock
 from urllib.parse import unquote_plus, urlparse
 
 import yaml
-from hydrus import Client, ConnectionError
+from hydrus import Client, ConnectionError, APIError
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -30,9 +29,7 @@ class MitmImage:
     config: Dict[str, Any]
 
     def __init__(self):
-        self.url_data = {}
-        self.normalised_url_data = {}
-        self.hash_data = {}
+        self.clear_data()
         self.config = {}
         # logger
         logger = logging.getLogger('mitmimage')
@@ -112,7 +109,7 @@ class MitmImage:
         normalised_url = self.get_normalised_url(url)
         self.client.associate_url([upload_resp['hash'], ], [normalised_url])
         # update data
-        self.url_data[normalised_url] = upload_resp['hash']
+        self.url_data[normalised_url].append(upload_resp['hash'])
         self.hash_data[upload_resp['hash']] = upload_resp['status']
         return upload_resp
 
@@ -352,7 +349,7 @@ class MitmImage:
 
     @command.command("mitmimage.clear_data")
     def clear_data(self) -> None:
-        self.url_data = {}
+        self.url_data = defaultdict(list)
         self.normalised_url_data = {}
         self.hash_data = {}
         ctx.log.info('mitmimage: data cleared')
