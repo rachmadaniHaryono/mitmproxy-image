@@ -101,10 +101,15 @@ class MitmImage:
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
-    def get_hashes(self, url: str, from_hydrus: bool = False) -> Optional[List[str]]:
+    def get_hashes(
+            self, url: str, from_hydrus: Optional[str] = None
+    ) -> Optional[List[str]]:
+        if from_hydrus is not None:
+            assert from_hydrus in ['always', 'on_empty']
         n_url = self.get_normalised_url(url)
         hashes = self.url_data.get(n_url, [])
-        if not from_hydrus or not self.is_valid_content_type(url=url):
+        if not from_hydrus or not self.is_valid_content_type(url=url) or \
+                (hashes and from_hydrus == 'on_empty'):
             return hashes
         huf_resp = self.get_url_files(url)
         self.normalised_url_data[url] = huf_resp['normalised_url']
@@ -254,7 +259,7 @@ class MitmImage:
                 self.remove_from_view(flow=flow)
                 return
             normalised_url = self.get_normalised_url(url)
-            hashes: List[str] = self.get_hashes(url, True)
+            hashes: List[str] = self.get_hashes(url, 'always')
             if not hashes and not self.is_valid_content_type(url=url):
                 return
             if len(hashes) == 1:
@@ -314,7 +319,7 @@ class MitmImage:
                 self.remove_from_view(flow)
                 return
             normalised_url = self.get_normalised_url(url)
-            hashes = self.get_hashes(url, True)
+            hashes = self.get_hashes(url, 'on_empty')
             upload_resp = None
             if not hashes:
                 upload_resp = self.upload(flow)
