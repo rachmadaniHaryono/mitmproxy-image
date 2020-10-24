@@ -48,6 +48,7 @@ class MitmImage:
         try:
             self.view = ctx.master.addons.get('view')
         except Exception:
+            self.logger.exception('load view on init')
             self.view = None
 
     def is_valid_content_type(self, flow: http.HTTPFlow = None, url: str = None) -> bool:
@@ -158,7 +159,9 @@ class MitmImage:
                         len(self.config.get('block_url_filename_regex', []))))
         except Exception as err:
             if hasattr(ctx, 'log'):
-                ctx.log.error('mitmimage: error loading config, {}'.format(err))
+                log_msg = 'mitmimage: error loading config, {}'.format(err)
+                ctx.log.error(log_msg)
+                self.logger.exception(log_msg)
 
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
@@ -206,7 +209,7 @@ class MitmImage:
                             url_filename[:max_len], url))
                     url_filename = None
         except Exception:
-            pass
+            self.logger.exception('get url filename')
         return url_filename
 
     @functools.lru_cache(1024)
