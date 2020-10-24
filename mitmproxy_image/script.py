@@ -200,7 +200,7 @@ class MitmImage:
         try:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
             for item in self.config.get('block_url_filename_regex', []):
-                if re.match(item[0], url_filename.lower()):
+                if url_filename and re.match(item[0], url_filename.lower()):
                     self.logger.info('rskip filename:{},{}'.format(item[1], url))
                     url_filename = None
                 if url_filename and len(url_filename) > max_len:
