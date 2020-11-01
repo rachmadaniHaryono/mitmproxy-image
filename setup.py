@@ -31,7 +31,7 @@ setup(
         'Flask>=1.0.2',
         'hydrus-api>=2.14.3',
         'ipdb>=0.13.3',
-        'mitmproxy>=5.0.0',
+        'mitmproxy>=5.3.0',
         'Pillow>=5.3.0',
         'PyYAML>=5.3.1',
         'requests>=2.21.0',
