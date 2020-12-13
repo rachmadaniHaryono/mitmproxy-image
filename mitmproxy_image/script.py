@@ -37,7 +37,8 @@ class MitmImage:
         # create file handler
         fh = logging.FileHandler(os.path.expanduser('~/mitmimage.log'))
         fh.setLevel(logging.INFO)
-        fh.setFormatter(logging.Formatter('%(levelname).1s:%(message)s'))
+        fh.setFormatter(logging.Formatter(
+            '%(levelname).1s:%(funcName)s:%(lineno)s:%(message)s'))
         logger.addHandler(fh)
         self.logger = logger
         #  other
@@ -134,7 +135,7 @@ class MitmImage:
             return None
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
-        self.logger.info('uploaded:{},{}'.format(
+        self.logger.info('{},{}'.format(
             upload_resp['status'], url))
         normalised_url = self.get_normalised_url(url)
         self.client.associate_url([upload_resp['hash'], ], [normalised_url])
@@ -209,7 +210,7 @@ class MitmImage:
                             url_filename[:max_len], url))
                     url_filename = None
         except Exception:
-            self.logger.exception('get url filename')
+            self.logger.exception()
         return url_filename
 
     @functools.lru_cache(1024)
@@ -241,7 +242,7 @@ class MitmImage:
         if additional_url:
             for new_url in additional_url:
                 self.client.add_url(new_url, page_name='mitmimage_plus')
-                self.logger.info('+url:{}'.format(new_url))
+                self.logger.info(new_url)
 
     def get_normalised_url(self, url: str) -> str:
         if url in self.normalised_url_data:
@@ -257,7 +258,7 @@ class MitmImage:
             self.add_additional_url(url)
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = 'req:rskip url:{},{}'.format(match_regex[1], url)
+                msg = 'rskip url:{},{}'.format(match_regex[1], url)
                 self.logger.debug(msg)
                 self.remove_from_view(flow=flow)
                 return
@@ -282,21 +283,21 @@ class MitmImage:
                 self.logger.info('cached:{}'.format(url))
                 self.remove_from_view(flow=flow)
             elif hashes:
-                self.logger.debug('req:hash count:{},{}\nn url:{}\nurl hash:\n{}'.format(
+                self.logger.debug('hash count:{},{}\nn url:{}\nurl hash:\n{}'.format(
                     len(hashes), url, normalised_url, '\n'.join(hashes)))
             else:
-                self.logger.debug('req:no hash:{}\nn url:{}'.format(url, normalised_url))
+                self.logger.debug('no hash:{}\nn url:{}'.format(url, normalised_url))
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
         except Exception:
-            self.logger.exception('request error')
+            self.logger.exception()
 
     def responseheaders(self, flow: http.HTTPFlow):
         try:
             url = flow.request.pretty_url
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = 'resph:rskip url:{},{}'.format(match_regex[1], url)
+                msg = 'rskip url:{},{}'.format(match_regex[1], url)
                 self.logger.debug(msg)
                 self.remove_from_view(flow)
                 return
@@ -304,7 +305,7 @@ class MitmImage:
             if not valid_content_type:
                 self.remove_from_view(flow)
         except Exception:
-            self.logger.exception('responseheaders error')
+            self.logger.exception()
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -313,7 +314,7 @@ class MitmImage:
             url = flow.request.pretty_url
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = 'resp:rskip url:{},{}'.format(match_regex[1], url)
+                msg = 'rskip url:{},{}'.format(match_regex[1], url)
                 self.logger.debug(msg)
                 self.remove_from_view(flow)
                 return
@@ -340,7 +341,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
         except Exception:
-            self.logger.exception('response error')
+            self.logger.exception()
 
     # command
 
@@ -405,7 +406,7 @@ class MitmImage:
             self.add_additional_url(url)
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = 'upl:rskip url:{},{}'.format(match_regex[1], url)
+                msg = 'rskip url:{},{}'.format(match_regex[1], url)
                 self.logger.debug(msg)
                 self.remove_from_view(flow)
                 continue
