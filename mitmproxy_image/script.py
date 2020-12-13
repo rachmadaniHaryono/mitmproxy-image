@@ -274,7 +274,7 @@ class MitmImage:
                     file_data = self.client.get_file(hash_=hash_)
                 except APIError as err:
                     self.logger.error('get file error:{}:{}\nurl:{}\nhash:{},{}'.format(
-                        type(err), err, url, self.hash_data.get(hash_, None), hash_))
+                        type(err).__name__, err, url, self.hash_data.get(hash_, None), hash_))
                     return
                 flow.response = http.HTTPResponse.make(
                     content=file_data.content,
@@ -287,7 +287,7 @@ class MitmImage:
             else:
                 self.logger.debug('req:no hash:{}\nn url:{}'.format(url, normalised_url))
         except ConnectionError as err:
-            self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
+            self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
         except Exception:
             self.logger.exception('request error')
 
@@ -338,7 +338,7 @@ class MitmImage:
                 self.logger.debug('add url(normalised):{}'.format(normalised_url))
             self.remove_from_view(flow)
         except ConnectionError as err:
-            self.logger.error('{}:{}\nurl:{}'.format(type(err), err, url))
+            self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
         except Exception:
             self.logger.exception('response error')
 
