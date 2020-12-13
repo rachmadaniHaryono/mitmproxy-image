@@ -17,7 +17,7 @@ import click
 from appdirs import user_data_dir
 from flask import Flask, render_template
 from flask.cli import FlaskGroup
-from mitmproxy.tools._main import mitmproxy
+from mitmproxy.tools.main import mitmproxy
 
 # app dir
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
