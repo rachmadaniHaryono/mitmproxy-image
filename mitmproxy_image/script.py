@@ -21,6 +21,25 @@ from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
 
 
+def get_mimetype(flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> Optional[str]:
+    if all([flow, url]):
+        raise ValueError("Only require flow or url")
+    mimetype = None
+    if flow is None:
+        try:
+            mimetype = cgi.parse_header(
+                mimetypes.guess_type(urlparse(url)._replace(query='').geturl())[0])[0]
+        except TypeError:
+            return None
+    elif flow.response is None or (
+                hasattr(flow.response, 'data') and
+                'Content-type' not in flow.response.data.headers):
+        return None
+    else:
+        mimetype = cgi.parse_header(flow.response.data.headers['Content-type'])[0]
+    return mimetype
+
+
 class MitmImage:
 
     url_data: Dict[str, List[str]]
@@ -52,22 +71,8 @@ class MitmImage:
             self.logger.exception('load view on init')
             self.view = None
 
-    def is_valid_content_type(self, flow: http.HTTPFlow = None, url: str = None) -> bool:
-        if all([flow, url]):
-            raise ValueError("Only require flow or url")
-        mimetype = None
-        if flow is None:
-            try:
-                mimetype = cgi.parse_header(
-                    mimetypes.guess_type(urlparse(url)._replace(query='').geturl())[0])[0]
-            except TypeError:
-                return False
-        elif flow.response is None or (
-                    hasattr(flow.response, 'data') and
-                    'Content-type' not in flow.response.data.headers):
-            return False
-        else:
-            mimetype = cgi.parse_header(flow.response.data.headers['Content-type'])[0]
+    def is_valid_content_type(self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> bool:
+        mimetype = get_mimetype(flow, url)
         if mimetype is None:
             return False
         try:
