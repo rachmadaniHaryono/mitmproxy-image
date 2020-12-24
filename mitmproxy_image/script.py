@@ -74,6 +74,7 @@ class MitmImage:
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
+        self.cached_urls = []
 
     def is_valid_content_type(self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> bool:
         mimetype = get_mimetype(flow, url)
@@ -346,6 +347,9 @@ class MitmImage:
                 flow.response = http.HTTPResponse.make(
                     content=file_data.content,
                     headers={'Content-Type': file_data.headers['Content-Type']})
+                if url not in self.cached_urls:
+                    self.cached_urls.append(url)
+                self.client.add_url(url, page_name='mitmimage')
                 self.logger.info('cached:{}'.format(url))
                 self.remove_from_view(flow=flow)
             elif hashes:
@@ -361,6 +365,9 @@ class MitmImage:
     def responseheaders(self, flow: http.HTTPFlow):
         try:
             url = flow.request.pretty_url
+            if url in self.cached_urls:
+                self.remove_from_view(flow)
+                return
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'rskip url:{},{}'.format(match_regex[1], url)
@@ -378,6 +385,9 @@ class MitmImage:
         """Handle response."""
         try:
             url = flow.request.pretty_url
+            if url in self.cached_urls:
+                self.remove_from_view(flow)
+                return
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'rskip url:{},{}'.format(match_regex[1], url)
