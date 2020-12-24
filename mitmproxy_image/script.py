@@ -352,14 +352,18 @@ class MitmImage:
             if len(hashes) == 1:
                 hash_: str = hashes[0]
                 status = self.hash_data.get(hash_, None)
-                if status is not None and status == ImportStatus.PreviouslyDeleted:
+                if status is not None and status in [
+                        ImportStatus.PreviouslyDeleted,
+                        ImportStatus.Importable,
+                        ImportStatus.Failed
+                ]:
                     return
                 try:
                     async with self.client_lock:
                         file_data = self.client.get_file(hash_=hash_)
                 except APIError as err:
                     self.logger.error('get file error:{}:{}\nurl:{}\nhash:{},{}'.format(
-                        type(err).__name__, err, url, self.hash_data.get(hash_, None), hash_))
+                        type(err).__name__, err, url, status, hash_))
                     return
                 flow.response = http.HTTPResponse.make(
                     content=file_data.content,
