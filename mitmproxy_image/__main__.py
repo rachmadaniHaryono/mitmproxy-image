@@ -136,6 +136,8 @@ def run_mitmproxy_cmd(
     loop = asyncio.get_event_loop()
     loop.add_signal_handler(signal.SIGINT, getattr(master, "prompt_for_exit", master.shutdown))
     loop.add_signal_handler(signal.SIGTERM, master.shutdown)
+    loop.create_task(ao_obj.upload_worker())
+    loop.create_task(ao_obj.post_upload_worker())
     master.run()
     return master
 

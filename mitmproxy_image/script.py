@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import asyncio
 import cgi
 import functools
 import io
@@ -70,6 +71,9 @@ class MitmImage:
         except Exception:
             self.logger.exception('load view on init')
             self.view = None
+        self.upload_queue = asyncio.Queue()
+        self.post_upload_queue = asyncio.Queue()
+        self.client_lock = asyncio.Lock()
 
     def is_valid_content_type(self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> bool:
         mimetype = get_mimetype(flow, url)
@@ -256,6 +260,63 @@ class MitmImage:
         self.normalised_url_data[url] = normalised_url
         return normalised_url
 
+    async def post_upload_worker(self):
+        # compatibility
+        client = self.client
+        queue = self.post_upload_queue
+        logger = self.logger
+        get_normalised_url_func = self.get_normalised_url
+        url_data = self.url_data
+        hash_data = self.hash_data
+        client_lock = self.client_lock
+        get_url_filename_func = self.get_url_filename
+        while True:
+            # Get a "work item" out of the queue.
+            url, upload_resp = await queue.get()
+            normalised_url = get_normalised_url_func(url)
+            if upload_resp:
+                async with client_lock:
+                    client.associate_url([upload_resp['hash'], ], [normalised_url])
+                # update data
+                url_data[normalised_url].append(upload_resp['hash'])
+                hash_data[upload_resp['hash']] = upload_resp['status']
+            url_filename = get_url_filename_func(url)
+            kwargs: Dict[str, Any] = {'page_name': 'mitmimage'}
+            if url_filename:
+                kwargs['service_names_to_additional_tags'] = {
+                    'my tags': ['filename:{}'.format(url_filename), ]}
+            client.add_url(normalised_url, **kwargs)
+            logger.info('add url:{}'.format(url))
+            # Notify the queue that the "work item" has been processed.
+            queue.task_done()
+
+    async def upload_worker(self):
+        client = self.client
+        queue = self.upload_queue 
+        logger = self.logger 
+        post_upload_queue = self.post_upload_queue 
+        client_lock = self.client_lock
+        while True:
+            # Get a "work item" out of the queue.
+            flow = await queue.get()
+            url = flow.request.pretty_url  # type: ignore
+            response = flow.response  # type: ignore
+            if response is None:
+                logger.debug('no response url:{}'.format(url))
+                queue.task_done()
+                return
+            content = response.get_content()
+            if content is None:
+                logger.debug('no content url:{}'.format(url))
+                queue.task_done()
+                return
+            # upload file
+            async with client_lock:
+                upload_resp = client.add_file(io.BytesIO(content))
+            logger.info('{},{}'.format(upload_resp['status'], url))
+            post_upload_queue.put_nowait((url, upload_resp))
+            queue.task_done()
+
     @concurrent
     def request(self, flow: http.HTTPFlow):
         try:
@@ -331,17 +392,10 @@ class MitmImage:
             hashes = self.get_hashes(url, 'on_empty')
             upload_resp = None
             if not hashes:
-                upload_resp = self.upload(flow)
-            url_filename = self.get_url_filename(url)
-            kwargs: Dict[str, Any] = {'page_name': 'mitmimage'}
-            if url_filename:
-                kwargs['service_names_to_additional_tags'] = {
-                    'my tags': ['filename:{}'.format(url_filename), ]}
-            self.client.add_url(normalised_url, **kwargs)
-            log_msg = self.logger.info if not upload_resp else self.logger.debug
-            log_msg('add url:{}'.format(url))
-            if normalised_url != url:
-                self.logger.debug('add url(normalised):{}'.format(normalised_url))
+                #  upload_resp = self.upload(flow)
+                self.upload_queue.put_nowait(flow)
+            else:
+                self.post_upload_queue.put_nowait((url, None))
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
