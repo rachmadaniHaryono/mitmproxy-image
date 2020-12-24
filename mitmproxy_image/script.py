@@ -145,8 +145,7 @@ class MitmImage:
             self.logger.debug('no content url:{}'.format(url))
             return None
         # upload file
-        async with self.client_lock:
-            upload_resp = self.client.add_file(io.BytesIO(content))
+        upload_resp = self.client.add_file(io.BytesIO(content))
         self.logger.info('{},{}'.format(
             upload_resp['status'], url))
         normalised_url = self.get_normalised_url(url)
@@ -178,8 +177,7 @@ class MitmImage:
 
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
-        async with self.client_lock:
-            return self.client.get_url_files(url)
+        return self.client.get_url_files(url)
 
     # mitmproxy add on class' method
 
@@ -200,10 +198,9 @@ class MitmImage:
     def configure(self, updates):
         if "hydrus_access_key" in updates:
             hydrus_access_key = ctx.options.hydrus_access_key
-            async with self.client_lock:
-                if hydrus_access_key and hydrus_access_key != self.client._access_key:
-                    self.client = Client(hydrus_access_key)
-                    ctx.log.info('mitmimage: client initiated with new access key.')
+            if hydrus_access_key and hydrus_access_key != self.client._access_key:
+                self.client = Client(hydrus_access_key)
+                ctx.log.info('mitmimage: client initiated with new access key.')
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(ctx.options.mitmimage_config)
             self.get_url_filename.cache_clear()
@@ -261,8 +258,7 @@ class MitmImage:
     def get_normalised_url(self, url: str) -> str:
         if url in self.normalised_url_data:
             return self.normalised_url_data[url]
-        async with self.client_lock:
-            normalised_url = self.client.get_url_info(url)['normalised_url']
+        normalised_url = self.client.get_url_info(url)['normalised_url']
         self.normalised_url_data[url] = normalised_url
         return normalised_url
 
@@ -355,12 +351,11 @@ class MitmImage:
                 if status is not None and status in [
                         ImportStatus.PreviouslyDeleted,
                         ImportStatus.Importable,
-                        ImportStatus.Failed
+                        ImportStatus.Failed,
                 ]:
                     return
                 try:
-                    async with self.client_lock:
-                        file_data = self.client.get_file(hash_=hash_)
+                    file_data = self.client.get_file(hash_=hash_)
                 except APIError as err:
                     self.logger.error('get file error:{}:{}\nurl:{}\nhash:{},{}'.format(
                         type(err).__name__, err, url, status, hash_))
