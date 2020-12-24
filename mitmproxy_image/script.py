@@ -221,7 +221,7 @@ class MitmImage:
                             url_filename[:max_len], url))
                     url_filename = None
         except Exception:
-            self.logger.exception()
+            self.logger.exception('error')
         return url_filename
 
     @functools.lru_cache(1024)
@@ -372,7 +372,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
         except Exception:
-            self.logger.exception()
+            self.logger.exception('error')
 
     def responseheaders(self, flow: http.HTTPFlow):
         try:
@@ -390,16 +390,13 @@ class MitmImage:
             if not valid_content_type:
                 self.remove_from_view(flow)
         except Exception:
-            self.logger.exception()
+            self.logger.exception('error')
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         try:
             url = flow.request.pretty_url
-            if url in self.cached_urls:
-                self.remove_from_view(flow)
-                return
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = 'rskip url:{},{}'.format(match_regex[1], url)
@@ -425,7 +422,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
         except Exception:
-            self.logger.exception()
+            self.logger.exception('error')
 
     # command
 
