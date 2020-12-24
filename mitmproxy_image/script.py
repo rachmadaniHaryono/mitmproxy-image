@@ -68,8 +68,8 @@ class MitmImage:
         self.client = Client(self.default_access_key)
         try:
             self.view = ctx.master.addons.get('view')
-        except Exception:
-            self.logger.exception('load view on init')
+        except Exception as err:
+            self.logger.exception('{}\nload view on init'.format(err.message))
             self.view = None
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
@@ -173,7 +173,7 @@ class MitmImage:
             if hasattr(ctx, 'log'):
                 log_msg = 'mitmimage: error loading config, {}'.format(err)
                 ctx.log.error(log_msg)
-                self.logger.exception(log_msg)
+                self.logger.exception('{}\n{}'.format(err.message, log_msg))
 
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
@@ -220,8 +220,8 @@ class MitmImage:
                         'url filename too long:{}...,{}'.format(
                             url_filename[:max_len], url))
                     url_filename = None
-        except Exception:
-            self.logger.exception('error')
+        except Exception as err:
+            self.logger.exception(err.message)
         return url_filename
 
     @functools.lru_cache(1024)
@@ -378,8 +378,8 @@ class MitmImage:
                 self.logger.debug('no hash:{}\nn url:{}'.format(url, normalised_url))
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
-        except Exception:
-            self.logger.exception('error')
+        except Exception as err:
+            self.logger.exception(err.message)
 
     def responseheaders(self, flow: http.HTTPFlow):
         try:
@@ -396,8 +396,8 @@ class MitmImage:
             valid_content_type = self.is_valid_content_type(flow)
             if not valid_content_type:
                 self.remove_from_view(flow)
-        except Exception:
-            self.logger.exception('error')
+        except Exception as err:
+            self.logger.exception(err.message)
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -428,8 +428,8 @@ class MitmImage:
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error('{}:{}\nurl:{}'.format(type(err).__name__, err, url))
-        except Exception:
-            self.logger.exception('error')
+        except Exception as err:
+            self.logger.exception(err.message)
 
     # command
 
