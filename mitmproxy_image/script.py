@@ -73,6 +73,7 @@ class MitmImage:
             self.view = None
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
+        self.client_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.cached_urls = []
 
@@ -261,6 +262,18 @@ class MitmImage:
         self.normalised_url_data[url] = normalised_url
         return normalised_url
 
+    async def client_worker(self):
+        queue = self.client_queue
+        while True:
+        # Get a "work item" out of the queue.
+            cmd, args, kwargs = await queue.get()
+            self.logger.debug(
+                'cmd:{}\nargs:{}\nkwargs:{}'.format(cmd, args, kwargs))
+            async with self.client_lock:
+                getattr(self.client, cmd)(*args, **kwargs)
+            # Notify the queue that the "work item" has been processed.
+            queue.task_done()
+
     async def post_upload_worker(self):
         # compatibility
         client = self.client
@@ -276,8 +289,7 @@ class MitmImage:
             url, upload_resp = await queue.get()
             normalised_url = get_normalised_url_func(url)
             if upload_resp:
-                async with client_lock:
-                    client.associate_url([upload_resp['hash'], ], [normalised_url])
+                self.client_queue.put_nowait(('associate_url', [[upload_resp['hash'], ], [normalised_url]], {}))
                 # update data
                 url_data[normalised_url].append(upload_resp['hash'])
                 hash_data[upload_resp['hash']] = upload_resp['status']
@@ -286,7 +298,7 @@ class MitmImage:
             if url_filename:
                 kwargs['service_names_to_additional_tags'] = {
                     'my tags': ['filename:{}'.format(url_filename), ]}
-            client.add_url(normalised_url, **kwargs)
+            self.client_queue.put_nowait(('add_url', [normalised_url], kwargs))
             logger.info('add url:{}'.format(url))
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
@@ -330,7 +342,7 @@ class MitmImage:
                 self.remove_from_view(flow=flow)
                 return
             normalised_url = self.get_normalised_url(url)
-            hashes: List[str] = self.get_hashes(url, 'always')
+            hashes: List[str] = self.get_hashes(normalised_url, 'always')
             if not hashes and not self.is_valid_content_type(url=url):
                 return
             if len(hashes) == 1:
@@ -347,9 +359,9 @@ class MitmImage:
                 flow.response = http.HTTPResponse.make(
                     content=file_data.content,
                     headers={'Content-Type': file_data.headers['Content-Type']})
-                if url not in self.cached_urls:
-                    self.cached_urls.append(url)
-                self.client.add_url(url, page_name='mitmimage')
+                if normalised_url not in self.cached_urls:
+                    self.cached_urls.append(normalised_url)
+                self.client_queue.put_nowait(('add_url', [normalised_url], {'page_name': 'mitmimage'}))
                 self.logger.info('cached:{}'.format(url))
                 self.remove_from_view(flow=flow)
             elif hashes:
@@ -399,6 +411,9 @@ class MitmImage:
                 self.remove_from_view(flow)
                 return
             normalised_url = self.get_normalised_url(url)
+            if normalised_url in self.cached_urls:
+                self.remove_from_view(flow)
+                return
             hashes = self.get_hashes(url, 'on_empty')
             upload_resp = None
             if not hashes:
