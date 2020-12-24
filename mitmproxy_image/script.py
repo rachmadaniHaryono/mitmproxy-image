@@ -145,11 +145,12 @@ class MitmImage:
             self.logger.debug('no content url:{}'.format(url))
             return None
         # upload file
-        upload_resp = self.client.add_file(io.BytesIO(content))
+        async with self.client_lock:
+            upload_resp = self.client.add_file(io.BytesIO(content))
         self.logger.info('{},{}'.format(
             upload_resp['status'], url))
         normalised_url = self.get_normalised_url(url)
-        self.client.associate_url([upload_resp['hash'], ], [normalised_url])
+        self.client_worker.put_nowait(('associate_url', [[upload_resp['hash'], ], [normalised_url]], {}))
         # update data
         self.url_data[normalised_url].append(upload_resp['hash'])
         self.hash_data[upload_resp['hash']] = upload_resp['status']
@@ -177,7 +178,8 @@ class MitmImage:
 
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
-        return self.client.get_url_files(url)
+        async with self.client_lock:
+            return self.client.get_url_files(url)
 
     # mitmproxy add on class' method
 
@@ -198,9 +200,10 @@ class MitmImage:
     def configure(self, updates):
         if "hydrus_access_key" in updates:
             hydrus_access_key = ctx.options.hydrus_access_key
-            if hydrus_access_key and hydrus_access_key != self.client._access_key:
-                self.client = Client(hydrus_access_key)
-                ctx.log.info('mitmimage: client initiated with new access key.')
+            async with self.client_lock:
+                if hydrus_access_key and hydrus_access_key != self.client._access_key:
+                    self.client = Client(hydrus_access_key)
+                    ctx.log.info('mitmimage: client initiated with new access key.')
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(ctx.options.mitmimage_config)
             self.get_url_filename.cache_clear()
@@ -252,13 +255,14 @@ class MitmImage:
                 log_func(log_msg)
         if additional_url:
             for new_url in additional_url:
-                self.client.add_url(new_url, page_name='mitmimage_plus')
+                self.client_queue.put_nowait((new_url, [], {'page_name': 'mitmimage_plus'}))
                 self.logger.info(new_url)
 
     def get_normalised_url(self, url: str) -> str:
         if url in self.normalised_url_data:
             return self.normalised_url_data[url]
-        normalised_url = self.client.get_url_info(url)['normalised_url']
+        async with self.client_lock:
+            normalised_url = self.client.get_url_info(url)['normalised_url']
         self.normalised_url_data[url] = normalised_url
         return normalised_url
 
@@ -351,7 +355,8 @@ class MitmImage:
                 if status is not None and status == ImportStatus.PreviouslyDeleted:
                     return
                 try:
-                    file_data = self.client.get_file(hash_=hash_)
+                    async with self.client_lock:
+                        file_data = self.client.get_file(hash_=hash_)
                 except APIError as err:
                     self.logger.error('get file error:{}:{}\nurl:{}\nhash:{},{}'.format(
                         type(err).__name__, err, url, self.hash_data.get(hash_, None), hash_))
@@ -493,7 +498,8 @@ class MitmImage:
                 self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
-            self.client.add_url(url, page_name='mitmimage')
+            normalised_url = self.get_normalised_url(url)
+            self.client_queue.put_nowait(('add_url', [url], {'page_name': 'mitmimage'}))
             resp_history.append(resp)
             if remove and resp is not None:
                 self.remove_from_view(flow)
