@@ -252,7 +252,7 @@ class MitmImage:
                 log_func(log_msg)
         if additional_url:
             for new_url in additional_url:
-                self.client_queue.put_nowait((new_url, [], {'page_name': 'mitmimage_plus'}))
+                self.client_queue.put_nowait(('add_url', [new_url], {'page_name': 'mitmimage_plus'}))
                 self.logger.info(new_url)
 
     def get_normalised_url(self, url: str) -> str:
@@ -266,11 +266,14 @@ class MitmImage:
         queue = self.client_queue
         while True:
         # Get a "work item" out of the queue.
-            cmd, args, kwargs = await queue.get()
-            self.logger.debug(
-                'cmd:{}\nargs:{}\nkwargs:{}'.format(cmd, args, kwargs))
-            async with self.client_lock:
-                getattr(self.client, cmd)(*args, **kwargs)
+            try:
+                cmd, args, kwargs = await queue.get()
+                self.logger.debug(
+                    'cmd:{}\nargs:{}\nkwargs:{}'.format(cmd, args, kwargs))
+                async with self.client_lock:
+                    getattr(self.client, cmd)(*args, **kwargs)
+            except Exception as err:
+                self.logger.error(err, exc_info=True)
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
