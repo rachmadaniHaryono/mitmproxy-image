@@ -359,7 +359,8 @@ class MitmImage:
         self.url_data = defaultdict(list)
         self.normalised_url_data = {}
         self.hash_data = {}
-        ctx.log.info('mitmimage: data cleared')
+        if hasattr(ctx, 'log'):
+            ctx.log.info('mitmimage: data cleared')
 
     @command.command('mitmimage.ipdb')
     def ipdb(self, flows: typing.Sequence[Flow] = None) -> None:  # pragma: no cover
@@ -425,6 +426,3 @@ class MitmImage:
             logger.info(Counter(data))
         else:
             logger.info('upload finished')
-
-
-addons = [MitmImage()]

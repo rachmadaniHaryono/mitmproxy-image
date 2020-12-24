@@ -6,10 +6,12 @@ https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_m
 https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
 https://stackoverflow.com/a/44873382/1766261
 """
+import asyncio
 import logging
 import os
 import pathlib
 import shlex
+import signal
 from datetime import datetime
 from typing import Optional, Union
 
@@ -17,7 +19,9 @@ import click
 from appdirs import user_data_dir
 from flask import Flask, render_template
 from flask.cli import FlaskGroup
-from mitmproxy.tools.main import mitmproxy
+from mitmproxy.tools import console, main
+
+from .script import MitmImage
 
 # app dir
 APP_DIR = user_data_dir('mitmproxy_image', 'rachmadani haryono')
@@ -105,18 +109,6 @@ def cli():
     pass  # pragma: no cover
 
 
-def run_mitmproxy(listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT):
-    args_lines = ['--listen-host {}'.format(listen_host)]
-    if listen_port:
-        args_lines.append('--listen-port {}'.format(listen_port))
-    args_lines.append('-s {}'.format(os.path.join(
-        os.path.dirname(__file__), 'script.py')))
-
-    args_lines.append(
-        '--set console_focus_follow={}'.format(shlex.quote('true')))
-    return mitmproxy(shlex.split(' '.join(args_lines)))
-
-
 @cli.command('run-mitmproxy')
 @click.option(
     '--listen-host',
@@ -128,7 +120,24 @@ def run_mitmproxy_cmd(
         listen_host: str = LISTEN_HOST,
         listen_port: int = LISTEN_PORT
 ):
-    run_mitmproxy(listen_host, listen_port)  # pragma: no cover
+    """Run mitmproxy.
+
+    based on mitmproxy.main.py and example from following url:
+    https://stackoverflow.com/a/62900530/1766261
+    """
+    opts = main.options.Options(listen_host=listen_host, listen_port=listen_port)
+    master = console.master.ConsoleMaster(opts)
+    master.view.focus_follow = True
+    pconf = main.proxy.config.ProxyConfig(opts)
+    master.server = main.proxy.server.ProxyServer(pconf)
+    ao_obj = MitmImage()
+    ao_obj.load_config(ao_obj.default_config_path)
+    master.addons.add(ao_obj)
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGINT, getattr(master, "prompt_for_exit", master.shutdown))
+    loop.add_signal_handler(signal.SIGTERM, master.shutdown)
+    master.run()
+    return master
 
 
 if __name__ == '__main__':
