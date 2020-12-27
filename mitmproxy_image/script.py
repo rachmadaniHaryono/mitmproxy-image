@@ -275,6 +275,8 @@ class MitmImage:
                     'cmd:{}\nargs:{}\nkwargs:{}'.format(cmd, args, kwargs))
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
+            except ConnectionError as err:
+                self.logger.info(err.message)
             except Exception as err:
                 self.logger.error(err, exc_info=True)
             # Notify the queue that the "work item" has been processed.
