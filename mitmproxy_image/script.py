@@ -110,7 +110,10 @@ class MitmImage:
                 # sorting key, and we cannot reconstruct the index from that.
                 idx = view._view.index(f)
                 view._view.remove(f)
-                view.sig_view_remove.send(view, flow=f, index=idx)
+                try:
+                    view.sig_view_remove.send(view, flow=f, index=idx)
+                except ValueError as err:
+                    self.logger.debug(err.message, exc_info=True)
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
