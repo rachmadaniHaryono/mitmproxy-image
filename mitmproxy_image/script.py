@@ -67,9 +67,12 @@ class MitmImage:
         self.default_config_path = os.path.expanduser('~/mitmimage.yaml')
         self.client = Client(self.default_access_key)
         try:
-            self.view = ctx.master.addons.get('view')
+            if hasattr(ctx, 'master'):
+                self.view = ctx.master.addons.get('view')
         except Exception as err:
-            self.logger.exception('{}\nload view on init'.format(err.message))
+            self.logger.exception(
+                '{}\nload view on init'.format(
+                    err.message if hasattr(err, 'message') else str(err)))
             self.view = None
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
