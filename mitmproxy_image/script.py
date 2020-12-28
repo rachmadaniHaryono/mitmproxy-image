@@ -278,7 +278,7 @@ class MitmImage:
             except ConnectionError as err:
                 self.logger.info(err.message)
             except Exception as err:
-                self.logger.error(err, exc_info=True)
+                self.logger.error(err.message, exc_info=True)
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
@@ -293,21 +293,24 @@ class MitmImage:
         client_lock = self.client_lock
         get_url_filename_func = self.get_url_filename
         while True:
-            # Get a "work item" out of the queue.
-            url, upload_resp = await queue.get()
-            normalised_url = get_normalised_url_func(url)
-            if upload_resp:
-                self.client_queue.put_nowait(('associate_url', [[upload_resp['hash'], ], [normalised_url]], {}))
-                # update data
-                url_data[normalised_url].append(upload_resp['hash'])
-                hash_data[upload_resp['hash']] = upload_resp['status']
-            url_filename = get_url_filename_func(url)
-            kwargs: Dict[str, Any] = {'page_name': 'mitmimage'}
-            if url_filename:
-                kwargs['service_names_to_additional_tags'] = {
-                    'my tags': ['filename:{}'.format(url_filename), ]}
-            self.client_queue.put_nowait(('add_url', [normalised_url], kwargs))
-            logger.info('add url:{}'.format(url))
+            try:
+                # Get a "work item" out of the queue.
+                url, upload_resp = await queue.get()
+                normalised_url = get_normalised_url_func(url)
+                if upload_resp:
+                    self.client_queue.put_nowait(('associate_url', [[upload_resp['hash'], ], [normalised_url]], {}))
+                    # update data
+                    url_data[normalised_url].append(upload_resp['hash'])
+                    hash_data[upload_resp['hash']] = upload_resp['status']
+                url_filename = get_url_filename_func(url)
+                kwargs: Dict[str, Any] = {'page_name': 'mitmimage'}
+                if url_filename:
+                    kwargs['service_names_to_additional_tags'] = {
+                        'my tags': ['filename:{}'.format(url_filename), ]}
+                self.client_queue.put_nowait(('add_url', [normalised_url], kwargs))
+                logger.info('add url:{}'.format(url))
+            except Exception as err:
+                self.logger.error(err.message, exc_info=True)
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
@@ -318,24 +321,27 @@ class MitmImage:
         post_upload_queue = self.post_upload_queue 
         client_lock = self.client_lock
         while True:
-            # Get a "work item" out of the queue.
-            flow = await queue.get()
-            url = flow.request.pretty_url  # type: ignore
-            response = flow.response  # type: ignore
-            if response is None:
-                logger.debug('no response url:{}'.format(url))
-                queue.task_done()
-                return
-            content = response.get_content()
-            if content is None:
-                logger.debug('no content url:{}'.format(url))
-                queue.task_done()
-                return
-            # upload file
-            async with client_lock:
-                upload_resp = client.add_file(io.BytesIO(content))
-            logger.info('{},{}'.format(upload_resp['status'], url))
-            post_upload_queue.put_nowait((url, upload_resp))
+            try:
+                # Get a "work item" out of the queue.
+                flow = await queue.get()
+                url = flow.request.pretty_url  # type: ignore
+                response = flow.response  # type: ignore
+                if response is None:
+                    logger.debug('no response url:{}'.format(url))
+                    queue.task_done()
+                    return
+                content = response.get_content()
+                if content is None:
+                    logger.debug('no content url:{}'.format(url))
+                    queue.task_done()
+                    return
+                # upload file
+                async with client_lock:
+                    upload_resp = client.add_file(io.BytesIO(content))
+                logger.info('{},{}'.format(upload_resp['status'], url))
+                post_upload_queue.put_nowait((url, upload_resp))
+            except Exception as err:
+                self.logger.error(err.message, exc_info=True)
             queue.task_done()
 
     @concurrent
