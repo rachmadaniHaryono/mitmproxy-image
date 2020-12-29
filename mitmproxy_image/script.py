@@ -446,7 +446,7 @@ class MitmImage:
                     return
                 flow.response = http.HTTPResponse.make(
                     content=file_data.content,
-                    headers=file_data.headers,
+                    headers=dict(file_data.headers),
                 )
                 if normalised_url not in self.cached_urls:
                     self.cached_urls.append(normalised_url)
