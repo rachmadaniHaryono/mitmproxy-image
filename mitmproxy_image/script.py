@@ -333,7 +333,7 @@ class MitmImage:
         while True:
             try:
                 # Get a "work item" out of the queue.
-                url, upload_resp = await queue.get()
+                url, upload_resp, referer = await queue.get()
                 normalised_url = get_normalised_url_func(url)
                 if upload_resp:
                     self.client_queue.put_nowait(
@@ -351,14 +351,15 @@ class MitmImage:
                     # update data
                     url_data[normalised_url].append(upload_resp["hash"])
                     hash_data[upload_resp["hash"]] = upload_resp["status"]
+                tags = []
                 url_filename = get_url_filename_func(url)
-                kwargs: Dict[str, Any] = {"page_name": "mitmimage"}
                 if url_filename:
-                    kwargs["service_names_to_additional_tags"] = {
-                        "my tags": [
-                            "filename:{}".format(url_filename),
-                        ]
-                    }
+                    tags.append("filename:{}".format(url_filename))
+                if referer:
+                    tags.append("referer:{}".format(referer))
+                kwargs: Dict[str, Any] = {"page_name": "mitmimage"}
+                if tags:
+                    kwargs["service_names_to_additional_tags"] = {"my tags": tags}
                 self.client_queue.put_nowait(("add_url", [normalised_url], kwargs))
                 logger.info("add url:{}".format(url))
             except Exception as err:
@@ -391,7 +392,8 @@ class MitmImage:
                 async with client_lock:
                     upload_resp = client.add_file(io.BytesIO(content))
                 logger.info("{},{}".format(upload_resp["status"], url))
-                post_upload_queue.put_nowait((url, upload_resp))
+                referer = flow.request.headers.get("referer", None)
+                post_upload_queue.put_nowait((url, upload_resp, referer))
             except Exception as err:
                 self.logger.error(err.message, exc_info=True)
             queue.task_done()
@@ -438,6 +440,8 @@ class MitmImage:
                 self.client_queue.put_nowait(
                     ("add_url", [normalised_url], {"page_name": "mitmimage"})
                 )
+                referer = flow.request.headers.get("referer", None)
+                self.post_upload_queue.put_nowait((url, None, referer))
                 self.logger.info("cached:{}".format(url))
                 self.remove_from_view(flow=flow)
             elif hashes:
@@ -496,7 +500,8 @@ class MitmImage:
                 #  upload_resp = self.upload(flow)
                 self.upload_queue.put_nowait(flow)
             else:
-                self.post_upload_queue.put_nowait((url, None))
+                referer = flow.request.headers.get("referer", None)
+                self.post_upload_queue.put_nowait((url, None, referer))
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
