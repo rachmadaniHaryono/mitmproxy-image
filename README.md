@@ -14,7 +14,7 @@ use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 $ mitmproxy-image run-mitmproxy
 ```
 
-If configuration is succesful, 
+If configuration is succesful,
 each time your browser load an image
 it will also be shown on `mitmimage` downloader page on hydrus.
 

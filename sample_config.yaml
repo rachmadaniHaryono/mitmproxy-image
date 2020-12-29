@@ -25,7 +25,7 @@ mimetype:
 # - - 'image'
 #   - 'gif'
 
-# view_filter 
+# view_filter
 # description: view_filter for mitmproxy
 # example:
 # view_filter: ~t "(image\\/(?!cur|svg.xml|vnd.microsoft.icon|x-icon).+)"
