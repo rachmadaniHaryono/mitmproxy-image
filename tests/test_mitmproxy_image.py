@@ -5,26 +5,26 @@ from unittest import mock
 
 import pytest
 
-from mitmproxy_image.__main__ import create_app, run_mitmproxy
+from mitmproxy_image.__main__ import create_app
 from mitmproxy_image.script import MitmImage
 from mitmproxy_image import __main__
 
 PICKLE_PATH = os.path.join(
-    os.path.dirname(__file__), 'pickle', '20200120_223805.pickle')
+    os.path.dirname(__file__), "pickle", "20200120_223805.pickle"
+)
 pickle_path_exist = pytest.mark.skipif(
-    not os.path.isfile(PICKLE_PATH), reason='No pickled data found.'
+    not os.path.isfile(PICKLE_PATH), reason="No pickled data found."
 )
 
 
 class Mitmproxy_imageTestCase(unittest.TestCase):
-
     def setUp(self):
-        app = create_app('sqlite://', debug=True, testing=True)
+        app = create_app("sqlite://", debug=True, testing=True)
         self.app = app.test_client()
 
     def test_index(self):
-        rv = self.app.get('/')
-        self.assertIn('mitmproxy_image', rv.data.decode())
+        rv = self.app.get("/")
+        self.assertIn("mitmproxy_image", rv.data.decode())
 
 
 def test_create_app():
@@ -36,11 +36,12 @@ def test_mitmimage_init():
 
 
 @pytest.mark.parametrize(
-    'headers,res', [
+    "headers,res",
+    [
         [{}, False],
-        [{'Content-type': 'text/html'}, False],
-        [{'Content-type': 'image/webp'}, True],
-    ]
+        [{"Content-type": "text/html"}, False],
+        [{"Content-type": "image/webp"}, True],
+    ],
 )
 def test_mitmimage_is_valid_content_type(headers, res):
     mock_flow = mock.Mock()
@@ -50,7 +51,7 @@ def test_mitmimage_is_valid_content_type(headers, res):
 
 
 def test_is_valid_content_type_url():
-    url = 'https://net/v/t1.0-9/4_o.jpg?_nc_cat=100'
+    url = "https://net/v/t1.0-9/4_o.jpg?_nc_cat=100"
     obj = MitmImage()
     assert obj.is_valid_content_type(url=url)
 
@@ -58,38 +59,61 @@ def test_is_valid_content_type_url():
 @pytest.fixture
 def client():
     app = create_app()
-    db_fd, app.config['DATABASE'] = tempfile.mkstemp()
-    app.config['TESTING'] = True
+    db_fd, app.config["DATABASE"] = tempfile.mkstemp()
+    app.config["TESTING"] = True
 
     with app.test_client() as client:
         yield client
 
     os.close(db_fd)
-    os.unlink(app.config['DATABASE'])
+    os.unlink(app.config["DATABASE"])
 
 
 def test_empty_db(client):
     """Start with a blank database."""
-    rv = client.get('/')
+    rv = client.get("/")
     vars_rv = vars(rv)
     assert {
-        '_on_close': [],
-        '_status': '200 OK',
-        '_status_code': 200,
-        'direct_passthrough': False,
+        "_on_close": [],
+        "_status": "200 OK",
+        "_status_code": 200,
+        "direct_passthrough": False,
     } == {
-        key: val for key, val in vars_rv.items()
-        if key in ['_on_close', '_status', '_status_code', 'direct_passthrough']}
+        key: val
+        for key, val in vars_rv.items()
+        if key in ["_on_close", "_status", "_status_code", "direct_passthrough"]
+    }
 
-    assert rv.headers['Content-Type'] == "text/html; charset=utf-8"
-    assert int(rv.headers['Content-Length']) > 0
-
-
-def test_run_mitmproxy(monkeypatch):
-    m_mitmproxy = mock.Mock()
-    monkeypatch.setattr(__main__, 'mitmproxy', m_mitmproxy)
-    assert run_mitmproxy('127.0.0.1', 500)
+    assert rv.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert int(rv.headers["Content-Length"]) > 0
 
 
-if __name__ == '__main__':
+def get_au_regex_rules_test_data():
+    """get addditional url regex rules."""
+    obj = MitmImage()
+    obj.load_config(config_path=obj.default_config_path)
+    res = []
+    for rule in filter(lambda x: len(x) > 3, obj.config.get("add_url_regex", [])):
+        res.extend(rule[3][:])
+    return res
+
+
+@pytest.mark.parametrize("url, exp_url", get_au_regex_rules_test_data())
+def test_add_additional_url(url, exp_url):
+    class MockQueue:
+        history = []
+
+        def put_nowait(self, *args):
+            self.history.append(args)
+
+    obj = MitmImage()
+    obj.load_config(config_path=obj.default_config_path)
+    obj.client_queue = MockQueue()
+    obj.add_additional_url(url)
+    assert obj.client_queue.history == [
+        (("add_url", [exp_url], {"page_name": "mitmimage_plus"}),)
+    ]
+
+
+if __name__ == "__main__":
     pytest.main()
