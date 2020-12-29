@@ -129,7 +129,10 @@ class MitmImage:
                 try:
                     view.sig_view_remove.send(view, flow=f, index=idx)
                 except ValueError as err:
-                    self.logger.debug(err.message, exc_info=True)
+                    self.logger.debug(
+                        err.message if hasattr(err, "message") else str(err),
+                        exc_info=True,
+                    )
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
@@ -209,7 +212,11 @@ class MitmImage:
             if hasattr(ctx, "log"):
                 log_msg = "mitmimage: error loading config, {}".format(err)
                 ctx.log.error(log_msg)
-                self.logger.exception("{}\n{}".format(err.message, log_msg))
+                self.logger.exception(
+                    "{}\n{}".format(
+                        err.message if hasattr(err, "message") else str(err), log_msg
+                    )
+                )
 
     @functools.lru_cache(1024)
     def get_url_files(self, url: str):
@@ -259,7 +266,7 @@ class MitmImage:
                     )
                     url_filename = None
         except Exception as err:
-            self.logger.exception(err.message)
+            self.logger.exception(err.message if hasattr(err, "message") else str(err))
         return url_filename
 
     @functools.lru_cache(1024)
@@ -314,9 +321,11 @@ class MitmImage:
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
             except ConnectionError as err:
-                self.logger.info(err.message)
+                self.logger.info(err.message if hasattr(err, "message") else str(err))
             except Exception as err:
-                self.logger.error(err.message, exc_info=True)
+                self.logger.error(
+                    err.message if hasattr(err, "message") else str(err), exc_info=True
+                )
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
@@ -363,7 +372,9 @@ class MitmImage:
                 self.client_queue.put_nowait(("add_url", [normalised_url], kwargs))
                 logger.info("add url:{}".format(url))
             except Exception as err:
-                self.logger.error(err.message, exc_info=True)
+                self.logger.error(
+                    err.message if hasattr(err, "message") else str(err), exc_info=True
+                )
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
@@ -395,7 +406,9 @@ class MitmImage:
                 referer = flow.request.headers.get("referer", None)
                 post_upload_queue.put_nowait((url, upload_resp, referer))
             except Exception as err:
-                self.logger.error(err.message, exc_info=True)
+                self.logger.error(
+                    err.message if hasattr(err, "message") else str(err), exc_info=True
+                )
             queue.task_done()
 
     @concurrent
@@ -455,7 +468,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
         except Exception as err:
-            self.logger.exception(err.message)
+            self.logger.exception(err.message if hasattr(err, "message") else str(err))
 
     def responseheaders(self, flow: http.HTTPFlow):
         try:
@@ -473,7 +486,7 @@ class MitmImage:
             if not valid_content_type:
                 self.remove_from_view(flow)
         except Exception as err:
-            self.logger.exception(err.message)
+            self.logger.exception(err.message if hasattr(err, "message") else str(err))
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -506,7 +519,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
         except Exception as err:
-            self.logger.exception(err.message)
+            self.logger.exception(err.message if hasattr(err, "message") else str(err))
 
     # command
 
