@@ -173,7 +173,7 @@ class MitmImage:
         upload_resp = self.client.add_file(io.BytesIO(content))
         self.logger.info("{},{}".format(upload_resp["status"], url))
         normalised_url = self.get_normalised_url(url)
-        self.client_worker.put_nowait(
+        self.client_queue.put_nowait(
             (
                 "associate_url",
                 [
