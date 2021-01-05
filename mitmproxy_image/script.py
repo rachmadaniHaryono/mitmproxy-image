@@ -297,9 +297,10 @@ class MitmImage:
                 log_func(log_msg)
         if additional_url:
             for new_url in additional_url:
-                self.client_queue.put_nowait(
-                    ("add_url", [new_url], {"page_name": "mitmimage_plus"})
-                )
+                args = ("add_url", [new_url], {"page_name": "mitmimage_plus"})
+                if urlparse(new_url).netloc == "youtube.com":
+                    args = ("add_url", [new_url], {"page_name": "mitmimage_youtube"})
+                self.client_queue.put_nowait(args)
                 self.logger.info(new_url)
 
     def get_normalised_url(self, url: str) -> str:
