@@ -33,10 +33,18 @@ mimetype:
 
 add_url_regex:
 # description: regex rule to add additional url to hydrus
-# it consist of  regex, target url string format and log flag (optional, default false)
+# it consist of:
+# - regex
+# - target url string format
+# - log flag (optional, default false)
+# - test example
+# - page name (optional, default mitmimage_plus)
 # example:
 # - - https:\/\/domain1\/.*
 #   - https://domain2/{0}
 # - - https:\/\/domain3\/.*
 #   - https://domain4/{0}
 #   - true
+#   - - https://domain1/main.html
+#     - https://pbs.twimg.com/media/Ep9S7TBVEAA7ETh?format=jpg&name=orig
+#   - custom_page_name

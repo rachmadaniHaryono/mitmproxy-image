@@ -280,26 +280,22 @@ class MitmImage:
                 return item
 
     def add_additional_url(self, url):
-        additional_url = []
+        url_sets = []
         regex_sets = self.config.get("add_url_regex", [])
         for regex_set in regex_sets:
             regex, url_fmt = regex_set[:2]
-            try:
-                log_flag = regex_set[2]
-            except IndexError:
-                log_flag = False
+            log_flag = regex_set[2] if 2 < len(regex_set) else False
+            page_name = regex_set[4] if 4 < len(regex_set) else "mitmimage_plus"
             match = re.match(regex, url)
             if match and match.groups():
                 new_url = url_fmt.format(*match.groups())
-                additional_url.append(new_url)
+                url_sets.append((new_url, page_name))
                 log_msg = "original:{}\ntarget:{}".format(url, new_url)
                 log_func = self.logger.info if log_flag else self.logger.debug
                 log_func(log_msg)
-        if additional_url:
-            for new_url in additional_url:
-                args = ("add_url", [new_url], {"page_name": "mitmimage_plus"})
-                if urlparse(new_url).netloc == "youtube.com":
-                    args = ("add_url", [new_url], {"page_name": "mitmimage_youtube"})
+        if url_sets:
+            for (new_url, page_name) in url_sets:
+                args = ("add_url", [new_url], {"page_name": page_name})
                 self.client_queue.put_nowait(args)
                 self.logger.info(new_url)
 
