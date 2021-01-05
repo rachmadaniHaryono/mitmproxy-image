@@ -94,12 +94,14 @@ def get_au_regex_rules_test_data():
     obj.load_config(config_path=obj.default_config_path)
     res = []
     for rule in filter(lambda x: len(x) > 3, obj.config.get("add_url_regex", [])):
-        res.extend(rule[3][:])
+        page_name = rule[4] if 4 < len(rule) else "mitmimage_plus"
+        for sub_data in rule[3]:
+            res.append(sub_data + [page_name])
     return res
 
 
-@pytest.mark.parametrize("url, exp_url", get_au_regex_rules_test_data())
-def test_add_additional_url(url, exp_url):
+@pytest.mark.parametrize("url, exp_url, page_name", get_au_regex_rules_test_data())
+def test_add_additional_url(url, exp_url, page_name):
     class MockQueue:
         history = []
 
@@ -111,7 +113,7 @@ def test_add_additional_url(url, exp_url):
     obj.client_queue = MockQueue()
     obj.add_additional_url(url)
     assert obj.client_queue.history == [
-        (("add_url", [exp_url], {"page_name": "mitmimage_plus"}),)
+        (("add_url", [exp_url], {"page_name": page_name}),)
     ]
 
 
