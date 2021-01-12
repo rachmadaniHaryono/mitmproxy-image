@@ -112,9 +112,10 @@ def test_add_additional_url(url, exp_url, page_name):
     obj.load_config(config_path=obj.default_config_path)
     obj.client_queue = MockQueue()
     obj.add_additional_url(url)
-    assert obj.client_queue.history == [
-        (("add_url", [exp_url], {"page_name": page_name}),)
+    history = [
+        (x[0][1][0], x[0][2].get("page_name", None)) for x in obj.client_queue.history
     ]
+    assert (exp_url, page_name) in history
 
 
 if __name__ == "__main__":
