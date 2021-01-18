@@ -526,9 +526,9 @@ class MitmImage:
 
     @command.command("mitmimage.clear_data")
     def clear_data(self) -> None:
-        self.url_data = defaultdict(list)
-        self.normalised_url_data = {}
-        self.hash_data = {}
+        self.url_data: Dict[str, List[str]] = defaultdict(list)
+        self.normalised_url_data: Dict[str, str] = {}
+        self.hash_data: Dict[str, ImportStatus] = {}
         if hasattr(ctx, "log"):
             ctx.log.info("mitmimage: data cleared")
 
