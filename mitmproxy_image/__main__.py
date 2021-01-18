@@ -10,7 +10,6 @@ import asyncio
 import logging
 import os
 import pathlib
-import shlex
 import signal
 from datetime import datetime
 from typing import Optional, Union
