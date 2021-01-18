@@ -328,13 +328,11 @@ class MitmImage:
 
     async def post_upload_worker(self):
         # compatibility
-        client = self.client
         queue = self.post_upload_queue
         logger = self.logger
         get_normalised_url_func = self.get_normalised_url
         url_data = self.url_data
         hash_data = self.hash_data
-        client_lock = self.client_lock
         get_url_filename_func = self.get_url_filename
         while True:
             try:
@@ -505,9 +503,7 @@ class MitmImage:
                 self.remove_from_view(flow)
                 return
             hashes = self.get_hashes(url, "on_empty")
-            upload_resp = None
             if not hashes:
-                #  upload_resp = self.upload(flow)
                 self.upload_queue.put_nowait(flow)
             else:
                 referer = flow.request.headers.get("referer", None)
@@ -587,7 +583,6 @@ class MitmImage:
                 self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
-            normalised_url = self.get_normalised_url(url)
             self.client_queue.put_nowait(("add_url", [url], {"page_name": "mitmimage"}))
             resp_history.append(resp)
             if remove and resp is not None:
