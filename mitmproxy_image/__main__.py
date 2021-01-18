@@ -121,13 +121,18 @@ def cli():
 @click.option(
     "--listen-port", show_default=True, default=LISTEN_PORT, help="Port for mitmproxy"
 )
-def run_mitmproxy_cmd(listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT):
+@click.option("--http2/--no-http2", default=True)
+def run_mitmproxy_cmd(
+    listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT, http2=True
+):
     """Run mitmproxy.
 
     based on mitmproxy.main.py and example from following url:
     https://stackoverflow.com/a/62900530/1766261
     """
-    opts = main.options.Options(listen_host=listen_host, listen_port=listen_port)
+    opts = main.options.Options(
+        listen_host=listen_host, listen_port=listen_port, http2=http2
+    )
     master = console.master.ConsoleMaster(opts)
     master.view.focus_follow = True
     pconf = main.proxy.config.ProxyConfig(opts)
