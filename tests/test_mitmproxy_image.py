@@ -1,13 +1,15 @@
 import os
 import tempfile
+import traceback
 import unittest
 from unittest import mock
 
 import pytest
+from click.testing import CliRunner
+from mitmproxy.tools import console
 
-from mitmproxy_image.__main__ import create_app
+from mitmproxy_image.__main__ import cli, create_app
 from mitmproxy_image.script import MitmImage
-from mitmproxy_image import __main__
 
 PICKLE_PATH = os.path.join(
     os.path.dirname(__file__), "pickle", "20200120_223805.pickle"
@@ -116,6 +118,20 @@ def test_add_additional_url(url, exp_url, page_name):
         (x[0][1][0], x[0][2].get("page_name", None)) for x in obj.client_queue.history
     ]
     assert (exp_url, page_name) in history
+
+
+def test_run_mitmproxy_cmd(monkeypatch):
+    # NOTE: listen-host not use 127.0.0.1 so it can be tested
+    #  while program with default value can run
+    master = mock.Mock()
+    monkeypatch.setattr(console.master, "ConsoleMaster", master)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["run-mitmproxy", "--listen-host", "127.0.0.2"])
+    exc = result.exception
+
+    assert result.exit_code == 0, "".join(
+        traceback.format_exception(etype=type(exc), value=exc, tb=exc.__traceback__)
+    )
 
 
 if __name__ == "__main__":
