@@ -3,13 +3,14 @@ import tempfile
 import traceback
 import unittest
 from unittest import mock
+from argparse import Namespace
 
 import pytest
 from click.testing import CliRunner
 from mitmproxy.tools import console
 
 from mitmproxy_image.__main__ import cli, create_app
-from mitmproxy_image.script import MitmImage
+from mitmproxy_image.script import MitmImage, get_mimetype
 
 PICKLE_PATH = os.path.join(
     os.path.dirname(__file__), "pickle", "20200120_223805.pickle"
@@ -132,6 +133,25 @@ def test_run_mitmproxy_cmd(monkeypatch):
     assert result.exit_code == 0, "".join(
         traceback.format_exception(etype=type(exc), value=exc, tb=exc.__traceback__)
     )
+
+
+@pytest.mark.parametrize(
+    "flow, url, exp_res",
+    [
+        [Namespace(response=None), None, None],
+        [None, "http://example.com/index.html", "text/html"],
+        [None, "http://example.com/index.random", None],
+        [None, "http://google.com", "application/x-msdos-program"],
+        [None, "http://google.com/1.jpg", "image/jpeg"],
+        [Namespace(response=None), "http://example.com/index.html", None],
+    ],
+)
+def test_get_mimetype(flow, url, exp_res):
+    if all([flow, url]):
+        with pytest.raises(ValueError):
+            get_mimetype(flow, url)
+    else:
+        assert get_mimetype(flow, url) == exp_res
 
 
 if __name__ == "__main__":
