@@ -143,7 +143,9 @@ class MitmImage:
         if from_hydrus is not None:
             assert from_hydrus in ["always", "on_empty"]
         n_url = self.get_normalised_url(url)
-        hashes = self.url_data.get(n_url, [])
+        hashes = []
+        if n_url:
+            hashes = self.url_data.get(n_url, [])
         if (
             not from_hydrus
             or not self.is_valid_content_type(url=url)
@@ -151,13 +153,14 @@ class MitmImage:
         ):
             return hashes
         huf_resp = self.get_url_files(url)
-        self.normalised_url_data[url] = huf_resp["normalised_url"]
-        n_url = huf_resp["normalised_url"]
-        # ufs = get_url_status
-        for ufs in huf_resp["url_file_statuses"]:
-            self.url_data[n_url].append(ufs["hash"])
-            self.hash_data[ufs["hash"]] = ufs["status"]
-        hashes = self.url_data[n_url] = list(set(self.url_data[n_url]))
+        n_url = huf_resp.get("normalised_url", None)
+        if n_url:
+            self.normalised_url_data[url] = n_url
+            # ufs = get_url_status
+            for ufs in huf_resp["url_file_statuses"]:
+                self.url_data[n_url].append(ufs["hash"])
+                self.hash_data[ufs["hash"]] = ufs["status"]
+            hashes = self.url_data[n_url] = list(set(self.url_data[n_url]))
         return hashes
 
     def upload(self, flow: Union[http.HTTPFlow, Flow]) -> Optional[Dict[str, str]]:
@@ -187,7 +190,8 @@ class MitmImage:
             )
         )
         # update data
-        self.url_data[normalised_url].append(upload_resp["hash"])
+        if normalised_url:
+            self.url_data[normalised_url].append(upload_resp["hash"])
         self.hash_data[upload_resp["hash"]] = upload_resp["status"]
         return upload_resp
 
@@ -300,11 +304,12 @@ class MitmImage:
                 self.client_queue.put_nowait(args)
                 self.logger.info(new_url)
 
-    def get_normalised_url(self, url: str) -> str:
+    def get_normalised_url(self, url: str) -> Optional[str]:
         if url in self.normalised_url_data:
             return self.normalised_url_data[url]
-        normalised_url = self.client.get_url_info(url)["normalised_url"]
-        self.normalised_url_data[url] = normalised_url
+        normalised_url = self.client.get_url_info(url).get("normalised_url", None)
+        if normalised_url is not None:
+            self.normalised_url_data[url] = normalised_url
         return normalised_url
 
     async def client_worker(self):
@@ -419,7 +424,9 @@ class MitmImage:
                 self.remove_from_view(flow=flow)
                 return
             normalised_url = self.get_normalised_url(url)
-            hashes: List[str] = self.get_hashes(normalised_url, "always")
+            hashes = []
+            if normalised_url:
+                hashes = self.get_hashes(normalised_url, "always")
             if not hashes and not self.is_valid_content_type(url=url):
                 return
             if len(hashes) == 1:

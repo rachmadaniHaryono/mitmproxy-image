@@ -154,5 +154,30 @@ def test_get_mimetype(flow, url, exp_res):
         assert get_mimetype(flow, url) == exp_res
 
 
+@pytest.mark.parametrize(
+    "url, exp_res, nu_data, url_info",
+    [
+        ["http://example.com", None, {}, {}],
+        [
+            "http://example.com",
+            "http://example.com/index.html",
+            {"http://example.com": "http://example.com/index.html"},
+            {},
+        ],
+        [
+            "http://example.com",
+            "http://example.com/index.html",
+            {},
+            {"normalised_url": "http://example.com/index.html"},
+        ],
+    ],
+)
+def test_get_normalised_url(url, exp_res, nu_data, url_info):
+    obj = MitmImage()
+    obj.client.get_url_info = mock.Mock(return_value=url_info)
+    obj.normalised_url_data = nu_data
+    assert obj.get_normalised_url(url) == exp_res
+
+
 if __name__ == "__main__":
     pytest.main()
