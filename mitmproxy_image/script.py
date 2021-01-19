@@ -29,10 +29,13 @@ def get_mimetype(
         raise ValueError("Only require flow or url")
     mimetype = None
     if flow is None:
+        # no query url
+        nq_url = urlparse(url)._replace(query="").geturl()  # type: ignore
         try:
-            mimetype = cgi.parse_header(
-                mimetypes.guess_type(urlparse(url)._replace(query="").geturl())[0]
-            )[0]
+            header = mimetypes.guess_type(nq_url)[0]
+            if header is None:
+                return None
+            mimetype = cgi.parse_header(header)[0]
         except TypeError:
             return None
     elif flow.response is None or (
@@ -130,15 +133,13 @@ class MitmImage:
                     view.sig_view_remove.send(view, flow=f, index=idx)
                 except ValueError as err:
                     self.logger.debug(
-                        err.message if hasattr(err, "message") else str(err),
+                        str(err),
                         exc_info=True,
                     )
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
-    def get_hashes(
-        self, url: str, from_hydrus: Optional[str] = None
-    ) -> Optional[List[str]]:
+    def get_hashes(self, url: str, from_hydrus: Optional[str] = None) -> List[str]:
         if from_hydrus is not None:
             assert from_hydrus in ["always", "on_empty"]
         n_url = self.get_normalised_url(url)
@@ -463,7 +464,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
         except Exception as err:
-            self.logger.exception(err.message if hasattr(err, "message") else str(err))
+            self.logger.exception(str(err))
 
     def responseheaders(self, flow: http.HTTPFlow):
         try:
@@ -481,7 +482,7 @@ class MitmImage:
             if not valid_content_type:
                 self.remove_from_view(flow)
         except Exception as err:
-            self.logger.exception(err.message if hasattr(err, "message") else str(err))
+            self.logger.exception(str(err))
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
@@ -512,7 +513,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
         except Exception as err:
-            self.logger.exception(err.message if hasattr(err, "message") else str(err))
+            self.logger.exception(str(err))
 
     # command
 
