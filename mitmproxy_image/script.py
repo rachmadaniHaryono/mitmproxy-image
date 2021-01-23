@@ -403,7 +403,11 @@ class MitmImage:
                 async with client_lock:
                     upload_resp = client.add_file(io.BytesIO(content))
                 referer = flow.request.headers.get("referer", None)
-                post_upload_queue.put_nowait((url, upload_resp, referer))
+                if upload_resp["status"] not in [
+                    ImportStatus.Failed,
+                    ImportStatus.PreviouslyDeleted,
+                ]:
+                    post_upload_queue.put_nowait((url, upload_resp, referer))
                 logger.info("{},{}".format(upload_resp["status"], url))
             except Exception as err:
                 self.logger.error(
