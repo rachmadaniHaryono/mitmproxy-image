@@ -371,7 +371,6 @@ class MitmImage:
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
                 self.client_queue.put_nowait(("add_url", [normalised_url], kwargs))
-                logger.info("add url:{}".format(url))
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -403,9 +402,9 @@ class MitmImage:
                 # upload file
                 async with client_lock:
                     upload_resp = client.add_file(io.BytesIO(content))
-                logger.info("{},{}".format(upload_resp["status"], url))
                 referer = flow.request.headers.get("referer", None)
                 post_upload_queue.put_nowait((url, upload_resp, referer))
+                logger.info("{},{}".format(upload_resp["status"], url))
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -458,7 +457,7 @@ class MitmImage:
                 )
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
-                self.logger.info("cached:{}".format(url))
+                self.logger.info("add and cached:{}".format(url))
                 self.remove_from_view(flow=flow)
             elif hashes:
                 self.logger.debug(
@@ -516,6 +515,7 @@ class MitmImage:
             else:
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
+                self.logger.info("add:{}".format(url))
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
