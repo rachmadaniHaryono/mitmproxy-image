@@ -514,9 +514,19 @@ class MitmImage:
                 self.remove_from_view(flow)
                 return
             hashes = self.get_hashes(url, "on_empty")
+            single_hash_data = None
+            if hashes and len(hashes) == 1:
+                single_hash_data = self.hash_data.get(hashes[0], None)
             if not hashes:
                 self.upload_queue.put_nowait(flow)
+            elif single_hash_data in [
+                ImportStatus.Failed,
+                ImportStatus.PreviouslyDeleted,
+            ]:
+                # NOTE: don't do anything to it
+                pass
             else:
+                # NOTE: add referer & url filename to url
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
                 hashes_status = [
