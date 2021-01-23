@@ -265,7 +265,7 @@ class MitmImage:
                     url_filename = None
                 if url_filename and len(url_filename) > max_len:
                     self.logger.info(
-                        "url filename too long:{}...,{}".format(
+                        "url filename too long:{}\nurl:{}".format(
                             url_filename[:max_len], url
                         )
                     )
