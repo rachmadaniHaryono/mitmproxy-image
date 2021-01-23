@@ -519,7 +519,10 @@ class MitmImage:
             else:
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
-                self.logger.info("add:{}".format(url))
+                hashes_status = [
+                    "{}:{}".format(self.hash_data.get(x, None), x) for x in hashes
+                ]
+                self.logger.info("add:{}\n{}".format(url, "\n".join(hashes_status)))
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
@@ -534,9 +537,11 @@ class MitmImage:
 
     @command.command("mitmimage.clear_data")
     def clear_data(self) -> None:
-        self.url_data: Dict[str, List[str]] = defaultdict(list)
-        self.normalised_url_data: Dict[str, str] = {}
-        self.hash_data: Dict[str, ImportStatus] = {}
+        HashStr = str
+        NormalisedUrl = str
+        self.url_data: Dict[NormalisedUrl, List[str]] = defaultdict(list)
+        self.normalised_url_data: Dict[NormalisedUrl, HashStr] = {}
+        self.hash_data: Dict[HashStr, ImportStatus] = {}
         if hasattr(ctx, "log"):
             ctx.log.info("mitmimage: data cleared")
 
