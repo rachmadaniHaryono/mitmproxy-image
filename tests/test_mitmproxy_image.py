@@ -49,12 +49,13 @@ def test_mitmimage_init():
 def test_mitmimage_is_valid_content_type(headers, res):
     mock_flow = mock.Mock()
     mock_flow.response.data.headers = headers
+    mock_flow.request.pretty_url = "https://example.com"
     obj = MitmImage()
     assert obj.is_valid_content_type(mock_flow) == res
 
 
 def test_is_valid_content_type_url():
-    url = "https://net/v/t1.0-9/4_o.jpg?_nc_cat=100"
+    url = "https://example.com/v/t1.0-9/4_o.jpg?_nc_cat=100"
     obj = MitmImage()
     assert obj.is_valid_content_type(url=url)
 

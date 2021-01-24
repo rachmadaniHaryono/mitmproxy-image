@@ -25,27 +25,39 @@ from mitmproxy.script import concurrent
 def get_mimetype(
     flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
 ) -> Optional[str]:
+    """Get mimetype from flow or url.
+
+    >>> get_mimetype(SimpleNamespace(response={}), 'http://example.com')
+    Traceback (most recent call last):
+    ...
+    ValueError: Only require flow or url
+
+    >>> get_mimetype(url='http://example.com/1.jpg')
+    'image/jpeg'
+
+    >>> get_mimetype(SimpleNamespace(response=SimpleNamespace(data=SimpleNamespace(
+    ...     headers={'Content-type': 'image/jpeg'}))))
+    'image/jpeg'
+    """
     if all([flow, url]):
         raise ValueError("Only require flow or url")
-    mimetype = None
-    if flow is None:
+    header = None
+    try:
+        header = flow.response.data.headers["Content-type"]
+    except Exception as err:
+        logging.getLogger().debug(str(err), exc_info=True)
+        if flow is not None:
+            url = getattr(getattr(flow, "request", None), "pretty_url", None)
+    if url is not None:
         # no query url
         nq_url = urlparse(url)._replace(query="").geturl()  # type: ignore
-        try:
-            header = mimetypes.guess_type(nq_url)[0]
-            if header is None:
-                return None
-            mimetype = cgi.parse_header(header)[0]
-        except TypeError:
-            return None
-    elif flow.response is None or (
-        hasattr(flow.response, "data")
-        and "Content-type" not in flow.response.data.headers
-    ):
+        nq_url_type = mimetypes.guess_type(nq_url)
+        header = nq_url_type[0] if len(nq_url_type) > 0 else None
+    if header is None:
         return None
-    else:
-        mimetype = cgi.parse_header(flow.response.data.headers["Content-type"])[0]
-    return mimetype
+    # parsed header
+    p_header = cgi.parse_header(header)
+    return p_header[0] if len(p_header) > 0 else None
 
 
 class MitmImage:
