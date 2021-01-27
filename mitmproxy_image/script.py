@@ -511,7 +511,7 @@ class MitmImage:
             single_hash_data = None
             if hashes and len(hashes) == 1:
                 single_hash_data = self.hash_data.get(hashes[0], None)
-            if not hashes:
+            if not hashes or single_hash_data == ImportStatus.Importable:
                 self.upload_queue.put_nowait(flow)
             elif single_hash_data in [
                 ImportStatus.Failed,
