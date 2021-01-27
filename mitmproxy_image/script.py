@@ -345,7 +345,6 @@ class MitmImage:
     async def post_upload_worker(self):
         # compatibility
         queue = self.post_upload_queue
-        logger = self.logger
         get_normalised_url_func = self.get_normalised_url
         url_data = self.url_data
         hash_data = self.hash_data
