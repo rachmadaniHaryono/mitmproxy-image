@@ -103,6 +103,8 @@ class MitmImage:
         self.client_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.cached_urls = []
+        self.page_name = "mitmimage"
+        self.additional_page_name = "mitmimage_plus"
 
     def is_valid_content_type(
         self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
@@ -267,7 +269,12 @@ class MitmImage:
             self.skip_url.cache_clear()
 
     @functools.lru_cache(1024)
-    def get_url_filename(self, url, max_len=120):
+    def get_url_filename(self, url: str, max_len: int = 120):
+        """Get url filename.
+
+        >>> MitmImage().get_url_filename('http://example.com/1.jpg')
+        '1'
+        """
         url_filename = None
         try:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
@@ -296,13 +303,35 @@ class MitmImage:
                     item.append(False)
                 return item
 
-    def add_additional_url(self, url):
+    def add_additional_url(self, url: str):
+        """add additional url.
+
+        >>> from unittest import mock
+        >>> obj = MitmImage()
+        >>> obj.config = {'add_url_regex': [[
+        ...     r'https://example.com/(.*)',
+        ...     'https://example.com/sub/{0}']]}
+        >>> obj.client_queue.put_nowait = mock.Mock()
+        >>> obj.add_additional_url('https://example.com/1.jpg')
+        >>> obj.client_queue.put_nowait.assert_called_once_with((
+        ...     'add_url', [], {
+        ...         'url': 'https://example.com/sub/1.jpg',
+        ...         'page_name': obj.additional_page_name,
+        ...         'service_names_to_additional_tags': {
+        ...             'my tags': ['filename:1']
+        ...         }
+        ...     }
+        ... ))
+
+        """
         url_sets = []
         regex_sets = self.config.get("add_url_regex", [])
         for regex_set in regex_sets:
             regex, url_fmt = regex_set[:2]
             log_flag = regex_set[2] if 2 < len(regex_set) else False
-            page_name = regex_set[4] if 4 < len(regex_set) else "mitmimage_plus"
+            page_name = (
+                regex_set[4] if 4 < len(regex_set) else self.additional_page_name
+            )
             match = re.match(regex, url)
             if match and match.groups():
                 new_url = url_fmt.format(*match.groups())
@@ -312,7 +341,13 @@ class MitmImage:
                 log_func(log_msg)
         if url_sets:
             for (new_url, page_name) in url_sets:
-                args = ("add_url", [new_url], {"page_name": page_name})
+                kwargs = {"page_name": page_name, "url": new_url}
+                filename = self.get_url_filename(new_url)
+                if filename:
+                    kwargs["service_names_to_additional_tags"] = {
+                        "my tags": ["filename:{}".format(filename)]
+                    }
+                args = ("add_url", [], kwargs)
                 self.client_queue.put_nowait(args)
                 self.logger.info(new_url)
 

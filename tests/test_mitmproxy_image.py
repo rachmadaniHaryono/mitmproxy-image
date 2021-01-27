@@ -117,7 +117,8 @@ def test_add_additional_url(url, exp_url, page_name):
     obj.client_queue = MockQueue()
     obj.add_additional_url(url)
     history = [
-        (x[0][1][0], x[0][2].get("page_name", None)) for x in obj.client_queue.history
+        (x[0][2].get("url", None), x[0][2].get("page_name", None))
+        for x in obj.client_queue.history
     ]
     assert (exp_url, page_name) in history
 
