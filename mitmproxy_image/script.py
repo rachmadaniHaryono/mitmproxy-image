@@ -488,24 +488,6 @@ class MitmImage:
         except Exception as err:
             self.logger.exception(str(err))
 
-    def responseheaders(self, flow: http.HTTPFlow):
-        try:
-            url = flow.request.pretty_url
-            if url in self.cached_urls:
-                self.remove_from_view(flow)
-                return
-            match_regex = self.skip_url(url)
-            if match_regex:
-                msg = "rskip url:{},{}".format(match_regex[1], url)
-                self.logger.debug(msg)
-                self.remove_from_view(flow)
-                return
-            valid_content_type = self.is_valid_content_type(flow)
-            if not valid_content_type:
-                self.remove_from_view(flow)
-        except Exception as err:
-            self.logger.exception(str(err))
-
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
@@ -517,11 +499,13 @@ class MitmImage:
                 self.logger.debug(msg)
                 self.remove_from_view(flow)
                 return
-            valid_content_type = self.is_valid_content_type(flow)
-            if not valid_content_type:
+            if get_mimetype(flow=flow) is None:
+                self.logger.debug("No mimetype:\n{}".format(vars(flow.response)))
+            elif not self.is_valid_content_type(flow):
                 self.remove_from_view(flow)
                 return
             normalised_url = self.get_normalised_url(url)
+            # skip when it is cached
             if normalised_url in self.cached_urls:
                 self.remove_from_view(flow)
                 return
