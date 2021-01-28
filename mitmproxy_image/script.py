@@ -165,7 +165,7 @@ class MitmImage:
             or not self.is_valid_content_type(url=url)
             or (hashes and from_hydrus == "on_empty")
         ):
-            return hashes
+            return list(set(hashes))
         huf_resp = self.get_url_files(url)
         n_url = huf_resp.get("normalised_url", None)
         if n_url:
@@ -175,7 +175,7 @@ class MitmImage:
                 self.url_data[n_url].append(ufs["hash"])
                 self.hash_data[ufs["hash"]] = ufs["status"]
             hashes = self.url_data[n_url] = list(set(self.url_data[n_url]))
-        return hashes
+        return list(set(hashes))
 
     def upload(self, flow: Union[http.HTTPFlow, Flow]) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url  # type: ignore
@@ -541,7 +541,7 @@ class MitmImage:
             if normalised_url in self.cached_urls:
                 self.remove_from_view(flow)
                 return
-            hashes = self.get_hashes(url, "on_empty")
+            hashes = list(set(self.get_hashes(url, "on_empty")))
             single_hash_data = None
             if hashes and len(hashes) == 1:
                 single_hash_data = self.hash_data.get(hashes[0], None)
