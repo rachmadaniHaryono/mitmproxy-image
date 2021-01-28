@@ -453,6 +453,8 @@ class MitmImage:
                 ]:
                     post_upload_queue.put_nowait((url, upload_resp, referer))
                 logger.info("{},{}".format(upload_resp["status"], url))
+            except ConnectionError as err:
+                self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
