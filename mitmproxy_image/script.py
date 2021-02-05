@@ -519,7 +519,10 @@ class MitmImage:
                     )
                 )
             else:
-                self.logger.debug("no hash:{}\nn url:{}".format(url, normalised_url))
+                msg = "no hash:{}".format(url)
+                if url != normalised_url:
+                    msg = "{}\nn url:{}".format(msg, normalised_url)
+                self.logger.debug(msg)
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
         except Exception as err:
