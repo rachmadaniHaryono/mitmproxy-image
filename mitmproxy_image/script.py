@@ -466,6 +466,9 @@ class MitmImage:
         try:
             url: str = flow.request.pretty_url
             self.add_additional_url(url)
+            if flow.request.method == "POST":
+                self.remove_from_view(flow=flow)
+                return
             match_regex = self.skip_url(url)
             if match_regex:
                 msg = "rskip url:{},{}".format(match_regex[1], url)
