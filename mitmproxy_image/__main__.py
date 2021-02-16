@@ -147,7 +147,14 @@ def run_mitmproxy_cmd(
     loop.create_task(ao_obj.upload_worker())
     loop.create_task(ao_obj.post_upload_worker())
     loop.create_task(ao_obj.client_worker())
-    master.run()
+    restart = False
+    while not restart:
+        try:
+            master.run()
+            restart = False
+        except Exception as err:
+            logging.debug(str(err), exc_info=True)
+            restart = True
     return master
 
 
