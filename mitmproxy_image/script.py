@@ -116,7 +116,9 @@ class MitmImage:
             maintype, subtype = mimetype.lower().split("/")
             subtype = subtype.lower()
         except ValueError:
-            self.logger.info("unknown mimetype:{}".format(mimetype))
+            self.logger.info(
+                "unknown mimetype:{}\nurl:{}\nflow:{}".format(mimetype, url, flow)
+            )
             return False
         mimetype_sets = self.config.get("mimetype", [])
         if not mimetype_sets and maintype == "image":
