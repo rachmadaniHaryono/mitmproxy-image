@@ -110,7 +110,7 @@ class MitmImage:
         self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
     ) -> bool:
         mimetype = get_mimetype(flow, url)
-        if mimetype is None:
+        if not mimetype:
             return False
         try:
             maintype, subtype = mimetype.lower().split("/")
