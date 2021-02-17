@@ -12,7 +12,7 @@ import typing
 from collections import Counter, defaultdict
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 from urllib.parse import unquote_plus, urlparse
 
 import yaml
@@ -92,17 +92,13 @@ class MitmImage:
             if hasattr(ctx, "master"):
                 self.view = ctx.master.addons.get("view")
         except Exception as err:
-            self.logger.exception(
-                "{}\nload view on init".format(
-                    err.message if hasattr(err, "message") else str(err)
-                )
-            )
+            self.logger.exception("{}".format(str(err)))
             self.view = None
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
-        self.cached_urls = []
+        self.cached_urls = {}
         self.page_name = "mitmimage"
         self.additional_page_name = "mitmimage_plus"
 
@@ -155,29 +151,27 @@ class MitmImage:
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
-    def get_hashes(self, url: str, from_hydrus: Optional[str] = None) -> List[str]:
-        if from_hydrus is not None:
-            assert from_hydrus in ["always", "on_empty"]
-        n_url = self.get_normalised_url(url)
-        hashes = []
-        if n_url:
-            hashes = self.url_data.get(n_url, [])
-        if (
-            not from_hydrus
-            or not self.is_valid_content_type(url=url)
-            or (hashes and from_hydrus == "on_empty")
-        ):
-            return list(set(hashes))
-        huf_resp = self.get_url_files(url)
-        n_url = huf_resp.get("normalised_url", None)
-        if n_url:
-            self.normalised_url_data[url] = n_url
-            # ufs = get_url_status
-            for ufs in huf_resp["url_file_statuses"]:
-                self.url_data[n_url].append(ufs["hash"])
-                self.hash_data[ufs["hash"]] = ufs["status"]
-            hashes = self.url_data[n_url] = list(set(self.url_data[n_url]))
-        return list(set(hashes))
+    def get_hashes(self, url: str, from_hydrus: str = "on_empty") -> Set[str]:
+        """get hashes based on url input.
+
+        If `from_hydrus` is `always`, ask client everytime.
+        If `from_hydrus` is `on_empty`, ask client only when url not in self.url_data.
+
+        >>> # url don't have any hashes on self.url_data and client
+        >>> MitmImage().get_hashes('http://example.com')
+        set()
+        """
+        assert from_hydrus in ["always", "on_empty"]
+        hashes = self.url_data.get(url, {})
+        if hashes and from_hydrus == "on_empty":
+            return hashes
+        huf_resp = self.client.get_url_files(url)
+        # ufs = get_url_status
+        for ufs in huf_resp["url_file_statuses"]:
+            self.url_data[url].add(ufs["hash"])
+            self.hash_data[ufs["hash"]] = ufs["status"]
+        hashes = self.url_data[url]
+        return hashes
 
     def upload(self, flow: Union[http.HTTPFlow, Flow]) -> Optional[Dict[str, str]]:
         url = flow.request.pretty_url  # type: ignore
@@ -192,7 +186,6 @@ class MitmImage:
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
         self.logger.info("{},{}".format(upload_resp["status"], url))
-        normalised_url = self.get_normalised_url(url)
         self.client_queue.put_nowait(
             (
                 "associate_url",
@@ -200,14 +193,13 @@ class MitmImage:
                     [
                         upload_resp["hash"],
                     ],
-                    [normalised_url],
+                    [url],
                 ],
                 {},
             )
         )
         # update data
-        if normalised_url:
-            self.url_data[normalised_url].append(upload_resp["hash"])
+        self.url_data[url].add(upload_resp["hash"])
         self.hash_data[upload_resp["hash"]] = upload_resp["status"]
         return upload_resp
 
@@ -477,10 +469,8 @@ class MitmImage:
                 self.logger.debug(msg)
                 self.remove_from_view(flow=flow)
                 return
-            normalised_url = self.get_normalised_url(url)
             hashes = []
-            if normalised_url:
-                hashes = self.get_hashes(normalised_url, "always")
+            hashes = self.get_hashes(url, "always")
             if not hashes and not self.is_valid_content_type(url=url):
                 return
             if len(hashes) == 1:
@@ -505,10 +495,10 @@ class MitmImage:
                     content=file_data.content,
                     headers=dict(file_data.headers),
                 )
-                if normalised_url not in self.cached_urls:
-                    self.cached_urls.append(normalised_url)
+                if url not in self.cached_urls:
+                    self.cached_urls.add(url)
                 self.client_queue.put_nowait(
-                    ("add_url", [normalised_url], {"page_name": "mitmimage"})
+                    ("add_url", [url], {"page_name": "mitmimage"})
                 )
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
@@ -516,14 +506,12 @@ class MitmImage:
                 self.remove_from_view(flow=flow)
             elif hashes:
                 self.logger.debug(
-                    "hash count:{},{}\nn url:{}\nurl hash:\n{}".format(
-                        len(hashes), url, normalised_url, "\n".join(hashes)
+                    "hash count:{},{}\nurl hash:\n{}".format(
+                        len(hashes), url, "\n".join(hashes)
                     )
                 )
             else:
                 msg = "no hash:{}".format(url)
-                if url != normalised_url:
-                    msg = "{}\nn url:{}".format(msg, normalised_url)
                 self.logger.debug(msg)
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
@@ -551,7 +539,7 @@ class MitmImage:
             if normalised_url in self.cached_urls:
                 self.remove_from_view(flow)
                 return
-            hashes = list(set(self.get_hashes(url, "on_empty")))
+            hashes = self.get_hashes(url, "on_empty")
             single_hash_data = None
             if hashes and len(hashes) == 1:
                 single_hash_data = self.hash_data.get(hashes[0], None)
@@ -585,11 +573,8 @@ class MitmImage:
 
     @command.command("mitmimage.clear_data")
     def clear_data(self) -> None:
-        HashStr = str
-        NormalisedUrl = str
-        self.url_data: Dict[NormalisedUrl, List[str]] = defaultdict(list)
-        self.normalised_url_data: Dict[NormalisedUrl, HashStr] = {}
-        self.hash_data: Dict[HashStr, ImportStatus] = {}
+        self.url_data: Dict[str, Set[str]] = defaultdict(set)
+        self.hash_data: Dict[str, ImportStatus] = {}
         if hasattr(ctx, "log"):
             ctx.log.info("mitmimage: data cleared")
 
