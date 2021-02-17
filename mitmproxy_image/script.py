@@ -270,6 +270,11 @@ class MitmImage:
         url_filename = None
         try:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
+            if url_filename:
+                for item in self.config.get("block_url_filename_regex", []):
+                    if re.match(item[0], url):
+                        self.logger.debug("skip filename:{},{}".format(item[1], url))
+                        return None
             if url_filename and len(url_filename) > max_len:
                 self.logger.info(
                     "url filename too long:{}\nurl:{}".format(
@@ -277,11 +282,6 @@ class MitmImage:
                     )
                 )
                 return None
-            if url_filename:
-                for item in self.config.get("block_url_filename_regex", []):
-                    if re.match(item[0], url):
-                        self.logger.debug("rskip filename:{},{}".format(item[1], url))
-                        return None
         except Exception as err:
             self.logger.exception(str(err))
         return url_filename
