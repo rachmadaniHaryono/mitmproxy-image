@@ -99,7 +99,7 @@ class MitmImage:
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
-        self.cached_urls = {}
+        self.cached_urls = set()
         self.page_name = "mitmimage"
         self.additional_page_name = "mitmimage_plus"
 
