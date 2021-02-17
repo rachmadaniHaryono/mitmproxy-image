@@ -1,15 +1,14 @@
+import itertools
 import os
 import tempfile
-import traceback
 import unittest
-from unittest import mock
 from argparse import Namespace
+from unittest import mock
 
 import pytest
-from click.testing import CliRunner
 from mitmproxy.tools import console
 
-from mitmproxy_image.__main__ import cli, create_app
+from mitmproxy_image.__main__ import create_app, run_mitmproxy
 from mitmproxy_image.script import MitmImage, get_mimetype
 
 PICKLE_PATH = os.path.join(
@@ -123,18 +122,12 @@ def test_add_additional_url(url, exp_url, page_name):
     assert (exp_url, page_name) in history
 
 
-def test_run_mitmproxy_cmd(monkeypatch):
+def test_run_mitmproxy(monkeypatch):
     # NOTE: listen-host not use 127.0.0.1 so it can be tested
     #  while program with default value can run
     master = mock.Mock()
     monkeypatch.setattr(console.master, "ConsoleMaster", master)
-    runner = CliRunner()
-    result = runner.invoke(cli, ["run-mitmproxy", "--listen-host", "127.0.0.2"])
-    exc = result.exception
-
-    assert result.exit_code == 0, "".join(
-        traceback.format_exception(etype=type(exc), value=exc, tb=exc.__traceback__)
-    )
+    assert not run_mitmproxy(listen_host="127.0.0.2")
 
 
 @pytest.mark.parametrize(
@@ -179,6 +172,19 @@ def test_get_normalised_url(url, exp_res, nu_data, url_info):
     obj.client.get_url_info = mock.Mock(return_value=url_info)
     obj.normalised_url_data = nu_data
     assert obj.get_normalised_url(url) == exp_res
+
+
+@pytest.mark.parametrize(
+    "from_hydrus, valid_ct", itertools.product(["always", "on_empty"], [True, False])
+)
+def test_get_hashes(from_hydrus, valid_ct):
+    obj = MitmImage()
+
+    def is_valid_content_type(url):
+        return valid_ct
+
+    obj.is_valid_content_type = is_valid_content_type
+    assert not obj.get_hashes("http://example.com", from_hydrus)
 
 
 if __name__ == "__main__":
