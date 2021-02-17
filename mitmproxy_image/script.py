@@ -260,28 +260,30 @@ class MitmImage:
             self.skip_url.cache_clear()
 
     @functools.lru_cache(1024)
-    def get_url_filename(self, url: str, max_len: int = 120):
+    def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
         """Get url filename.
 
         >>> MitmImage().get_url_filename('http://example.com/1.jpg')
         '1'
+        >>> MitmImage().get_url_filename('http://example.com/1234.jpg', max_len=1)
         """
         url_filename = None
         try:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
-            for item in self.config.get("block_url_filename_regex", []):
-                if url_filename and re.match(item[0], url_filename.lower()):
-                    self.logger.info("rskip filename:{},{}".format(item[1], url))
-                    url_filename = None
-                if url_filename and len(url_filename) > max_len:
-                    self.logger.info(
-                        "url filename too long:{}\nurl:{}".format(
-                            url_filename[:max_len], url
-                        )
+            if url_filename and len(url_filename) > max_len:
+                self.logger.info(
+                    "url filename too long:{}\nurl:{}".format(
+                        url_filename[:max_len], url
                     )
-                    url_filename = None
+                )
+                return None
+            if url_filename:
+                for item in self.config.get("block_url_filename_regex", []):
+                    if re.match(item[0], url):
+                        self.logger.debug("rskip filename:{},{}".format(item[1], url))
+                        return None
         except Exception as err:
-            self.logger.exception(err.message if hasattr(err, "message") else str(err))
+            self.logger.exception(str(err))
         return url_filename
 
     @functools.lru_cache(1024)
