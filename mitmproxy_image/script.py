@@ -231,10 +231,6 @@ class MitmImage:
                     )
                 )
 
-    @functools.lru_cache(1024)
-    def get_url_files(self, url: str):
-        return self.client.get_url_files(url)
-
     # mitmproxy add on class' method
 
     def load(self, loader):  # pragma: no cover
