@@ -113,16 +113,11 @@ def cli():
     pass  # pragma: no cover
 
 
-@cli.command("run-mitmproxy")
-@click.option(
-    "--listen-host", show_default=True, default=LISTEN_HOST, help="Host for mitmproxy"
-)
-@click.option(
-    "--listen-port", show_default=True, default=LISTEN_PORT, help="Port for mitmproxy"
-)
-@click.option("--http2/--no-http2", default=True)
-def run_mitmproxy_cmd(
-    listen_host: str = LISTEN_HOST, listen_port: int = LISTEN_PORT, http2=True
+def run_mitmproxy(
+    listen_host: str = LISTEN_HOST,
+    listen_port: int = LISTEN_PORT,
+    http2=True,
+    restart_on_error=True,
 ):
     """Run mitmproxy.
 
@@ -147,15 +142,33 @@ def run_mitmproxy_cmd(
     loop.create_task(ao_obj.upload_worker())
     loop.create_task(ao_obj.post_upload_worker())
     loop.create_task(ao_obj.client_worker())
-    restart = False
-    while not restart:
+    run = True
+    while run:
         try:
             master.run()
-            restart = False
+            run = False
         except Exception as err:
             logging.debug(str(err), exc_info=True)
-            restart = True
-    return master
+            run = True if not restart_on_error else False
+
+
+@cli.command("run-mitmproxy")
+@click.option(
+    "--listen-host", show_default=True, default=LISTEN_HOST, help="Host for mitmproxy"
+)
+@click.option(
+    "--listen-port", show_default=True, default=LISTEN_PORT, help="Port for mitmproxy"
+)
+@click.option("--http2/--no-http2", default=True)
+@click.option("--restart/--no-restart", default=True, help="Restart on error.")
+def run_mitmproxy_cmd(
+    listen_host: str = LISTEN_HOST,
+    listen_port: int = LISTEN_PORT,
+    http2=True,
+    restart=True,
+):
+    """Run mitmproxy command."""
+    run_mitmproxy(listen_host, listen_port, http2, restart_on_error=restart)
 
 
 if __name__ == "__main__":
