@@ -584,13 +584,7 @@ class MitmImage:
 
     @command.command("mitmimage.log_info")
     def log_info(self):
-        ctx.log.info(
-            "cache:{},{}\nurl:{}".format(
-                "get_url_files",
-                self.get_url_files.cache_info(),
-                len(list(self.data.keys())),
-            )
-        )
+        raise NotImplementedError
 
     @command.command("mitmimage.remove_flow_with_data")
     def remove_flow_with_data(self):
