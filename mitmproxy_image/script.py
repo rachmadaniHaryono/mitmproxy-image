@@ -38,6 +38,8 @@ def get_mimetype(
     >>> get_mimetype(SimpleNamespace(response=SimpleNamespace(data=SimpleNamespace(
     ...     headers={'Content-type': 'image/jpeg'}))))
     'image/jpeg'
+
+    >>> get_mimetype()
     """
     if all([flow, url]):
         raise ValueError("Only require flow or url")
