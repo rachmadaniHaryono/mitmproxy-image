@@ -65,7 +65,6 @@ def get_mimetype(
 class MitmImage:
 
     url_data: Dict[str, List[str]]
-    normalised_url_data: Dict[str, str]
     hash_data: Dict[str, str]
     config: Dict[str, Any]
 
@@ -343,14 +342,6 @@ class MitmImage:
                 self.client_queue.put_nowait(args)
                 self.logger.info(new_url)
 
-    def get_normalised_url(self, url: str) -> Optional[str]:
-        if url in self.normalised_url_data:
-            return self.normalised_url_data[url]
-        normalised_url = self.client.get_url_info(url).get("normalised_url", None)
-        if normalised_url is not None:
-            self.normalised_url_data[url] = normalised_url
-        return normalised_url
-
     async def client_worker(self):
         queue = self.client_queue
         while True:
@@ -372,15 +363,11 @@ class MitmImage:
     async def post_upload_worker(self):
         # compatibility
         queue = self.post_upload_queue
-        get_normalised_url_func = self.get_normalised_url
-        url_data = self.url_data
-        hash_data = self.hash_data
         get_url_filename_func = self.get_url_filename
         while True:
             try:
                 # Get a "work item" out of the queue.
                 url, upload_resp, referer = await queue.get()
-                normalised_url = get_normalised_url_func(url)
                 if upload_resp:
                     self.client_queue.put_nowait(
                         (
@@ -389,14 +376,14 @@ class MitmImage:
                                 [
                                     upload_resp["hash"],
                                 ],
-                                [normalised_url],
+                                [url],
                             ],
                             {},
                         )
                     )
                     # update data
-                    url_data[normalised_url].append(upload_resp["hash"])
-                    hash_data[upload_resp["hash"]] = upload_resp["status"]
+                    self.url_data[url].add(upload_resp["hash"])
+                    self.hash_data[upload_resp["hash"]] = upload_resp["status"]
                 tags = []
                 url_filename = get_url_filename_func(url)
                 if url_filename:
@@ -406,7 +393,7 @@ class MitmImage:
                 kwargs: Dict[str, Any] = {"page_name": "mitmimage"}
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
-                self.client_queue.put_nowait(("add_url", [normalised_url], kwargs))
+                self.client_queue.put_nowait(("add_url", [url], kwargs))
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -472,7 +459,7 @@ class MitmImage:
             if not hashes and not self.is_valid_content_type(url=url):
                 return
             if len(hashes) == 1:
-                hash_: str = hashes[0]
+                hash_: str = next(iter(hashes))
                 status = self.hash_data.get(hash_, None)
                 if status is not None and status in [
                     ImportStatus.PreviouslyDeleted,
@@ -532,15 +519,14 @@ class MitmImage:
             elif not self.is_valid_content_type(flow):
                 self.remove_from_view(flow)
                 return
-            normalised_url = self.get_normalised_url(url)
             # skip when it is cached
-            if normalised_url in self.cached_urls:
+            if url in self.cached_urls:
                 self.remove_from_view(flow)
                 return
             hashes = self.get_hashes(url, "on_empty")
             single_hash_data = None
             if hashes and len(hashes) == 1:
-                single_hash_data = self.hash_data.get(hashes[0], None)
+                single_hash_data = self.hash_data.get(next(iter(hashes)), None)
             if not hashes or single_hash_data == ImportStatus.Importable:
                 self.upload_queue.put_nowait(flow)
             elif single_hash_data in [
