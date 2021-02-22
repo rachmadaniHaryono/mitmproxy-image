@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import cgi
-import functools
 import io
 import logging
 import mimetypes
@@ -256,10 +255,7 @@ class MitmImage:
                 ctx.log.info("mitmimage: client initiated with new access key.")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(ctx.options.mitmimage_config)
-            self.get_url_filename.cache_clear()
-            self.skip_url.cache_clear()
 
-    @functools.lru_cache(1024)
     def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
         """Get url filename.
 
@@ -286,7 +282,6 @@ class MitmImage:
             self.logger.exception(str(err))
         return url_filename
 
-    @functools.lru_cache(1024)
     def skip_url(self, url):
         for item in self.config.get("block_regex", []):
             if re.match(item[0], url):
