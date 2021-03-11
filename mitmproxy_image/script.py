@@ -93,6 +93,11 @@ def get_mimetype(
     return p_header[0] if len(p_header) > 0 else None
 
 
+def get_connection_error_message(err):
+    """get formatted text from ConnectionError."""
+    return "{}:{}".format(type(err).__name__, re.sub(r"0x.*>", ">", str(err)))
+
+
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
@@ -446,7 +451,9 @@ class MitmImage:
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
             except ConnectionError as err:
-                self.logger.info({LogKey.MESSAGE.value: str(err)})
+                self.logger.info(
+                    {LogKey.MESSAGE.value: get_connection_error_message(err)}
+                )
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -534,7 +541,7 @@ class MitmImage:
             except ConnectionError as err:
                 self.logger.error(
                     {
-                        LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                        LogKey.MESSAGE.value: get_connection_error_message(err),
                         LogKey.URL.value: url,
                     }
                 )
@@ -624,7 +631,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error(
                 {
-                    LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                    LogKey.MESSAGE.value: get_connection_error_message(err),
                     LogKey.URL.value: url,
                 }
             )
@@ -696,7 +703,7 @@ class MitmImage:
         except ConnectionError as err:
             self.logger.error(
                 {
-                    LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                    LogKey.MESSAGE.value: get_connection_error_message(err),
                     LogKey.URL.value: url,
                 }
             )
