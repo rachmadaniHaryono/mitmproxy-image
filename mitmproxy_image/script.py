@@ -279,6 +279,19 @@ class MitmImage:
                         len(self.config.get("block_url_filename_regex", []))
                     )
                 )
+                au_regex = namedtuple(
+                    "ARegex", ["cpatt", "url_fmt", "log_flag", "page_name"]
+                )
+                self.add_url_regex = self.config.get("add_url_regex", [])
+                self.add_url_regex = [
+                    au_regex(
+                        re.compile(item[0]),
+                        item[1],
+                        nth(item, 2, False),
+                        nth(item, 4, self.additional_page_name),
+                    )
+                    for item in self.add_url_regex
+                ]
         except Exception as err:
             if hasattr(ctx, "log"):
                 log_msg = "mitmimage: error loading config, {}".format(err)
@@ -394,21 +407,17 @@ class MitmImage:
 
         """
         url_sets = []
-        regex_sets = self.config.get("add_url_regex", [])
-        for regex_set in regex_sets:
-            regex, url_fmt = regex_set[:2]
-            log_flag = regex_set[2] if 2 < len(regex_set) else False
-            page_name = (
-                regex_set[4] if 4 < len(regex_set) else self.additional_page_name
-            )
-            match = re.match(regex, url)
+        # rs = regex set
+        for rs in self.add_url_regex:
+            match = rs.cpatt.match(url)
             if match and match.groups():
-                new_url = url_fmt.format(*match.groups())
-                url_sets.append((new_url, page_name))
-                log_msg = "original:{}\ntarget:{}".format(url, new_url)
+                new_url = rs.url_fmt.format(*match.groups())
+                url_sets.append((new_url, rs.page_name))
                 log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
-                log_func = self.logger.info if log_flag else self.logger.debug
-                log_func(log_msg)
+                if rs.log_flag:
+                    self.logger.info(log_msg)
+                else:
+                    self.logger.debug(log_msg)
         if url_sets:
             for (new_url, page_name) in url_sets:
                 kwargs = {"page_name": page_name, "url": new_url}
