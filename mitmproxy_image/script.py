@@ -8,8 +8,9 @@ import mimetypes
 import os
 import re
 import typing
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, namedtuple
 from enum import Enum
+from itertools import islice
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set, Union
@@ -32,6 +33,23 @@ class LogKey(Enum):
     STATUS = "s"
     TARGET = "t"
     URL = "u"
+
+
+def nth(iterable, n, default=None):
+    """Returns the nth item or a default value."""
+    return next(islice(iterable, n, None), default)
+
+
+def first_true(iterable, default=None, pred=None):
+    """
+    Returns the first true value in the iterable.
+
+    If no true value is found, returns *default*
+
+    If *pred* is not None, returns the first item for which
+    ``pred(item) == True`` .
+    """
+    return next(filter(pred, iterable), default)
 
 
 def get_mimetype(
@@ -99,6 +117,7 @@ class MitmImage:
     def __init__(self):
         self.clear_data()
         self.config = {}
+        self.block_regex = []
         # logger
         logger = logging.getLogger("mitmimage")
         logger.setLevel(logging.INFO)
@@ -246,10 +265,14 @@ class MitmImage:
                 if view_filter:
                     ctx.options.view_filter = view_filter
                     ctx.log.info("view_filter: {}".format(view_filter))
+                BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
+                self.block_regex = self.config.get("block_regex", [])
+                self.block_regex = [
+                    BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
+                    for x in self.block_regex
+                ]
                 ctx.log.info(
-                    "mitmimage: load {} block regex.".format(
-                        len(self.config.get("block_regex", []))
-                    )
+                    "mitmimage: load {} block regex.".format(len(self.block_regex))
                 )
                 ctx.log.info(
                     "mitmimage: load {} url filename block regex.".format(
@@ -348,15 +371,6 @@ class MitmImage:
         except Exception as err:
             self.logger.exception(str(err))
         return url_filename
-
-    def skip_url(self, url):
-        for item in self.config.get("block_regex", []):
-            if re.match(item[0], url):
-                try:
-                    item[2]
-                except IndexError:
-                    item.append(False)
-                return item
 
     def add_additional_url(self, url: str):
         """add additional url.
@@ -528,15 +542,16 @@ class MitmImage:
             if flow.request.method == "POST":
                 self.remove_from_view(flow=flow)
                 return
-            match_regex = self.skip_url(url)
-            if match_regex:
-                self.logger.debug(
-                    {
-                        LogKey.KEY.value: "rskip",
-                        LogKey.MESSAGE.value: match_regex[1],
-                        LogKey.URL.value: url,
-                    }
-                )
+            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+            if match:
+                if match.log_flag:
+                    self.logger.debug(
+                        {
+                            LogKey.KEY.value: "rskip",
+                            LogKey.MESSAGE.value: match.name,
+                            LogKey.URL.value: url,
+                        }
+                    )
                 self.remove_from_view(flow=flow)
                 return
             hashes = []
@@ -611,12 +626,12 @@ class MitmImage:
         """Handle response."""
         try:
             url = flow.request.pretty_url
-            match_regex = self.skip_url(url)
-            if match_regex:
+            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+            if match and match.log_flag:
                 self.logger.debug(
                     {
                         LogKey.KEY.value: "rskip",
-                        LogKey.MESSAGE.value: match_regex[1],
+                        LogKey.MESSAGE.value: match.name,
                         LogKey.URL.value: url,
                     }
                 )
@@ -718,15 +733,16 @@ class MitmImage:
         for flow in flows:
             url = flow.request.pretty_url  # type: ignore
             self.add_additional_url(url)
-            match_regex = self.skip_url(url)
-            if match_regex:
-                self.logger.debug(
-                    {
-                        LogKey.KEY.value: "rskip",
-                        LogKey.MESSAGE.value: match_regex[1],
-                        LogKey.URL.value: url,
-                    }
-                )
+            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+            if match:
+                if match.log_flag:
+                    self.logger.debug(
+                        {
+                            LogKey.KEY.value: "rskip",
+                            LogKey.MESSAGE.value: match.name,
+                            LogKey.URL.value: url,
+                        }
+                    )
                 self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
