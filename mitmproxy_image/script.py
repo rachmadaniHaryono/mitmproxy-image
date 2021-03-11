@@ -12,7 +12,6 @@ from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set, Union
 from urllib.parse import unquote_plus, urlparse
 
@@ -743,14 +742,6 @@ class MitmImage:
 
     @command.command("mitmimage.upload_flow")
     def upload_flow(self, flows: typing.Sequence[Flow], remove: bool = False) -> None:
-        logger = SimpleNamespace(
-            debug=lambda msg: list(
-                map(lambda func_log: func_log.debug(msg), [self.logger, ctx.log])
-            ),
-            info=lambda msg: list(
-                map(lambda func_log: func_log.info(msg), [self.logger, ctx.log])
-            ),
-        )
         resp_history = []
         for flow in flows:
             url = flow.request.pretty_url  # type: ignore
@@ -758,13 +749,16 @@ class MitmImage:
             match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
             if match:
                 if match.log_flag:
-                    self.logger.debug(
-                        {
-                            LogKey.KEY.value: "rskip",
-                            LogKey.MESSAGE.value: match.name,
-                            LogKey.URL.value: url,
-                        }
-                    )
+                    [
+                        x.debug(
+                            {
+                                LogKey.KEY.value: "rskip",
+                                LogKey.MESSAGE.value: match.name,
+                                LogKey.URL.value: url,
+                            }
+                        )
+                        for x in [self.logger, ctx.log]
+                    ]
                 self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
@@ -774,6 +768,6 @@ class MitmImage:
                 self.remove_from_view(flow)
         data = [x["status"] for x in resp_history if x is not None]
         if data:
-            logger.info(Counter(data))
+            [x.info(Counter(data)) for x in [self.logger, ctx.log]]
         else:
-            logger.info("upload finished")
+            [x.info("upload finished") for x in [self.logger, ctx.log]]
