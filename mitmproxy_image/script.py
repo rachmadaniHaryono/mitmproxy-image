@@ -3,22 +3,36 @@
 import asyncio
 import cgi
 import io
+import json
 import logging
 import mimetypes
 import os
 import re
 import typing
 from collections import Counter, defaultdict
+from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set, Union
 from urllib.parse import unquote_plus, urlparse
+from functools import partial
 
 import yaml
 from hydrus import APIError, Client, ConnectionError, ImportStatus
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
+
+
+class LogKey(Enum):
+    FLOW = "f"
+    KEY = "k"
+    MESSAGE = "msg"
+    MIME = "m"
+    ORIGINAL = "o"
+    STATUS = "s"
+    TARGET = "t"
+    URL = "u"
 
 
 def get_mimetype(
@@ -87,6 +101,12 @@ class MitmImage:
         )
         logger.addHandler(fh)
         self.logger = logger
+        self.log_as_json_info = lambda x: self.logger.info(
+            json.dumps(x, sort_keys=True)
+        )
+        self.log_as_json_debug = lambda x: self.logger.debug(
+            json.dumps(x, sort_keys=True)
+        )
         #  other
         try:
             if hasattr(ctx, "master"):
@@ -113,8 +133,13 @@ class MitmImage:
             maintype, subtype = mimetype.lower().split("/")
             subtype = subtype.lower()
         except ValueError:
-            self.logger.info(
-                "unknown mimetype:{}\nurl:{}\nflow:{}".format(mimetype, url, flow)
+            self.log_as_json_info(
+                {
+                    LogKey.MIME.value: mimetype,
+                    LogKey.URL.value: url,
+                    LogKey.FLOW.value: str(flow),
+                    LogKey.KEY.value: "unknown",
+                }
             )
             return False
         mimetype_sets = self.config.get("mimetype", [])
@@ -188,7 +213,9 @@ class MitmImage:
             return None
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
-        self.logger.info("{},{}".format(upload_resp["status"], url))
+        self.log_as_json_info(
+            {LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url}
+        )
         self.client_queue.put_nowait(
             (
                 "associate_url",
@@ -292,11 +319,13 @@ class MitmImage:
                         self.logger.debug("skip filename:{},{}".format(item[1], url))
                         return None
             if url_filename and len(url_filename) > max_len:
-                self.logger.info(
-                    "url filename too long:{}\nurl:{}".format(
-                        url_filename[:max_len], url
-                    )
+                self.log_as_json_info(
+                    {
+                        LogKey.KEY.value: "url filename too long",
+                        LogKey.URL.value: "url",
+                    }
                 )
+
                 return None
         except Exception as err:
             self.logger.exception(str(err))
@@ -345,7 +374,8 @@ class MitmImage:
                 new_url = url_fmt.format(*match.groups())
                 url_sets.append((new_url, page_name))
                 log_msg = "original:{}\ntarget:{}".format(url, new_url)
-                log_func = self.logger.info if log_flag else self.logger.debug
+                log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
+                log_func = self.log_as_json_info if log_flag else self.log_as_json_debug
                 log_func(log_msg)
         if url_sets:
             for (new_url, page_name) in url_sets:
@@ -357,7 +387,7 @@ class MitmImage:
                     }
                 args = ("add_url", [], kwargs)
                 self.client_queue.put_nowait(args)
-                self.logger.info(new_url)
+                self.log_as_json_info({LogKey.URL.value: new_url})
 
     async def client_worker(self):
         queue = self.client_queue
@@ -369,7 +399,7 @@ class MitmImage:
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
             except ConnectionError as err:
-                self.logger.info(err.message if hasattr(err, "message") else str(err))
+                self.log_as_json_info({LogKey.MESSAGE.value: str(err)})
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -448,7 +478,12 @@ class MitmImage:
                     ImportStatus.PreviouslyDeleted,
                 ]:
                     post_upload_queue.put_nowait((url, upload_resp, referer))
-                logger.info("{},{}".format(upload_resp["status"], url))
+                self.log_as_json_info(
+                    {
+                        LogKey.STATUS.value: upload_resp["status"],
+                        LogKey.URL.value: url,
+                    }
+                )
             except ConnectionError as err:
                 self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
             except Exception as err:
@@ -504,7 +539,9 @@ class MitmImage:
                 )
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
-                self.logger.info("add and cached:{}".format(url))
+                self.log_as_json_info(
+                    {LogKey.URL.value: url, LogKey.KEY.value: "add and cached"}
+                )
                 self.remove_from_view(flow=flow)
             elif hashes:
                 self.logger.debug(
@@ -559,7 +596,13 @@ class MitmImage:
                 hashes_status = [
                     "{}:{}".format(self.hash_data.get(x, None), x) for x in hashes
                 ]
-                self.logger.info("add:{}\n{}".format(url, "\n".join(hashes_status)))
+                self.log_as_json_info(
+                    {
+                        LogKey.KEY.value: "add",
+                        LogKey.URL.value: url,
+                        LogKey.MESSAGE.value: "\n".join(hashes_status),
+                    }
+                )
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
