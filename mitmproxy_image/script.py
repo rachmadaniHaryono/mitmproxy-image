@@ -206,11 +206,15 @@ class MitmImage:
         url = flow.request.pretty_url  # type: ignore
         response = flow.response  # type: ignore
         if response is None:
-            self.logger.debug("no response url:{}".format(url))
+            self.logger.debug(
+                {LogKey.MESSAGE.value: "no response", LogKey.URL.value: url}
+            )
             return None
         content = response.get_content()
         if content is None:
-            self.logger.debug("no content url:{}".format(url))
+            self.logger.debug(
+                {LogKey.MESSAGE.value: "no content", LogKey.URL.value: url}
+            )
             return None
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
@@ -324,6 +328,13 @@ class MitmImage:
                 for item in self.config.get("block_url_filename_regex", []):
                     if re.match(item[0], url):
                         self.logger.debug("skip filename:{},{}".format(item[1], url))
+                        self.logger.debug(
+                            {
+                                LogKey.KEY.value: "skip filename",
+                                LogKey.MESSAGE.value: item[1],
+                                LogKey.URL.value: url,
+                            }
+                        )
                         return None
             if url_filename and len(url_filename) > max_len:
                 self.logger.info(
@@ -402,7 +413,12 @@ class MitmImage:
             # Get a "work item" out of the queue.
             try:
                 cmd, args, kwargs = await queue.get()
-                self.logger.debug("cmd:{},args:{},kwargs:{}".format(cmd, args, kwargs))
+                msg = {LogKey.MESSAGE.value: "cmd:{}".format(cmd)}
+                if args:
+                    msg["args"] = args
+                if kwargs:
+                    msg["kwargs"] = kwargs
+                self.logger.debug(msg)
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
             except ConnectionError as err:
@@ -492,7 +508,12 @@ class MitmImage:
                     }
                 )
             except ConnectionError as err:
-                self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
+                self.logger.error(
+                    {
+                        LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                        LogKey.URL.value: url,
+                    }
+                )
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -509,8 +530,13 @@ class MitmImage:
                 return
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = "rskip url:{},{}".format(match_regex[1], url)
-                self.logger.debug(msg)
+                self.logger.debug(
+                    {
+                        LogKey.KEY.value: "rskip",
+                        LogKey.MESSAGE.value: match_regex[1],
+                        LogKey.URL.value: url,
+                    }
+                )
                 self.remove_from_view(flow=flow)
                 return
             hashes = []
@@ -530,9 +556,14 @@ class MitmImage:
                     file_data = self.client.get_file(hash_=hash_)
                 except APIError as err:
                     self.logger.error(
-                        "get file error:{}:{}\nurl:{}\nhash:{},{}".format(
-                            type(err).__name__, err, url, status, hash_
-                        )
+                        {
+                            "hash": hash_,
+                            LogKey.MESSAGE.value: "{}:{}".format(
+                                type(err).__name__, err
+                            ),
+                            LogKey.STATUS.value: status,
+                            LogKey.URL.value: url,
+                        }
                     )
                     return
                 flow.response = http.HTTPResponse.make(
@@ -552,15 +583,26 @@ class MitmImage:
                 self.remove_from_view(flow=flow)
             elif hashes:
                 self.logger.debug(
-                    "hash count:{},{}\nurl hash:\n{}".format(
-                        len(hashes), url, "\n".join(hashes)
-                    )
+                    {
+                        "hash count": len(hashes),
+                        "url hash": "\n".join(hashes),
+                        LogKey.URL.value: url,
+                    }
                 )
             else:
-                msg = "no hash:{}".format(url)
-                self.logger.debug(msg)
+                self.logger.debug(
+                    {
+                        LogKey.MESSAGE.value: "no hash",
+                        LogKey.URL.value: url,
+                    }
+                )
         except ConnectionError as err:
-            self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
+            self.logger.error(
+                {
+                    LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                    LogKey.URL.value: url,
+                }
+            )
         except Exception as err:
             self.logger.exception(str(err))
 
@@ -571,12 +613,22 @@ class MitmImage:
             url = flow.request.pretty_url
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = "rskip url:{},{}".format(match_regex[1], url)
-                self.logger.debug(msg)
+                self.logger.debug(
+                    {
+                        LogKey.KEY.value: "rskip",
+                        LogKey.MESSAGE.value: match_regex[1],
+                        LogKey.URL.value: url,
+                    }
+                )
                 self.remove_from_view(flow)
                 return
             if get_mimetype(flow=flow) is None:
-                self.logger.debug("No mimetype:\n{}".format(vars(flow.response)))
+                self.logger.debug(
+                    {
+                        LogKey.MESSAGE.value: vars(flow.response),
+                        LogKey.KEY.value: "no mimetype",
+                    }
+                )
             elif not self.is_valid_content_type(flow):
                 self.remove_from_view(flow)
                 return
@@ -612,7 +664,12 @@ class MitmImage:
                 )
             self.remove_from_view(flow)
         except ConnectionError as err:
-            self.logger.error("{}:{}\nurl:{}".format(type(err).__name__, err, url))
+            self.logger.error(
+                {
+                    LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                    LogKey.URL.value: url,
+                }
+            )
         except Exception as err:
             self.logger.exception(str(err))
 
@@ -663,8 +720,13 @@ class MitmImage:
             self.add_additional_url(url)
             match_regex = self.skip_url(url)
             if match_regex:
-                msg = "rskip url:{},{}".format(match_regex[1], url)
-                self.logger.debug(msg)
+                self.logger.debug(
+                    {
+                        LogKey.KEY.value: "rskip",
+                        LogKey.MESSAGE.value: match_regex[1],
+                        LogKey.URL.value: url,
+                    }
+                )
                 self.remove_from_view(flow)
                 continue
             resp = self.upload(flow)
