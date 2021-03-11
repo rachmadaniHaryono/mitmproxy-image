@@ -37,7 +37,7 @@ add_url_regex:
 # - regex
 # - target url string format
 # - log flag (optional, default false)
-# - test example
+# - test example (optional)
 # - page name (optional, default mitmimage_plus)
 # example:
 # - - https:\/\/domain1\/.*
