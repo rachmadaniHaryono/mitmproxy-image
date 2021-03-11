@@ -101,6 +101,7 @@ class MitmImage:
         self.cached_urls = set()
         self.page_name = "mitmimage"
         self.additional_page_name = "mitmimage_plus"
+        self.remove_view_enable = True
 
     def is_valid_content_type(
         self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
@@ -128,6 +129,8 @@ class MitmImage:
         return False
 
     def remove_from_view(self, flow: Union[http.HTTPFlow, Flow]):
+        if not self.remove_view_enable:
+            return
         # compatibility
         f = flow
         view = self.view
@@ -246,6 +249,12 @@ class MitmImage:
             default=self.default_config_path,
             help="mitmimage config file",
         )
+        loader.add_option(
+            name="mitmimage_remove_view",
+            typespec=bool,
+            default=True,
+            help="mitmimage will remove view when necessary",
+        )
 
     def configure(self, updates):
         if "hydrus_access_key" in updates:
@@ -255,6 +264,9 @@ class MitmImage:
                 ctx.log.info("mitmimage: client initiated with new access key.")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(ctx.options.mitmimage_config)
+        if "mitmimage_remove_view" in updates:
+            self.remove_view_enable = ctx.options.mitmimage_remove_view
+            ctx.log.info("mitmimage: remove view: {}.".format(self.remove_view_enable))
 
     def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
         """Get url filename.
