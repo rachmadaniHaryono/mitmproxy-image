@@ -33,6 +33,7 @@ setup(
         "ipdb>=0.13.3",
         "mitmproxy>=6.0.0",
         "Pillow>=5.3.0",
+        "python-json-logger>=2.0.1",
         "PyYAML>=5.3.1",
         "requests>=2.21.0",
     ],
