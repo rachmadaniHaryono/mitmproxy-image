@@ -80,7 +80,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
         log_record["p"] = "{}:{}:{}".format(
             record.levelname[0], record.funcName, record.lineno
         )
-        if log_record.get("message"):
+        if not log_record.get("message"):
             del log_record["message"]
 
 
