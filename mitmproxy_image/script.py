@@ -3,7 +3,6 @@
 import asyncio
 import cgi
 import io
-import json
 import logging
 import mimetypes
 import os
@@ -15,19 +14,19 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set, Union
 from urllib.parse import unquote_plus, urlparse
-from functools import partial
 
 import yaml
 from hydrus import APIError, Client, ConnectionError, ImportStatus
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
+from pythonjsonlogger import jsonlogger
 
 
 class LogKey(Enum):
     FLOW = "f"
     KEY = "k"
-    MESSAGE = "msg"
+    MESSAGE = "message"
     MIME = "m"
     ORIGINAL = "o"
     STATUS = "s"
@@ -75,6 +74,16 @@ def get_mimetype(
     return p_header[0] if len(p_header) > 0 else None
 
 
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record, record, message_dict):
+        super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
+        log_record["p"] = "{}:{}:{}".format(
+            record.levelname[0], record.funcName, record.lineno
+        )
+        if log_record.get("message"):
+            del log_record["message"]
+
+
 class MitmImage:
 
     url_data: Dict[str, List[str]]
@@ -96,17 +105,9 @@ class MitmImage:
         # create file handler
         fh = logging.FileHandler(os.path.expanduser("~/mitmimage.log"))
         fh.setLevel(logging.INFO)
-        fh.setFormatter(
-            logging.Formatter("%(levelname).1s:%(funcName)s:%(lineno)s:%(message)s")
-        )
+        fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
         logger.addHandler(fh)
         self.logger = logger
-        self.log_as_json_info = lambda x: self.logger.info(
-            json.dumps(x, sort_keys=True)
-        )
-        self.log_as_json_debug = lambda x: self.logger.debug(
-            json.dumps(x, sort_keys=True)
-        )
         #  other
         try:
             if hasattr(ctx, "master"):
@@ -133,12 +134,12 @@ class MitmImage:
             maintype, subtype = mimetype.lower().split("/")
             subtype = subtype.lower()
         except ValueError:
-            self.log_as_json_info(
+            self.logger.info(
                 {
                     LogKey.MIME.value: mimetype,
                     LogKey.URL.value: url,
                     LogKey.FLOW.value: str(flow),
-                    LogKey.KEY.value: "unknown",
+                    LogKey.MESSAGE.value: "unknown",
                 }
             )
             return False
@@ -213,7 +214,7 @@ class MitmImage:
             return None
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
-        self.log_as_json_info(
+        self.logger.info(
             {LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url}
         )
         self.client_queue.put_nowait(
@@ -325,9 +326,9 @@ class MitmImage:
                         self.logger.debug("skip filename:{},{}".format(item[1], url))
                         return None
             if url_filename and len(url_filename) > max_len:
-                self.log_as_json_info(
+                self.logger.info(
                     {
-                        LogKey.KEY.value: "url filename too long",
+                        LogKey.MESSAGE.value: "url filename too long",
                         LogKey.URL.value: "url",
                     }
                 )
@@ -381,7 +382,7 @@ class MitmImage:
                 url_sets.append((new_url, page_name))
                 log_msg = "original:{}\ntarget:{}".format(url, new_url)
                 log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
-                log_func = self.log_as_json_info if log_flag else self.log_as_json_debug
+                log_func = self.logger.info if log_flag else self.logger.debug
                 log_func(log_msg)
         if url_sets:
             for (new_url, page_name) in url_sets:
@@ -393,7 +394,7 @@ class MitmImage:
                     }
                 args = ("add_url", [], kwargs)
                 self.client_queue.put_nowait(args)
-                self.log_as_json_info({LogKey.URL.value: new_url})
+                self.logger.info({LogKey.URL.value: new_url})
 
     async def client_worker(self):
         queue = self.client_queue
@@ -405,7 +406,7 @@ class MitmImage:
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
             except ConnectionError as err:
-                self.log_as_json_info({LogKey.MESSAGE.value: str(err)})
+                self.logger.info({LogKey.MESSAGE.value: str(err)})
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -484,7 +485,7 @@ class MitmImage:
                     ImportStatus.PreviouslyDeleted,
                 ]:
                     post_upload_queue.put_nowait((url, upload_resp, referer))
-                self.log_as_json_info(
+                self.logger.info(
                     {
                         LogKey.STATUS.value: upload_resp["status"],
                         LogKey.URL.value: url,
@@ -545,8 +546,8 @@ class MitmImage:
                 )
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
-                self.log_as_json_info(
-                    {LogKey.URL.value: url, LogKey.KEY.value: "add and cached"}
+                self.logger.info(
+                    {LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"}
                 )
                 self.remove_from_view(flow=flow)
             elif hashes:
@@ -602,7 +603,7 @@ class MitmImage:
                 hashes_status = [
                     "{}:{}".format(self.hash_data.get(x, None), x) for x in hashes
                 ]
-                self.log_as_json_info(
+                self.logger.info(
                     {
                         LogKey.KEY.value: "add",
                         LogKey.URL.value: url,
