@@ -27,6 +27,7 @@ from pythonjsonlogger import jsonlogger
 class LogKey(Enum):
     FLOW = "f"
     KEY = "k"
+    HASH = "hash"
     MESSAGE = "message"
     MIME = "m"
     ORIGINAL = "o"
@@ -581,7 +582,7 @@ class MitmImage:
                 except APIError as err:
                     self.logger.error(
                         {
-                            "hash": hash_,
+                            LogKey.HASH.value: hash_,
                             LogKey.MESSAGE.value: "{}:{}".format(
                                 type(err).__name__, err
                             ),
@@ -676,16 +677,21 @@ class MitmImage:
                 # NOTE: add referer & url filename to url
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
-                hashes_status = [
-                    "{}:{}".format(self.hash_data.get(x, None), x) for x in hashes
-                ]
-                self.logger.info(
-                    {
-                        LogKey.KEY.value: "add",
-                        LogKey.URL.value: url,
-                        LogKey.MESSAGE.value: "\n".join(hashes_status),
-                    }
-                )
+                hashes_status = [(self.hash_data.get(x, None), x) for x in hashes]
+                msg = {
+                    LogKey.KEY.value: "add",
+                    LogKey.URL.value: url,
+                }
+                if len(hashes_status) == 1:
+                    msg.update(
+                        {
+                            LogKey.HASH.value: hashes_status[0][1],
+                            LogKey.STATUS.value: hashes_status[0][0],
+                        }
+                    )
+                else:
+                    msg.update({LogKey.MESSAGE.value: hashes_status})
+                self.logger.info(msg)
             self.remove_from_view(flow)
         except ConnectionError as err:
             self.logger.error(
