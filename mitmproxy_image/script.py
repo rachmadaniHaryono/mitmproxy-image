@@ -267,6 +267,14 @@ class MitmImage:
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
             ctx.log.info("mitmimage: remove view: {}.".format(self.remove_view_enable))
+        if "mitmimage_debug" in updates:
+            if ctx.options.mitmimage_debug:
+                self.logger.setLevel(logging.DEBUG)
+                self.logger.handlers[0].setLevel(logging.DEBUG)
+            else:
+                self.logger.setLevel(logging.INFO)
+                self.logger.handlers[0].setLevel(logging.INFO)
+            ctx.log.info("mitmimage: log level: {}.".format(self.logger.level))
 
     def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
         """Get url filename.
@@ -588,16 +596,6 @@ class MitmImage:
             self.view._store.items(),
         )
         self.view.remove([x[1] for x in items])
-
-    @command.command("mitmimage.toggle_debug")
-    def toggle_debug(self):
-        if self.logger.level == logging.DEBUG:
-            self.logger.setLevel(logging.INFO)
-            self.logger.handlers[0].setLevel(logging.INFO)
-        else:
-            self.logger.setLevel(logging.DEBUG)
-            self.logger.handlers[0].setLevel(logging.DEBUG)
-        ctx.log.info("log level:{}".format(self.logger.level))
 
     @command.command("mitmimage.upload_flow")
     def upload_flow(self, flows: typing.Sequence[Flow], remove: bool = False) -> None:
