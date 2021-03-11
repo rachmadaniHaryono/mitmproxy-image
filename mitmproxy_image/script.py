@@ -282,6 +282,12 @@ class MitmImage:
             default=True,
             help="mitmimage will remove view when necessary",
         )
+        loader.add_option(
+            name="mitmimage_debug",
+            typespec=bool,
+            default=False,
+            help="Set mitmimage logging level to DEBUG",
+        )
 
     def configure(self, updates):
         if "hydrus_access_key" in updates:
