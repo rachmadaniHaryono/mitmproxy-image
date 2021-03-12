@@ -1,3 +1,11 @@
+host_block_regex:
+# description: regex rule to exclude url with matches host to be downloaded.
+# it consist of regex only
+# example:
+# - website.com
+# - *.google.com
+
+
 block_regex:
 # description: regex rule to exclude url to be downloaded.
 # it consist of regex, name and skip log flag (optional, default: false)
