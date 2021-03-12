@@ -271,6 +271,8 @@ class MitmImage:
                     ctx.options.view_filter = view_filter
                     ctx.log.info("view_filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
+                self.host_block_regex = self.config.get("host_block_regex", [])
+                self.host_block_regex = [re.compile(x) for x in self.host_block_regex]
                 self.block_regex = self.config.get("block_regex", [])
                 self.block_regex = [
                     BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
@@ -558,6 +560,15 @@ class MitmImage:
             if flow.request.method == "POST":
                 self.remove_from_view(flow=flow)
                 return
+            match = first_true(
+                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
+            )
+            if match:
+                self.logger.debug(
+                    {LogKey.URL.value: url, LogKey.KEY.value: "host block"}
+                )
+                self.remove_from_view(flow=flow)
+                return
             match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
             if match:
                 if match.log_flag:
@@ -643,14 +654,24 @@ class MitmImage:
         try:
             url = flow.request.pretty_url
             match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-            if match and match.log_flag:
+            match = first_true(
+                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
+            )
+            if match:
                 self.logger.debug(
-                    {
-                        LogKey.KEY.value: "rskip",
-                        LogKey.MESSAGE.value: match.name,
-                        LogKey.URL.value: url,
-                    }
+                    {LogKey.URL.value: url, LogKey.KEY.value: "host block"}
                 )
+                self.remove_from_view(flow=flow)
+                return
+            if match:
+                if match.log_flag:
+                    self.logger.debug(
+                        {
+                            LogKey.KEY.value: "rskip",
+                            LogKey.MESSAGE.value: match.name,
+                            LogKey.URL.value: url,
+                        }
+                    )
                 self.remove_from_view(flow)
                 return
             if get_mimetype(flow=flow) is None:
