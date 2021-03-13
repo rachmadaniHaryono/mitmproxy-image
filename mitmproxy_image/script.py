@@ -677,8 +677,9 @@ class MitmImage:
             if get_mimetype(flow=flow) is None:
                 self.logger.debug(
                     {
-                        LogKey.MESSAGE.value: vars(flow.response),
                         LogKey.KEY.value: "no mimetype",
+                        LogKey.MESSAGE.value: vars(flow.response),
+                        LogKey.URL.value: url,
                     }
                 )
             elif not self.is_valid_content_type(flow):
