@@ -426,6 +426,12 @@ class MitmImage:
                 else:
                     self.logger.debug(log_msg)
         if url_sets:
+            self.logger.info(
+                {
+                    LogKey.ORIGINAL.value: url,
+                    LogKey.TARGET.value: set([x[0] for x in url_sets]),
+                }
+            )
             for (new_url, page_name) in url_sets:
                 kwargs = {"page_name": page_name, "url": new_url}
                 filename = self.get_url_filename(new_url)
@@ -435,7 +441,6 @@ class MitmImage:
                     }
                 args = ("add_url", [], kwargs)
                 self.client_queue.put_nowait(args)
-                self.logger.info({LogKey.URL.value: new_url})
 
     async def client_worker(self):
         queue = self.client_queue
