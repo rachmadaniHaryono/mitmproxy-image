@@ -1,4 +1,5 @@
 import itertools
+import logging
 import os
 import tempfile
 import unittest
@@ -113,6 +114,8 @@ def test_add_additional_url(url, exp_url, page_name):
 
     obj = MitmImage()
     obj.load_config(config_path=obj.default_config_path)
+    if not obj.add_url_regex:
+        logging.info("No add_url_regex")
     obj.client_queue = MockQueue()
     obj.add_additional_url(url)
     history = [

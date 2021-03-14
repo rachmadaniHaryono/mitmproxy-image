@@ -34,6 +34,11 @@ class LogKey(Enum):
     URL = "u"
 
 
+AURegex = namedtuple(
+    "AdiitionalURLRegex", ["cpatt", "url_fmt", "log_flag", "page_name"]
+)
+
+
 def nth(iterable, n, default=None):
     """Returns the nth item or a default value."""
     return next(islice(iterable, n, None), default)
@@ -56,6 +61,7 @@ def get_mimetype(
 ) -> Optional[str]:
     """Get mimetype from flow or url.
 
+    >>> from types import SimpleNamespace
     >>> get_mimetype(SimpleNamespace(response={}), 'http://example.com')
     Traceback (most recent call last):
     ...
@@ -123,6 +129,7 @@ class MitmImage:
         self.clear_data()
         self.config = {}
         self.block_regex = []
+        self.add_url_regex = []
         # logger
         logger = logging.getLogger("mitmimage")
         logger.setLevel(logging.INFO)
@@ -267,9 +274,12 @@ class MitmImage:
             with open(config_path) as f:
                 self.config = yaml.safe_load(f)
                 view_filter = self.config.get("view_filter", None)
+                ctx_options = hasattr(ctx, "options")
                 if view_filter:
-                    ctx.options.view_filter = view_filter
-                    ctx.log.info("view_filter: {}".format(view_filter))
+                    if ctx_options:
+                        ctx.options.view_filter = view_filter
+                    if hasattr(ctx, "log"):
+                        ctx.log.info("view_filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
                 self.host_block_regex = self.config.get("host_block_regex", [])
                 self.host_block_regex = [re.compile(x) for x in self.host_block_regex]
@@ -278,20 +288,18 @@ class MitmImage:
                     BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
                     for x in self.block_regex
                 ]
-                ctx.log.info(
-                    "mitmimage: load {} block regex.".format(len(self.block_regex))
-                )
-                ctx.log.info(
-                    "mitmimage: load {} url filename block regex.".format(
-                        len(self.config.get("block_url_filename_regex", []))
+                if ctx_options:
+                    ctx.log.info(
+                        "mitmimage: load {} block regex.".format(len(self.block_regex))
                     )
-                )
-                au_regex = namedtuple(
-                    "ARegex", ["cpatt", "url_fmt", "log_flag", "page_name"]
-                )
+                    ctx.log.info(
+                        "mitmimage: load {} url filename block regex.".format(
+                            len(self.config.get("block_url_filename_regex", []))
+                        )
+                    )
                 self.add_url_regex = self.config.get("add_url_regex", [])
                 self.add_url_regex = [
-                    au_regex(
+                    AURegex(
                         re.compile(item[0]),
                         item[1],
                         nth(item, 2, False),
@@ -397,9 +405,9 @@ class MitmImage:
 
         >>> from unittest import mock
         >>> obj = MitmImage()
-        >>> obj.config = {'add_url_regex': [[
-        ...     r'https://example.com/(.*)',
-        ...     'https://example.com/sub/{0}']]}
+        >>> obj.add_url_regex = [AURegex(
+        ...     re.compile(r'https://example.com/(.*)'),
+        ...     'https://example.com/sub/{0}', False, obj.additional_page_name)]
         >>> obj.client_queue.put_nowait = mock.Mock()
         >>> obj.add_additional_url('https://example.com/1.jpg')
         >>> obj.client_queue.put_nowait.assert_called_once_with((
