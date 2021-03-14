@@ -7,12 +7,11 @@ import logging
 import mimetypes
 import os
 import re
-import typing
 from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, Optional, Set, Union, List, Sequence, Tuple
 from urllib.parse import unquote_plus, urlparse
 
 import yaml
@@ -75,7 +74,8 @@ def get_mimetype(
         raise ValueError("Only require flow or url")
     header = None
     try:
-        header = flow.response.data.headers["Content-type"]
+        if flow is not None and flow.response:
+            header = flow.response.data.headers["Content-type"]
     except Exception as err:
         logging.getLogger().debug(str(err), exc_info=True)
         if flow is not None:
@@ -109,7 +109,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
 class MitmImage:
 
-    url_data: Dict[str, List[str]]
+    url_data: Dict[str, Set[str]]
     hash_data: Dict[str, str]
     config: Dict[str, Any]
 
@@ -215,7 +215,7 @@ class MitmImage:
         set()
         """
         assert from_hydrus in ["always", "on_empty"]
-        hashes = self.url_data.get(url, {})
+        hashes: Set[str] = self.url_data.get(url, set())
         if hashes and from_hydrus == "on_empty":
             return hashes
         huf_resp = self.client.get_url_files(url)
@@ -320,7 +320,7 @@ class MitmImage:
         )
         loader.add_option(
             name="mitmimage_config",
-            typespec=typing.Optional[str],
+            typespec=Optional[str],
             default=self.default_config_path,
             help="mitmimage config file",
         )
@@ -441,7 +441,11 @@ class MitmImage:
                     kwargs["service_names_to_additional_tags"] = {
                         "my tags": ["filename:{}".format(filename)]
                     }
-                args = ("add_url", [], kwargs)
+                args: Tuple[str, List[str], Dict[str, Any]] = (
+                    "add_url",
+                    [],
+                    kwargs,
+                )
                 self.client_queue.put_nowait(args)
 
     async def client_worker(self):
@@ -588,7 +592,6 @@ class MitmImage:
                     )
                 self.remove_from_view(flow=flow)
                 return
-            hashes = []
             hashes = self.get_hashes(url, "always")
             if not hashes and not self.is_valid_content_type(url=url):
                 return
@@ -721,11 +724,11 @@ class MitmImage:
                     msg.update(
                         {
                             LogKey.HASH.value: hashes_status[0][1],
-                            LogKey.STATUS.value: hashes_status[0][0],
+                            LogKey.STATUS.value: str(hashes_status[0][0]),
                         }
                     )
                 else:
-                    msg.update({LogKey.MESSAGE.value: hashes_status})
+                    msg.update({LogKey.MESSAGE.value: str(hashes_status)})
                 self.logger.info(msg)
             self.remove_from_view(flow)
         except ConnectionError as err:
@@ -752,7 +755,7 @@ class MitmImage:
             ctx.log.info("mitmimage: data cleared")
 
     @command.command("mitmimage.ipdb")
-    def ipdb(self, flows: typing.Sequence[Flow] = None) -> None:  # pragma: no cover
+    def ipdb(self, flows: Sequence[Flow] = None) -> None:  # pragma: no cover
         import ipdb
 
         ipdb.set_trace()
@@ -770,7 +773,7 @@ class MitmImage:
         self.view.remove([x[1] for x in items])
 
     @command.command("mitmimage.upload_flow")
-    def upload_flow(self, flows: typing.Sequence[Flow], remove: bool = False) -> None:
+    def upload_flow(self, flows: Sequence[Flow], remove: bool = False) -> None:
         resp_history = []
         for flow in flows:
             url = flow.request.pretty_url  # type: ignore
