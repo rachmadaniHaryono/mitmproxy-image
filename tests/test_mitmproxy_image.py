@@ -7,6 +7,7 @@ from argparse import Namespace
 from unittest import mock
 
 import pytest
+from hydrus import ConnectionError
 from mitmproxy.tools import console
 
 from mitmproxy_image.__main__ import create_app, run_mitmproxy
@@ -162,7 +163,10 @@ def test_get_hashes(from_hydrus, valid_ct):
         return valid_ct
 
     obj.is_valid_content_type = is_valid_content_type
-    assert not obj.get_hashes("http://example.com", from_hydrus)
+    try:
+        assert not obj.get_hashes("http://example.com", from_hydrus)
+    except ConnectionError as err:
+        logging.error(str(err), exc_info=True)
 
 
 if __name__ == "__main__":

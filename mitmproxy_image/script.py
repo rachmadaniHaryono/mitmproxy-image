@@ -34,9 +34,7 @@ class LogKey(Enum):
     URL = "u"
 
 
-AURegex = namedtuple(
-    "AdiitionalURLRegex", ["cpatt", "url_fmt", "log_flag", "page_name"]
-)
+AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 
 
 def nth(iterable, n, default=None):
