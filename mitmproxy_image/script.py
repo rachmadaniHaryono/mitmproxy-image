@@ -419,6 +419,8 @@ class MitmImage:
             match = rs.cpatt.match(url)
             if match and match.groups():
                 new_url = rs.url_fmt.format(*match.groups())
+                if new_url == url:
+                    continue
                 url_sets.append((new_url, rs.page_name))
                 log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
                 if rs.log_flag:
