@@ -521,35 +521,41 @@ class MitmImage:
             queue.task_done()
 
     async def upload_worker(self):
-        client = self.client
-        queue = self.upload_queue
-        logger = self.logger
-        post_upload_queue = self.post_upload_queue
-        client_lock = self.client_lock
         while True:
             try:
                 # Get a "work item" out of the queue.
-                flow = await queue.get()
+                flow = await self.upload_queue.get()
                 url = flow.request.pretty_url  # type: ignore
                 response = flow.response  # type: ignore
                 if response is None:
-                    logger.debug("no response url:{}".format(url))
-                    queue.task_done()
+                    self.logger.debug(
+                        {
+                            LogKey.MESSAGE.value: "no response url",
+                            LogKey.URL.value: url,
+                        }
+                    )
+                    self.upload_queue.task_done()
                     return
                 content = response.get_content()
                 if content is None:
-                    logger.debug("no content url:{}".format(url))
-                    queue.task_done()
+                    self.logger.debug(
+                        {
+                            LogKey.MESSAGE.value: "no content url",
+                            LogKey.URL.value: url,
+                        }
+                    )
+                    self.upload_queue.task_done()
                     return
                 # upload file
-                async with client_lock:
-                    upload_resp = client.add_file(io.BytesIO(content))
+                async with self.client_lock:
+                    upload_resp = self.client.add_file(io.BytesIO(content))
                 referer = flow.request.headers.get("referer", None)
-                if upload_resp["status"] not in [
-                    ImportStatus.Failed,
+                if upload_resp["status"] in [
+                    ImportStatus.Exists,
                     ImportStatus.PreviouslyDeleted,
+                    ImportStatus.Success,
                 ]:
-                    post_upload_queue.put_nowait((url, upload_resp, referer))
+                    self.post_upload_queue.put_nowait((url, upload_resp, referer))
                 self.logger.info(
                     {
                         LogKey.STATUS.value: upload_resp["status"],
@@ -567,7 +573,7 @@ class MitmImage:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
                 )
-            queue.task_done()
+            self.upload_queue.task_done()
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
