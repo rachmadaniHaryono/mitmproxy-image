@@ -35,6 +35,7 @@ class LogKey(Enum):
 
 
 AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
+EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 
 def nth(iterable, n, default=None):
@@ -222,13 +223,17 @@ class MitmImage:
         assert from_hydrus in ["always", "on_empty"]
         hashes: Set[str] = self.url_data.get(url, set())
         if hashes and from_hydrus == "on_empty":
+            hashes.discard(EMPTY_HASH)
             return hashes
         huf_resp = self.client.get_url_files(url)
         # ufs = get_url_status
         for ufs in huf_resp["url_file_statuses"]:
+            if ufs["hash"] == EMPTY_HASH:
+                continue
             self.url_data[url].add(ufs["hash"])
             self.hash_data[ufs["hash"]] = ufs["status"]
         hashes = self.url_data[url]
+        hashes.discard(EMPTY_HASH)
         return hashes
 
     def upload(self, flow: Union[http.HTTPFlow, Flow]) -> Optional[Dict[str, str]]:
