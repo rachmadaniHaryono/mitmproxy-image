@@ -485,13 +485,10 @@ class MitmImage:
             queue.task_done()
 
     async def post_upload_worker(self):
-        # compatibility
-        queue = self.post_upload_queue
-        get_url_filename_func = self.get_url_filename
         while True:
             try:
                 # Get a "work item" out of the queue.
-                url, upload_resp, referer = await queue.get()
+                url, upload_resp, referer = await self.post_upload_queue.get()
                 if upload_resp:
                     self.client_queue.put_nowait(
                         (
@@ -509,7 +506,7 @@ class MitmImage:
                     self.url_data[url].add(upload_resp["hash"])
                     self.hash_data[upload_resp["hash"]] = upload_resp["status"]
                 tags = []
-                url_filename = get_url_filename_func(url)
+                url_filename = self.get_url_filename(url)
                 if url_filename:
                     tags.append("filename:{}".format(url_filename))
                 if referer:
@@ -523,7 +520,7 @@ class MitmImage:
                     err.message if hasattr(err, "message") else str(err), exc_info=True
                 )
             # Notify the queue that the "work item" has been processed.
-            queue.task_done()
+            self.post_upload_queue.task_done()
 
     async def upload_worker(self):
         while True:
