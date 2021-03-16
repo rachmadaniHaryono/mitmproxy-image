@@ -554,25 +554,32 @@ class MitmImage:
                 # upload file
                 async with self.client_lock:
                     upload_resp = self.client.add_file(io.BytesIO(content))
+                status = upload_resp["status"]
                 referer = flow.request.headers.get("referer", None)
-                if upload_resp["status"] in [
+                hash_ = upload_resp.get("hash", None)
+                if status in [
                     ImportStatus.Exists,
                     ImportStatus.PreviouslyDeleted,
                     ImportStatus.Success,
                 ]:
                     self.post_upload_queue.put_nowait((url, upload_resp, referer))
+                elif status in [ImportStatus.Failed, ImportStatus.Vetoed] and hash_:
+                    self.url_data[url].add(hash_)
+                    self.hash_data[hash_] = status
+                else:
+                    self.logger.debug(upload_resp)
                 if self.logger.level == logging.DEBUG:
                     self.logger.debug(
                         {
-                            LogKey.HASH.value: upload_resp.get("hash", None),
-                            LogKey.STATUS.value: upload_resp["status"],
+                            LogKey.HASH.value: hash_,
+                            LogKey.STATUS.value: status,
                             LogKey.URL.value: url,
                         }
                     )
                 else:
                     self.logger.info(
                         {
-                            LogKey.STATUS.value: upload_resp["status"],
+                            LogKey.STATUS.value: status,
                             LogKey.URL.value: url,
                         }
                     )
