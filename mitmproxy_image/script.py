@@ -561,12 +561,21 @@ class MitmImage:
                     ImportStatus.Success,
                 ]:
                     self.post_upload_queue.put_nowait((url, upload_resp, referer))
-                self.logger.info(
-                    {
-                        LogKey.STATUS.value: upload_resp["status"],
-                        LogKey.URL.value: url,
-                    }
-                )
+                if self.logger.level == logging.DEBUG:
+                    self.logger.debug(
+                        {
+                            LogKey.HASH.value: upload_resp.get("hash", None),
+                            LogKey.STATUS.value: upload_resp["status"],
+                            LogKey.URL.value: url,
+                        }
+                    )
+                else:
+                    self.logger.info(
+                        {
+                            LogKey.STATUS.value: upload_resp["status"],
+                            LogKey.URL.value: url,
+                        }
+                    )
             except ConnectionError as err:
                 self.logger.error(
                     {
