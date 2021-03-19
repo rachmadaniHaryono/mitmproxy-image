@@ -161,9 +161,13 @@ class MitmImage:
         if not mimetype:
             return False
         try:
-            maintype, subtype = mimetype.lower().split("/")
+            if mimetype == "jpg":
+                maintype, subtype = "image", "jpeg"
+            else:
+                maintype, subtype = mimetype.lower().split("/")
             subtype = subtype.lower()
-        except ValueError:
+        except ValueError as err:
+            self.logger.debug(err, exc_info=True)
             self.logger.info(
                 {
                     LogKey.MIME.value: mimetype,
