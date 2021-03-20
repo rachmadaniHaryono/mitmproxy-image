@@ -36,6 +36,7 @@ setup(
         "python-json-logger>=2.0.1",
         "PyYAML>=5.3.1",
         "requests>=2.21.0",
+        "python-magic>=0.4.22",
     ],
     extras_require={
         "dev": [
