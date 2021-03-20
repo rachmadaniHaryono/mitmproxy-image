@@ -11,7 +11,7 @@ from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Optional, Set, Union, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 from urllib.parse import unquote_plus, urlparse
 
 import yaml
@@ -697,7 +697,6 @@ class MitmImage:
         """Handle response."""
         try:
             url = flow.request.pretty_url
-            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
             match = first_true(
                 self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
             )
@@ -707,6 +706,7 @@ class MitmImage:
                 )
                 self.remove_from_view(flow=flow)
                 return
+            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
             if match:
                 if match.log_flag:
                     self.logger.debug(
