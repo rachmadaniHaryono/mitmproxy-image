@@ -718,48 +718,64 @@ class MitmImage:
         except Exception as err:
             self.logger.exception(str(err))
 
+    def check_response_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
+        """Check response flow.
+
+        Result will determine:
+        - does flow need to be removed
+        - does request need be processed"""
+        res = {"remove": False, "return": False}
+        if flow.request.method == "POST":
+            res["remove"], res["return"] = True, True
+            return res
+        url = flow.request.pretty_url
+        match = first_true(
+            self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
+        )
+        if match:
+            self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
+            res["remove"], res["return"] = True, True
+            return res
+        match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+        if match:
+            if match.log_flag:
+                self.logger.debug(
+                    {
+                        LogKey.KEY.value: "rskip",
+                        LogKey.MESSAGE.value: match.name,
+                        LogKey.URL.value: url,
+                    }
+                )
+            res["remove"], res["return"] = True, True
+            return res
+        mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
+        if mimetype is None:
+            self.logger.debug(
+                {
+                    LogKey.KEY.value: "no mimetype",
+                    LogKey.MESSAGE.value: vars(flow.response),
+                    LogKey.URL.value: url,
+                }
+            )
+        elif not self.is_valid_content_type(mimetype=mimetype):
+            res["remove"], res["return"] = True, True
+            return res
+        # skip when it is cached
+        if url in self.cached_urls:
+            res["remove"], res["return"] = True, True
+            return res
+        return res
+
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         try:
-            url = flow.request.pretty_url
-            match = first_true(
-                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-            )
-            if match:
-                self.logger.debug(
-                    {LogKey.URL.value: url, LogKey.KEY.value: "host block"}
-                )
-                self.remove_from_view(flow=flow)
-                return
-            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-            if match:
-                if match.log_flag:
-                    self.logger.debug(
-                        {
-                            LogKey.KEY.value: "rskip",
-                            LogKey.MESSAGE.value: match.name,
-                            LogKey.URL.value: url,
-                        }
-                    )
+            check_res = self.check_response_flow(flow)
+            if check_res["remove"]:
                 self.remove_from_view(flow)
+            if check_res["return"]:
                 return
-            mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
-            if mimetype is None:
-                self.logger.debug(
-                    {
-                        LogKey.KEY.value: "no mimetype",
-                        LogKey.MESSAGE.value: vars(flow.response),
-                        LogKey.URL.value: url,
-                    }
-                )
-            elif not self.is_valid_content_type(mimetype=mimetype):
-                self.remove_from_view(flow)
-                return
-            # skip when it is cached
-            if url in self.cached_urls:
-                self.remove_from_view(flow)
-                return
+            url: str = flow.request.pretty_url
             hashes = self.get_hashes(url, "on_empty")
             single_hash_data = None
             if hashes and len(hashes) == 1:
