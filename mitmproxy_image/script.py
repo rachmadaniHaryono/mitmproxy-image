@@ -802,6 +802,13 @@ class MitmImage:
         except Exception as err:
             self.logger.exception(str(err))
 
+    def error(self, flow: http.HTTPFlow):
+        """An HTTP error has occurred, e.g. invalid server responses, or
+        interrupted connections. This is distinct from a valid server HTTP
+        error response, which is simply a response with an HTTP error code.
+        """
+        self.remove_from_view(flow)
+
     # command
 
     @command.command("mitmimage.log_hello")
