@@ -412,7 +412,7 @@ class MitmImage:
                 self.logger.info(
                     {
                         LogKey.MESSAGE.value: "url filename too long",
-                        LogKey.URL.value: "url",
+                        LogKey.URL.value: url,
                     }
                 )
 
