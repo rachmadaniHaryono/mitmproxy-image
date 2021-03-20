@@ -197,6 +197,12 @@ class MitmImage:
         return False
 
     def remove_from_view(self, flow: Union[http.HTTPFlow, Flow]):
+        """remove flow from view.
+
+        This supposedly copy from `mitmproxy.addons.view.View.remove` class method.
+
+        But it will not kill the flow because it may still be needed to load the page.
+        """
         if not self.remove_view_enable:
             return
         # compatibility
