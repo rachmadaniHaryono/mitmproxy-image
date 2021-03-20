@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 from urllib.parse import unquote_plus, urlparse
 
+import magic
 import yaml
 from hydrus import APIError, Client, ConnectionError, ImportStatus
 from mitmproxy import command, ctx, http
@@ -155,9 +156,16 @@ class MitmImage:
         self.remove_view_enable = True
 
     def is_valid_content_type(
-        self, flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
+        self,
+        flow: Optional[http.HTTPFlow] = None,
+        url: Optional[str] = None,
+        mimetype: Optional[str] = None,
     ) -> bool:
-        mimetype = get_mimetype(flow, url)
+        """check if flow, url or mimetype is valid.
+
+        If mimetype parameter is given ignore flow and url paramter."""
+        if not mimetype:
+            mimetype = get_mimetype(flow, url)
         if not mimetype:
             return False
         try:
@@ -718,7 +726,8 @@ class MitmImage:
                     )
                 self.remove_from_view(flow)
                 return
-            if get_mimetype(flow=flow) is None:
+            mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
+            if mimetype is None:
                 self.logger.debug(
                     {
                         LogKey.KEY.value: "no mimetype",
@@ -726,7 +735,7 @@ class MitmImage:
                         LogKey.URL.value: url,
                     }
                 )
-            elif not self.is_valid_content_type(flow):
+            elif not self.is_valid_content_type(mimetype=mimetype):
                 self.remove_from_view(flow)
                 return
             # skip when it is cached
