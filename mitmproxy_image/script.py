@@ -605,34 +605,46 @@ class MitmImage:
                 )
             self.upload_queue.task_done()
 
+    def check_request_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
+        """Check request flow.
+
+        Result will determine:
+        - does flow need to be removed
+        - does request need be processed"""
+        res = {"remove": False, "return": False}
+        url: str = flow.request.pretty_url
+        if flow.request.method == "POST":
+            res["remove"], res["return"] = True, True
+            return res
+        match = first_true(
+            self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
+        )
+        if match:
+            self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
+            res["remove"], res["return"] = True, True
+            return res
+        match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+        if match:
+            if match.log_flag:
+                self.logger.debug(
+                    {
+                        LogKey.KEY.value: "rskip",
+                        LogKey.MESSAGE.value: match.name,
+                        LogKey.URL.value: url,
+                    }
+                )
+            res["remove"], res["return"] = True, True
+        return res
+
     @concurrent
     def request(self, flow: http.HTTPFlow):
         try:
             url: str = flow.request.pretty_url
             self.add_additional_url(url)
-            if flow.request.method == "POST":
-                self.remove_from_view(flow=flow)
-                return
-            match = first_true(
-                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-            )
-            if match:
-                self.logger.debug(
-                    {LogKey.URL.value: url, LogKey.KEY.value: "host block"}
-                )
-                self.remove_from_view(flow=flow)
-                return
-            match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-            if match:
-                if match.log_flag:
-                    self.logger.debug(
-                        {
-                            LogKey.KEY.value: "rskip",
-                            LogKey.MESSAGE.value: match.name,
-                            LogKey.URL.value: url,
-                        }
-                    )
-                self.remove_from_view(flow=flow)
+            check_res = self.check_request_flow(flow)
+            if check_res["remove"]:
+                self.remove_from_view(flow)
+            if check_res["return"]:
                 return
             hashes = self.get_hashes(url, "always")
             if not hashes and not self.is_valid_content_type(url=url):
