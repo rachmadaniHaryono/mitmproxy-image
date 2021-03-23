@@ -877,11 +877,16 @@ class MitmImage:
                     ]
                 self.remove_from_view(flow)
                 continue
-            resp = self.upload(flow)
-            self.client_queue.put_nowait(("add_url", [url], {"page_name": "mitmimage"}))
-            resp_history.append(resp)
-            if remove and resp is not None:
-                self.remove_from_view(flow)
+            try:
+                resp = self.upload(flow)
+                self.client_queue.put_nowait(
+                    ("add_url", [url], {"page_name": "mitmimage"})
+                )
+                resp_history.append(resp)
+                if remove and resp is not None:
+                    self.remove_from_view(flow)
+            except Exception as err:
+                self.logger.error(str(err))
         data = [x["status"] for x in resp_history if x is not None]
         if data:
             [x.info(Counter(data)) for x in [self.logger, ctx.log]]
