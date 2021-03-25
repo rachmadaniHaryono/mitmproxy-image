@@ -619,7 +619,7 @@ class MitmImage:
         - does request need be processed"""
         res = {"remove": False, "return": False}
         url: str = flow.request.pretty_url
-        if flow.request.method == "POST":
+        if flow.request.method in ["POST", "HEAD"]:
             res["remove"], res["return"] = True, True
             return res
         match = first_true(
@@ -725,7 +725,7 @@ class MitmImage:
         - does flow need to be removed
         - does request need be processed"""
         res = {"remove": False, "return": False}
-        if flow.request.method == "POST":
+        if flow.request.method in ["POST", "HEAD"]:
             res["remove"], res["return"] = True, True
             return res
         url = flow.request.pretty_url
