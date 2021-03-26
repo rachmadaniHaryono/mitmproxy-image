@@ -25,6 +25,10 @@ It is also recommended to install browser extension that will load bigger image,
 such as imagus (
 [chrome](https://chrome.google.com/webstore/detail/imagus/immpkjjlgappgfkkfieppnmlhakdmaab?hl=en),
 [firefox](https://addons.mozilla.org/en-US/firefox/addon/imagus/)
+) or maxurl (
+[chrome]
+[firefox](https://addons.mozilla.org/en-US/firefox/addon/image-max-url/)
+[github](https://github.com/qsniyg/maxurl)
 )
 
 ![demo](https://user-images.githubusercontent.com/6340878/111593026-776fe280-8804-11eb-904e-1a1ae0ac960e.gif)
