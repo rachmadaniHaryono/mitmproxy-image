@@ -748,6 +748,9 @@ class MitmImage:
                 )
             res["remove"], res["return"] = True, True
             return res
+        if flow.response is None:
+            res["remove"], res["return"] = True, True
+            return res
         mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
         if mimetype is None:
             self.logger.debug(
