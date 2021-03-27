@@ -583,21 +583,17 @@ class MitmImage:
                     self.hash_data[hash_] = status
                 else:
                     self.logger.debug(upload_resp)
+                log_msg = {LogKey.STATUS.value: status, LogKey.URL.value: url}
                 if self.logger.level == logging.DEBUG:
-                    self.logger.debug(
+                    log_msg.update(
                         {
                             LogKey.HASH.value: hash_,
-                            LogKey.STATUS.value: status,
-                            LogKey.URL.value: url,
+                            "note": upload_resp.get("note", None),
                         }
                     )
+                    self.logger.debug(log_msg)
                 else:
-                    self.logger.info(
-                        {
-                            LogKey.STATUS.value: status,
-                            LogKey.URL.value: url,
-                        }
-                    )
+                    self.logger.info(log_msg)
             except ConnectionError as err:
                 self.logger.error(
                     {
