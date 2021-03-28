@@ -129,8 +129,9 @@ def run_mitmproxy(
     )
     master = console.master.ConsoleMaster(opts)
     master.view.focus_follow = True
-    pconf = main.proxy.config.ProxyConfig(opts)
-    master.server = main.proxy.server.ProxyServer(pconf)
+    if hasattr(main, "proxy"):
+        pconf = main.proxy.config.ProxyConfig(opts)
+        master.server = main.proxy.server.ProxyServer(pconf)
     ao_obj = MitmImage()
     ao_obj.load_config(ao_obj.default_config_path)
     master.addons.add(ao_obj)
@@ -142,6 +143,13 @@ def run_mitmproxy(
     loop.create_task(ao_obj.upload_worker())
     loop.create_task(ao_obj.post_upload_worker())
     loop.create_task(ao_obj.client_worker())
+    if os.name == "nt":
+
+        async def wakeup():
+            while True:
+                await asyncio.sleep(0.2)
+
+        asyncio.ensure_future(wakeup())
     run = True
     while run:
         try:
