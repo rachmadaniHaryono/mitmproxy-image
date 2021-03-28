@@ -122,24 +122,25 @@ class MitmImage:
     default_access_key = (
         "918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1"
     )
-    default_config_path = os.path.expanduser("~/mitmimage.yaml")
     client = Client(default_access_key)
+    # default path
+    default_config_path = os.path.expanduser("~/mitmimage.yaml")
+    default_log_path = os.path.expanduser("~/mitmimage.log")
+    # page name
+    page_name = "mitmimage"
+    additional_page_name = "mitmimage_plus"
 
     def __init__(self):
         self.clear_data()
-        self.config = {}
         self.block_regex = []
         self.add_url_regex = []
         # logger
         logger = logging.getLogger("mitmimage")
         logger.setLevel(logging.INFO)
-        # create file handler
-        fh = logging.FileHandler(os.path.expanduser("~/mitmimage.log"))
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
-        logger.addHandler(fh)
         self.logger = logger
+        self.set_log_path(self.default_log_path)
         #  other
+        self.load_config(self.default_config_path)
         try:
             if hasattr(ctx, "master"):
                 self.view = ctx.master.addons.get("view")
@@ -151,8 +152,6 @@ class MitmImage:
         self.client_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.cached_urls = set()
-        self.page_name = "mitmimage"
-        self.additional_page_name = "mitmimage_plus"
         self.remove_view_enable = True
 
     def is_valid_content_type(
@@ -295,12 +294,10 @@ class MitmImage:
             with open(config_path) as f:
                 self.config = yaml.safe_load(f)
                 view_filter = self.config.get("view_filter", None)
-                ctx_options = hasattr(ctx, "options")
-                if view_filter:
-                    if ctx_options:
-                        ctx.options.view_filter = view_filter
-                    if hasattr(ctx, "log"):
-                        ctx.log.info("view_filter: {}".format(view_filter))
+                if view_filter and hasattr(ctx, "options"):
+                    ctx.options.view_filter = view_filter
+                if self.ctx_log:
+                    ctx.log.info("mitmimage: view filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
                 self.host_block_regex = self.config.get("host_block_regex", [])
                 self.host_block_regex = [re.compile(x) for x in self.host_block_regex]
@@ -309,7 +306,7 @@ class MitmImage:
                     BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
                     for x in self.block_regex
                 ]
-                if ctx_options:
+                if self.ctx_log:
                     ctx.log.info(
                         "mitmimage: load {} block regex.".format(len(self.block_regex))
                     )
@@ -329,14 +326,9 @@ class MitmImage:
                     for item in self.add_url_regex
                 ]
         except Exception as err:
-            if hasattr(ctx, "log"):
-                log_msg = "mitmimage: error loading config, {}".format(err)
-                ctx.log.error(log_msg)
-                self.logger.exception(
-                    "{}\n{}".format(
-                        err.message if hasattr(err, "message") else str(err), log_msg
-                    )
-                )
+            self.logger.exception(str(err), exc_info=True)
+            if self.ctx_log:
+                ctx.log.error("mitmimage: error loading config, {}".format(err))
 
     # mitmproxy add on class' method
 
@@ -365,6 +357,26 @@ class MitmImage:
             default=False,
             help="Set mitmimage logging level to DEBUG",
         )
+        loader.add_option(
+            name="mitmimage_log_file",
+            typespec=Optional[str],
+            default=self.default_log_path,
+            help="Set mitmimage log file",
+        )
+
+    def set_log_path(self, filename: str):
+        """Set log path."""
+        try:
+            filename = os.path.expanduser(filename)
+            for hdlr in self.logger.handlers:
+                self.logger.removeHandler(hdlr)
+            fh = logging.FileHandler(filename)
+            fh.setLevel(self.logger.getEffectiveLevel())
+            fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
+            self.logger.addHandler(fh)
+            ctx.log.info("mitmimage: log path: {}.".format(filename))
+        except Exception as err:
+            self.logger.exception(str(err), exc_info=True)
 
     def configure(self, updates):
         if "hydrus_access_key" in updates:
@@ -373,7 +385,7 @@ class MitmImage:
                 self.client = Client(hydrus_access_key)
                 ctx.log.info("mitmimage: client initiated with new access key.")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
-            self.load_config(ctx.options.mitmimage_config)
+            self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
             ctx.log.info("mitmimage: remove view: {}.".format(self.remove_view_enable))
@@ -385,6 +397,8 @@ class MitmImage:
                 self.logger.setLevel(logging.INFO)
                 self.logger.handlers[0].setLevel(logging.INFO)
             ctx.log.info("mitmimage: log level: {}.".format(self.logger.level))
+        if "mitmimage_log_file" in updates and ctx.options.mitmimage_log_file:
+            self.set_log_path(os.path.expanduser(ctx.options.mitmimage_log_file))
 
     def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
         """Get url filename.
@@ -675,7 +689,7 @@ class MitmImage:
                     )
                     return
                 if hasattr(http, "HTTPResponse"):
-                    make = http.HTTPResponse.make
+                    make = http.HTTPResponse.make  # type: ignore
                 else:
                     #  NOTE used on mitmproxy v'7.0.0.dev'
                     make = http.Response.make
@@ -752,7 +766,9 @@ class MitmImage:
         if flow.response is None:
             res["remove"], res["return"] = True, True
             return res
-        mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
+        mimetype = None
+        if flow.response.content is not None:
+            mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
         if mimetype is None:
             self.logger.debug(
                 {
@@ -829,6 +845,10 @@ class MitmImage:
         """
         self.remove_from_view(flow)
 
+    @property
+    def ctx_log(self):
+        return hasattr(ctx, "log")
+
     # command
 
     @command.command("mitmimage.log_hello")
@@ -839,7 +859,7 @@ class MitmImage:
     def clear_data(self) -> None:
         self.url_data: Dict[str, Set[str]] = defaultdict(set)
         self.hash_data: Dict[str, ImportStatus] = {}
-        if hasattr(ctx, "log"):
+        if self.ctx_log:
             ctx.log.info("mitmimage: data cleared")
 
     @command.command("mitmimage.ipdb")
