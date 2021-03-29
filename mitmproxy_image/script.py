@@ -374,7 +374,8 @@ class MitmImage:
             fh.setLevel(self.logger.getEffectiveLevel())
             fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
             self.logger.addHandler(fh)
-            ctx.log.info("mitmimage: log path: {}.".format(filename))
+            if self.ctx_log:
+                ctx.log.info("mitmimage: log path: {}.".format(filename))
         except Exception as err:
             self.logger.exception(str(err), exc_info=True)
 
