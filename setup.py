@@ -43,11 +43,12 @@ setup(
         "hydrus-api>=2.14.3",
         "ipdb>=0.13.3",
         "mitmproxy>=6.0.0",
+        "more-itertools==8.7.0",
         "Pillow>=5.3.0",
         "python-json-logger>=2.0.1",
+        "python-magic>=0.4.22",
         "PyYAML>=5.3.1",
         "requests>=2.21.0",
-        "python-magic>=0.4.22",
     ],
     extras_require={
         "dev": [
