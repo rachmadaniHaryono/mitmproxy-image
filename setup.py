@@ -1,4 +1,14 @@
-from setuptools import setup, find_packages
+"""
+Method to get program version is based on follwoing url:
+https://packaging.python.org/guides/single-sourcing-package-version/
+"""
+import pathlib
+
+from setuptools import find_packages, setup
+
+version = {}
+with (pathlib.Path(__file__).parent / "mitmproxy_image" / "version.py").open() as fp:
+    exec(fp.read(), version)
 
 
 TEST = [
@@ -13,7 +23,7 @@ TEST = [
 
 setup(
     name="mitmproxy-image",
-    version="1.1.0",
+    version=version["__version__"],
     descriptioin="Download image using mitmproxy",
     long_description=__doc__,
     long_description_content_type="text/markdown",
