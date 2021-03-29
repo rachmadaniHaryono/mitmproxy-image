@@ -98,7 +98,9 @@ def get_au_regex_rules_test_data():
     obj = MitmImage()
     obj.load_config(config_path=obj.default_config_path)
     res = []
-    for rule in filter(lambda x: len(x) > 3, obj.config.get("add_url_regex", [])):
+    for rule in filter(
+        lambda x: len(x) > 3, getattr(obj, "config", {}).get("add_url_regex", [])
+    ):
         page_name = rule[4] if 4 < len(rule) else "mitmimage_plus"
         for sub_data in rule[3]:
             res.append(sub_data + [page_name])

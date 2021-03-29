@@ -140,6 +140,8 @@ class MitmImage:
         self.logger = logger
         self.set_log_path(self.default_log_path)
         #  other
+        #  NOTE config attribute is created here because it may not initiated on load_config
+        self.config = {}
         self.load_config(self.default_config_path)
         try:
             if hasattr(ctx, "master"):
@@ -290,6 +292,7 @@ class MitmImage:
         return upload_resp
 
     def load_config(self, config_path):
+        """Load config."""
         try:
             with open(config_path) as f:
                 self.config = yaml.safe_load(f)
