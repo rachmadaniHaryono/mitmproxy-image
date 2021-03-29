@@ -82,7 +82,7 @@ def get_mimetype(
 
 
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
-    def add_fields(self, log_record, record, message_dict):
+    def add_fields(self, log_record, record, message_dict):  # pragma: no cover
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
         log_record["p"] = "{}:{}:{}".format(
             record.levelname[0], record.funcName, record.lineno
@@ -122,9 +122,9 @@ class MitmImage:
         self.config = {}
         self.load_config(self.default_config_path)
         try:
-            if hasattr(ctx, "master"):
+            if hasattr(ctx, "master"):  # pragma: no cover
                 self.view = ctx.master.addons.get("view")
-        except Exception as err:
+        except Exception as err:  # pragma: no cover
             self.logger.exception("{}".format(str(err)))
             self.view = None
         self.upload_queue = asyncio.Queue()
@@ -175,7 +175,7 @@ class MitmImage:
             return True
         return False
 
-    def remove_from_view(self, flow: Union[http.HTTPFlow, Flow]):
+    def remove_from_view(self, flow: Union[http.HTTPFlow, Flow]):  # pragma: no cover
         """remove flow from view.
 
         This supposedly copy from `mitmproxy.addons.view.View.remove` class method.
@@ -269,7 +269,7 @@ class MitmImage:
         self.hash_data[upload_resp["hash"]] = upload_resp["status"]
         return upload_resp
 
-    def load_config(self, config_path):
+    def load_config(self, config_path):  # pragma: no cover
         """Load config."""
         try:
             with open(config_path) as f:
@@ -355,12 +355,12 @@ class MitmImage:
             fh.setLevel(self.logger.getEffectiveLevel())
             fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
             self.logger.addHandler(fh)
-            if self.ctx_log:
+            if self.ctx_log:  # pragma: no cover
                 ctx.log.info("mitmimage: log path: {}.".format(filename))
-        except Exception as err:
+        except Exception as err:  # pragma: no cover
             self.logger.exception(str(err), exc_info=True)
 
-    def configure(self, updates):
+    def configure(self, updates):  # pragma: no cover
         if "hydrus_access_key" in updates:
             hydrus_access_key = ctx.options.hydrus_access_key
             if hydrus_access_key and hydrus_access_key != self.client._access_key:
@@ -394,8 +394,7 @@ class MitmImage:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
             if url_filename:
                 for item in self.config.get("block_url_filename_regex", []):
-                    if re.match(item[0], url):
-                        self.logger.debug("skip filename:{},{}".format(item[1], url))
+                    if re.match(item[0], url):  # pragma: no cover
                         self.logger.debug(
                             {
                                 LogKey.KEY.value: "skip filename",
@@ -413,7 +412,7 @@ class MitmImage:
                 )
 
                 return None
-        except Exception as err:
+        except Exception as err:  # pragma: no cover
             self.logger.exception(str(err))
         return url_filename
 
@@ -444,11 +443,11 @@ class MitmImage:
             match = rs.cpatt.match(url)
             if match and match.groups():
                 new_url = rs.url_fmt.format(*match.groups())
-                if new_url == url:
+                if new_url == url:  # pragma: no cover
                     continue
                 url_sets.append((new_url, rs.page_name))
                 log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
-                if rs.log_flag:
+                if rs.log_flag:  # pragma: no cover
                     self.logger.info(log_msg)
                 else:
                     self.logger.debug(log_msg)
@@ -473,7 +472,7 @@ class MitmImage:
                 )
                 self.client_queue.put_nowait(args)
 
-    async def client_worker(self):
+    async def client_worker(self):  # pragma: no cover
         queue = self.client_queue
         while True:
             # Get a "work item" out of the queue.
@@ -496,7 +495,7 @@ class MitmImage:
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
-    async def post_upload_worker(self):
+    async def post_upload_worker(self):  # pragma: no cover
         while True:
             try:
                 # Get a "work item" out of the queue.
@@ -534,7 +533,7 @@ class MitmImage:
             # Notify the queue that the "work item" has been processed.
             self.post_upload_queue.task_done()
 
-    async def upload_worker(self):
+    async def upload_worker(self):  # pragma: no cover
         while True:
             try:
                 # Get a "work item" out of the queue.
@@ -825,7 +824,7 @@ class MitmImage:
         interrupted connections. This is distinct from a valid server HTTP
         error response, which is simply a response with an HTTP error code.
         """
-        self.remove_from_view(flow)
+        self.remove_from_view(flow)  # pragma: no cover
 
     @property
     def ctx_log(self):
@@ -841,7 +840,7 @@ class MitmImage:
     def clear_data(self) -> None:
         self.url_data: Dict[str, Set[str]] = defaultdict(set)
         self.hash_data: Dict[str, ImportStatus] = {}
-        if self.ctx_log:
+        if self.ctx_log:  # pragma: no cover
             ctx.log.info("mitmimage: data cleared")
 
     @command.command("mitmimage.ipdb")
@@ -850,12 +849,8 @@ class MitmImage:
 
         ipdb.set_trace()
 
-    @command.command("mitmimage.log_info")
-    def log_info(self):
-        raise NotImplementedError
-
     @command.command("mitmimage.remove_flow_with_data")
-    def remove_flow_with_data(self):
+    def remove_flow_with_data(self):  # pragma: no cover
         items = filter(
             lambda item: item[1].response and item[1].response.content is not None,
             self.view._store.items(),

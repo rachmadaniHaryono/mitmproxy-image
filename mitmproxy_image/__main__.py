@@ -118,7 +118,7 @@ def run_mitmproxy(
     listen_port: int = LISTEN_PORT,
     http2=True,
     restart_on_error=True,
-):
+):  # pragma: no cover
     """Run mitmproxy.
 
     based on mitmproxy.main.py and example from following url:
@@ -173,7 +173,7 @@ def run_mitmproxy_cmd(
     listen_port: int = LISTEN_PORT,
     http2=True,
     restart=True,
-):
+):  # pragma: no cover
     """Run mitmproxy command."""
     run_mitmproxy(listen_host, listen_port, http2, restart_on_error=restart)
 
