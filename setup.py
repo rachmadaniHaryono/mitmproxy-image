@@ -3,10 +3,11 @@ Method to get program version is based on follwoing url:
 https://packaging.python.org/guides/single-sourcing-package-version/
 """
 import pathlib
+import typing
 
 from setuptools import find_packages, setup
 
-version = {}
+version: typing.Dict[str, typing.Any] = {}
 with (pathlib.Path(__file__).parent / "mitmproxy_image" / "version.py").open() as fp:
     exec(fp.read(), version)
 
