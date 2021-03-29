@@ -9,7 +9,6 @@ import os
 import re
 from collections import Counter, defaultdict, namedtuple
 from enum import Enum
-from itertools import islice
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 from urllib.parse import unquote_plus, urlparse
@@ -20,6 +19,7 @@ from hydrus import APIError, Client, ConnectionError, ImportStatus
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
+from more_itertools import first_true, nth
 from pythonjsonlogger import jsonlogger
 
 
@@ -37,23 +37,6 @@ class LogKey(Enum):
 
 AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-
-
-def nth(iterable, n, default=None):
-    """Returns the nth item or a default value."""
-    return next(islice(iterable, n, None), default)
-
-
-def first_true(iterable, default=None, pred=None):
-    """
-    Returns the first true value in the iterable.
-
-    If no true value is found, returns *default*
-
-    If *pred* is not None, returns the first item for which
-    ``pred(item) == True`` .
-    """
-    return next(filter(pred, iterable), default)
 
 
 def get_mimetype(
