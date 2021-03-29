@@ -81,11 +81,6 @@ def get_mimetype(
     return p_header[0] if len(p_header) > 0 else None
 
 
-def get_connection_error_message(err):
-    """get formatted text from ConnectionError."""
-    return "{}:{}".format(type(err).__name__, re.sub(r"0x.*>", ">", str(err)))
-
-
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
@@ -493,9 +488,7 @@ class MitmImage:
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
             except ConnectionError as err:
-                self.logger.info(
-                    {LogKey.MESSAGE.value: get_connection_error_message(err)}
-                )
+                self.info.debug(str(err), exc_info=True)
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -596,16 +589,15 @@ class MitmImage:
                 else:
                     self.logger.info(log_msg)
             except ConnectionError as err:
+                self.logger.debug(str(err), exc_info=True)
                 self.logger.error(
                     {
-                        LogKey.MESSAGE.value: get_connection_error_message(err),
+                        LogKey.MESSAGE.value: "ConnectionError",
                         LogKey.URL.value: url,
                     }
                 )
             except Exception as err:
-                self.logger.error(
-                    err.message if hasattr(err, "message") else str(err), exc_info=True
-                )
+                self.logger.error(str(err), exc_info=True)
             self.upload_queue.task_done()
 
     def check_request_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
@@ -711,14 +703,15 @@ class MitmImage:
                     }
                 )
         except ConnectionError as err:
+            self.logger.debug(str(err), exc_info=True)
             self.logger.error(
                 {
-                    LogKey.MESSAGE.value: get_connection_error_message(err),
+                    LogKey.MESSAGE.value: "ConnectionError",
                     LogKey.URL.value: url,
                 }
             )
         except Exception as err:
-            self.logger.exception(str(err))
+            self.logger.exception(str(err), exc_info=True)
 
     def check_response_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
         """Check response flow.
@@ -817,9 +810,10 @@ class MitmImage:
                 self.logger.info(msg)
             self.remove_from_view(flow)
         except ConnectionError as err:
+            self.logger.debug(str(err), exc_info=True)
             self.logger.error(
                 {
-                    LogKey.MESSAGE.value: get_connection_error_message(err),
+                    LogKey.MESSAGE.value: "ConnectionError",
                     LogKey.URL.value: url,
                 }
             )
