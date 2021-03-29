@@ -130,10 +130,9 @@ def run_mitmproxy(
     master = console.master.ConsoleMaster(opts)
     master.view.focus_follow = True
     if hasattr(main, "proxy"):
-        pconf = main.proxy.config.ProxyConfig(opts)
-        master.server = main.proxy.server.ProxyServer(pconf)
+        pconf = main.proxy.config.ProxyConfig(opts)  # type: ignore
+        master.server = main.proxy.server.ProxyServer(pconf)  # type: ignore
     ao_obj = MitmImage()
-    ao_obj.load_config(ao_obj.default_config_path)
     master.addons.add(ao_obj)
     loop = asyncio.get_event_loop()
     loop.add_signal_handler(
