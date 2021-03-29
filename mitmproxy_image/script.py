@@ -592,7 +592,7 @@ class MitmImage:
                     ImportStatus.Success,
                 ]:
                     self.post_upload_queue.put_nowait((url, upload_resp, referer))
-                elif status in [ImportStatus.Failed, ImportStatus.Vetoed] and hash_:
+                elif status in [ImportStatus.Failed, ImportStatus.Vetoed, 8] and hash_:
                     self.url_data[url].add(hash_)
                     self.hash_data[hash_] = status
                 else:
@@ -805,6 +805,7 @@ class MitmImage:
             elif single_hash_data in [
                 ImportStatus.Failed,
                 ImportStatus.PreviouslyDeleted,
+                ImportStatus.Vetoed,
             ]:
                 # NOTE: don't do anything to it
                 pass
