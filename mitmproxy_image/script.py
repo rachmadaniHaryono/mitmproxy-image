@@ -133,6 +133,7 @@ class MitmImage:
         self.client_lock = asyncio.Lock()
         self.cached_urls = set()
         self.remove_view_enable = True
+        self.skip_flow = set()
 
     def is_valid_content_type(
         self,
@@ -588,24 +589,15 @@ class MitmImage:
                 self.logger.error(str(err), exc_info=True)
             self.upload_queue.task_done()
 
-    def check_request_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
-        """Check request flow.
-
-        Result will determine:
-        - does flow need to be removed
-        - does request need be processed"""
-        res = {"remove": False, "return": False}
+    def check_request_flow(self, flow: http.HTTPFlow) -> bool:
+        """Check request flow and determine if the flow need to be skipped."""
         url: str = flow.request.pretty_url
-        if flow.request.method in ["POST", "HEAD"]:
-            res["remove"], res["return"] = True, True
-            return res
         match = first_true(
             self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
         )
         if match:
             self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
-            res["remove"], res["return"] = True, True
-            return res
+            return True
         match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
         if match:
             if match.log_flag:
@@ -616,18 +608,22 @@ class MitmImage:
                         LogKey.URL.value: url,
                     }
                 )
-            res["remove"], res["return"] = True, True
-        return res
+            return True
+        return False
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
         try:
             url: str = flow.request.pretty_url
             self.add_additional_url(url)
-            check_res = self.check_request_flow(flow)
-            if check_res["remove"]:
-                self.remove_from_view(flow)
-            if check_res["return"]:
+            if self.check_request_flow(flow):
+                self.skip_flow.add(flow.id)
+                self.logger.debug(
+                    {
+                        LogKey.URL.value: url,
+                        LogKey.MESSAGE.value: "flow id:{}".format(flow.id),
+                    }
+                )
                 return
             hashes = self.get_hashes(url, "always")
             if not hashes and not self.is_valid_content_type(url=url):
@@ -666,27 +662,17 @@ class MitmImage:
                 )
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
-                self.client_queue.put_nowait(
-                    ("add_url", {"url": url, "page_name": "mitmimage"})
+                self.post_upload_queue.put_nowait(
+                    (url, None, flow.request.headers.get("referer", None))
                 )
-                referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait((url, None, referer))
                 self.logger.info(
                     {LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"}
-                )
-                self.remove_from_view(flow=flow)
-            elif hashes:
-                self.logger.debug(
-                    {
-                        "hash count": len(hashes),
-                        "url hash": "\n".join(hashes),
-                        LogKey.URL.value: url,
-                    }
                 )
             else:
                 self.logger.debug(
                     {
-                        LogKey.MESSAGE.value: "no hash",
+                        "hash count": len(hashes),
+                        "url hash": hashes,
                         LogKey.URL.value: url,
                     }
                 )
@@ -701,39 +687,27 @@ class MitmImage:
         except Exception as err:
             self.logger.exception(str(err), exc_info=True)
 
-    def check_response_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
+    def check_response_flow(self, flow: http.HTTPFlow) -> bool:
         """Check response flow.
 
         Result will determine:
         - does flow need to be removed
         - does request need be processed"""
-        res = {"remove": False, "return": False}
-        if flow.request.method in ["POST", "HEAD"]:
-            res["remove"], res["return"] = True, True
-            return res
         url = flow.request.pretty_url
-        match = first_true(
-            self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-        )
-        if match:
-            self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
-            res["remove"], res["return"] = True, True
-            return res
-        match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-        if match:
-            if match.log_flag:
-                self.logger.debug(
-                    {
-                        LogKey.KEY.value: "rskip",
-                        LogKey.MESSAGE.value: match.name,
-                        LogKey.URL.value: url,
-                    }
-                )
-            res["remove"], res["return"] = True, True
-            return res
+        if flow.id in self.skip_flow:
+            self.skip_flow.remove(flow.id)
+            self.logger.debug(
+                {
+                    LogKey.URL.value: url,
+                    LogKey.MESSAGE.value: "skip flow id:{}".format(flow.id),
+                }
+            )
+            return True
+        # skip when it is cached
+        if url in self.cached_urls:
+            return True
         if flow.response is None:
-            res["remove"], res["return"] = True, True
-            return res
+            return True
         mimetype = None
         if flow.response.content is not None:
             mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
@@ -746,22 +720,15 @@ class MitmImage:
                 }
             )
         elif not self.is_valid_content_type(mimetype=mimetype):
-            res["remove"], res["return"] = True, True
-            return res
-        # skip when it is cached
-        if url in self.cached_urls:
-            res["remove"], res["return"] = True, True
-            return res
-        return res
+            return True
+        return False
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         try:
-            check_res = self.check_response_flow(flow)
-            if check_res["remove"]:
+            if self.check_response_flow(flow):
                 self.remove_from_view(flow)
-            if check_res["return"]:
                 return
             url: str = flow.request.pretty_url
             hashes = self.get_hashes(url, "on_empty")
