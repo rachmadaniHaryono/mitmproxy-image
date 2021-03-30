@@ -43,6 +43,22 @@ def test_is_valid_content_type_url():
     assert obj.is_valid_content_type(url=url)
 
 
+@pytest.mark.parametrize(
+    "mimetype, exp_res, config_mimetype",
+    [
+        [None, False, None],
+        ["jpg", True, None],
+        ["image/jpeg", True, None],
+        ["image/jpeg", True, []],
+    ],
+)
+def test_is_valid_content_type_mimetype(mimetype, exp_res, config_mimetype):
+    obj = MitmImage()
+    if config_mimetype is not None:
+        obj.config["mimetype"] = config_mimetype
+    assert obj.is_valid_content_type(mimetype=mimetype) == exp_res
+
+
 def get_au_regex_rules_test_data():
     """get addditional url regex rules."""
     obj = MitmImage()

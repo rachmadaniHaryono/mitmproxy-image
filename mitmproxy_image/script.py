@@ -154,7 +154,7 @@ class MitmImage:
             else:
                 maintype, subtype = mimetype.lower().split("/")
             subtype = subtype.lower()
-        except ValueError as err:
+        except ValueError as err:  # pragma: no cover
             self.logger.debug(err, exc_info=True)
             self.logger.info(
                 {
