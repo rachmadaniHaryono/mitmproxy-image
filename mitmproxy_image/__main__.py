@@ -90,9 +90,7 @@ def run(
             sys.exit(0)
         if extra:
             if args.filter_args:
-                master.log.info(
-                    f"Only processing flows that match \"{' & '.join(args.filter_args)}\""
-                )
+                master.log.info(f"Only processing flows that match \"{' & '.join(args.filter_args)}\"")
             opts.update(**extra(args))
 
         loop = asyncio.get_event_loop()
@@ -102,9 +100,7 @@ def run(
         loop.create_task(ao_obj.post_upload_worker())
         loop.create_task(ao_obj.client_worker())
         try:
-            loop.add_signal_handler(
-                signal.SIGINT, getattr(master, "prompt_for_exit", master.shutdown)
-            )
+            loop.add_signal_handler(signal.SIGINT, getattr(master, "prompt_for_exit", master.shutdown))
             loop.add_signal_handler(signal.SIGTERM, master.shutdown)
         except NotImplementedError:
             # Not supported on Windows

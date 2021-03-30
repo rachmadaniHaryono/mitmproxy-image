@@ -39,9 +39,7 @@ AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 
-def get_mimetype(
-    flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
-) -> Optional[str]:
+def get_mimetype(flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> Optional[str]:
     """Get mimetype from flow or url.
 
     >>> from types import SimpleNamespace
@@ -84,9 +82,7 @@ def get_mimetype(
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):  # pragma: no cover
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
-        log_record["p"] = "{}:{}:{}".format(
-            record.levelname[0], record.funcName, record.lineno
-        )
+        log_record["p"] = "{}:{}:{}".format(record.levelname[0], record.funcName, record.lineno)
         if not log_record.get("message"):
             del log_record["message"]
 
@@ -97,9 +93,7 @@ class MitmImage:
     hash_data: Dict[str, str]
     config: Dict[str, Any]
 
-    default_access_key = (
-        "918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1"
-    )
+    default_access_key = "918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1"
     client = Client(default_access_key)
     # default path
     default_config_path = os.path.expanduser("~/mitmimage.yaml")
@@ -238,21 +232,15 @@ class MitmImage:
         url = flow.request.pretty_url  # type: ignore
         response = flow.response  # type: ignore
         if response is None:
-            self.logger.debug(
-                {LogKey.MESSAGE.value: "no response", LogKey.URL.value: url}
-            )
+            self.logger.debug({LogKey.MESSAGE.value: "no response", LogKey.URL.value: url})
             return None
         content = response.get_content()
         if content is None:
-            self.logger.debug(
-                {LogKey.MESSAGE.value: "no content", LogKey.URL.value: url}
-            )
+            self.logger.debug({LogKey.MESSAGE.value: "no content", LogKey.URL.value: url})
             return None
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
-        self.logger.info(
-            {LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url}
-        )
+        self.logger.info({LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url})
         self.client_queue.put_nowait(
             (
                 "associate_url",
@@ -284,13 +272,10 @@ class MitmImage:
                 self.host_block_regex = [re.compile(x) for x in self.host_block_regex]
                 self.block_regex = self.config.get("block_regex", [])
                 self.block_regex = [
-                    BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
-                    for x in self.block_regex
+                    BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False)) for x in self.block_regex
                 ]
                 if self.ctx_log:
-                    ctx.log.info(
-                        "mitmimage: load {} block regex.".format(len(self.block_regex))
-                    )
+                    ctx.log.info("mitmimage: load {} block regex.".format(len(self.block_regex)))
                     ctx.log.info(
                         "mitmimage: load {} url filename block regex.".format(
                             len(self.config.get("block_url_filename_regex", []))
@@ -371,9 +356,7 @@ class MitmImage:
             self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
-            log_msg.append(
-                "mitmimage: remove view: {}.".format(self.remove_view_enable)
-            )
+            log_msg.append("mitmimage: remove view: {}.".format(self.remove_view_enable))
         if "mitmimage_debug" in updates:
             if ctx.options.mitmimage_debug:
                 self.logger.setLevel(logging.DEBUG)
@@ -484,9 +467,7 @@ class MitmImage:
             # Get a "work item" out of the queue.
             try:
                 cmd, kwargs = await self.client_queue.get()
-                self.logger.debug(
-                    {LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs}
-                )
+                self.logger.debug({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs})
                 async with self.client_lock:
                     getattr(self.client, cmd)(**kwargs)
             except Exception as err:
@@ -598,9 +579,7 @@ class MitmImage:
     def check_request_flow(self, flow: http.HTTPFlow) -> bool:
         """Check request flow and determine if the flow need to be skipped."""
         url: str = flow.request.pretty_url
-        match = first_true(
-            self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-        )
+        match = first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
         if match:
             self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
             return True
@@ -649,9 +628,7 @@ class MitmImage:
                     self.logger.error(
                         {
                             LogKey.HASH.value: hash_,
-                            LogKey.MESSAGE.value: "{}:{}".format(
-                                type(err).__name__, err
-                            ),
+                            LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
                             LogKey.STATUS.value: status,
                             LogKey.URL.value: url,
                         }
@@ -671,9 +648,7 @@ class MitmImage:
                 self.post_upload_queue.put_nowait(
                     (url, None, flow.request.headers.get("referer", None))
                 )
-                self.logger.info(
-                    {LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"}
-                )
+                self.logger.info({LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"})
             else:
                 self.logger.debug(
                     {
@@ -842,9 +817,7 @@ class MitmImage:
                 continue
             try:
                 resp = self.upload(flow)
-                self.client_queue.put_nowait(
-                    ("add_url", {"url": url, "page_name": "mitmimage"})
-                )
+                self.client_queue.put_nowait(("add_url", {"url": url, "page_name": "mitmimage"}))
                 resp_history.append(resp)
                 if remove and resp is not None:
                     self.remove_from_view(flow)

@@ -9,9 +9,7 @@ from hydrus import ConnectionError
 
 from mitmproxy_image.script import MitmImage, get_mimetype
 
-PICKLE_PATH = os.path.join(
-    os.path.dirname(__file__), "pickle", "20200120_223805.pickle"
-)
+PICKLE_PATH = os.path.join(os.path.dirname(__file__), "pickle", "20200120_223805.pickle")
 pickle_path_exist = pytest.mark.skipif(
     not os.path.isfile(PICKLE_PATH), reason="No pickled data found."
 )
@@ -64,9 +62,7 @@ def get_au_regex_rules_test_data():
     obj = MitmImage()
     obj.load_config(config_path=obj.default_config_path)
     res = []
-    for rule in filter(
-        lambda x: len(x) > 3, getattr(obj, "config", {}).get("add_url_regex", [])
-    ):
+    for rule in filter(lambda x: len(x) > 3, getattr(obj, "config", {}).get("add_url_regex", [])):
         page_name = rule[4] if 4 < len(rule) else "mitmimage_plus"
         for sub_data in rule[3]:
             res.append(sub_data + [page_name])
@@ -88,8 +84,7 @@ def test_add_additional_url(url, exp_url, page_name):
     obj.client_queue = MockQueue()
     obj.add_additional_url(url)
     history = [
-        (x[0][1].get("url", None), x[0][1].get("page_name", None))
-        for x in obj.client_queue.history
+        (x[0][1].get("url", None), x[0][1].get("page_name", None)) for x in obj.client_queue.history
     ]
     assert (exp_url, page_name) in history
 
