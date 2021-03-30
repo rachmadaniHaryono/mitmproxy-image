@@ -14,7 +14,7 @@ use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 $ mitmproxy-image run-mitmproxy
 ```
 
-If configuration is succesful, 
+If configuration is succesful,
 each time your browser load an image
 it will also be shown on `mitmimage` downloader page on hydrus.
 
@@ -25,6 +25,10 @@ It is also recommended to install browser extension that will load bigger image,
 such as imagus (
 [chrome](https://chrome.google.com/webstore/detail/imagus/immpkjjlgappgfkkfieppnmlhakdmaab?hl=en),
 [firefox](https://addons.mozilla.org/en-US/firefox/addon/imagus/)
+) or maxurl (
+[chrome]
+[firefox](https://addons.mozilla.org/en-US/firefox/addon/image-max-url/)
+[github](https://github.com/qsniyg/maxurl)
 )
 
 ![demo](https://user-images.githubusercontent.com/6340878/111593026-776fe280-8804-11eb-904e-1a1ae0ac960e.gif)
@@ -48,7 +52,7 @@ $ python setup.py install
    [develop mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode) which allows
    modifying source code directly without a need to re-install the app): `make venv`
 
- - run tests: `pytest --flake8 --mypy .`
+ - run tests: `pytest --flake8 --mypy --doctest-modules .`
 
  - create source distribution: `python setup.py sdist`
 
