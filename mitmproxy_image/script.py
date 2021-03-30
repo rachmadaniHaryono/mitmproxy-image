@@ -66,7 +66,7 @@ def get_mimetype(
         if flow is not None and flow.response:
             header = flow.response.data.headers["Content-type"]
     except Exception as err:
-        logging.getLogger().debug(str(err), exc_info=True)
+        logging.getLogger().exception(str(err))
         if flow is not None:
             url = getattr(getattr(flow, "request", None), "pretty_url", None)
     if url is not None:
@@ -125,7 +125,7 @@ class MitmImage:
             if hasattr(ctx, "master"):  # pragma: no cover
                 self.view = ctx.master.addons.get("view")
         except Exception as err:  # pragma: no cover
-            self.logger.exception("{}".format(str(err)))
+            self.logger.exception(str(err))
             self.view = None
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
@@ -307,7 +307,7 @@ class MitmImage:
                     for item in self.add_url_regex
                 ]
         except Exception as err:
-            self.logger.exception(str(err), exc_info=True)
+            self.logger.exception(str(err))
             if self.ctx_log:
                 ctx.log.error("mitmimage: error loading config, {}".format(err))
 
@@ -358,7 +358,7 @@ class MitmImage:
             if self.ctx_log:  # pragma: no cover
                 ctx.log.info("mitmimage: log path: {}.".format(filename))
         except Exception as err:  # pragma: no cover
-            self.logger.exception(str(err), exc_info=True)
+            self.logger.exception(str(err))
 
     def configure(self, updates):  # pragma: no cover
         log_msg = []
@@ -490,7 +490,7 @@ class MitmImage:
                 async with self.client_lock:
                     getattr(self.client, cmd)(**kwargs)
             except Exception as err:
-                self.logger.error(str(err), exc_info=True)
+                self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
             self.client_queue.task_done()
 
@@ -525,9 +525,7 @@ class MitmImage:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
                 self.client_queue.put_nowait(("add_url", kwargs))
             except Exception as err:
-                self.logger.error(
-                    err.message if hasattr(err, "message") else str(err), exc_info=True
-                )
+                self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
             self.post_upload_queue.task_done()
 
@@ -594,7 +592,7 @@ class MitmImage:
                     }
                 )
             except Exception as err:
-                self.logger.error(str(err), exc_info=True)
+                self.logger.exception(str(err))
             self.upload_queue.task_done()
 
     def check_request_flow(self, flow: http.HTTPFlow) -> bool:
@@ -693,7 +691,7 @@ class MitmImage:
                 }
             )
         except Exception as err:
-            self.logger.exception(str(err), exc_info=True)
+            self.logger.exception(str(err))
 
     def check_response_flow(self, flow: http.HTTPFlow) -> bool:
         """Check response flow.
@@ -851,7 +849,7 @@ class MitmImage:
                 if remove and resp is not None:
                     self.remove_from_view(flow)
             except Exception as err:
-                self.logger.error(str(err))
+                self.logger.exception(str(err))
         data = [x["status"] for x in resp_history if x is not None]
         if data:
             [x.info(Counter(data)) for x in [self.logger, ctx.log]]
