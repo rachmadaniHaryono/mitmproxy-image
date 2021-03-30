@@ -19,6 +19,7 @@ from mitmproxy.tools.main import assert_utf8_env, process_options
 from mitmproxy.utils import arg_check, debug
 
 from .script import MitmImage
+from .version import __version__
 
 
 def mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
@@ -68,6 +69,17 @@ def run(
             os.path.join(opts.confdir, "config.yaml"),
             os.path.join(opts.confdir, "config.yml"),
         )
+        # NOTE add mitmproxy_image version
+        if args.version:
+            print(
+                "\n".join(
+                    [
+                        debug.dump_system_info(),
+                        "Mitmproxy-image: {}".format(__version__),
+                    ]
+                )
+            )
+            sys.exit(0)
         process_options(parser, opts, args)
 
         if args.options:
