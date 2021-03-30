@@ -361,16 +361,19 @@ class MitmImage:
             self.logger.exception(str(err), exc_info=True)
 
     def configure(self, updates):  # pragma: no cover
+        log_msg = []
         if "hydrus_access_key" in updates:
             hydrus_access_key = ctx.options.hydrus_access_key
             if hydrus_access_key and hydrus_access_key != self.client._access_key:
                 self.client = Client(hydrus_access_key)
-                ctx.log.info("mitmimage: client initiated with new access key.")
+                log_msg.append("mitmimage: client initiated with new access key.")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
-            ctx.log.info("mitmimage: remove view: {}.".format(self.remove_view_enable))
+            log_msg.append(
+                "mitmimage: remove view: {}.".format(self.remove_view_enable)
+            )
         if "mitmimage_debug" in updates:
             if ctx.options.mitmimage_debug:
                 self.logger.setLevel(logging.DEBUG)
@@ -378,9 +381,14 @@ class MitmImage:
             else:
                 self.logger.setLevel(logging.INFO)
                 self.logger.handlers[0].setLevel(logging.INFO)
-            ctx.log.info("mitmimage: log level: {}.".format(self.logger.level))
+            log_msg.append("mitmimage: log level: {}.".format(self.logger.level))
         if "mitmimage_log_file" in updates and ctx.options.mitmimage_log_file:
             self.set_log_path(os.path.expanduser(ctx.options.mitmimage_log_file))
+        if log_msg:
+            if self.ctx_log:
+                list(map(ctx.log, log_msg))
+            else:
+                list(map(self.logger.info, log_msg))
 
     def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
         """Get url filename.
