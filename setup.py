@@ -25,7 +25,7 @@ TEST = [
 setup(
     name="mitmproxy-image",
     version=version["__version__"],
-    descriptioin="Download image using mitmproxy",
+    description="Download image using mitmproxy",
     long_description=__doc__,
     long_description_content_type="text/markdown",
     author="Rachmadani Haryono",
