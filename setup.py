@@ -60,7 +60,7 @@ setup(
         "test": TEST,
     },
     entry_points={
-        "console_scripts": ["mitmproxy-image = mitmproxy_image.__main__:cli"]
+        "console_scripts": ["mitmproxy-image = mitmproxy_image.__main__:mitmproxy"]
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
