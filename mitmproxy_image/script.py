@@ -10,7 +10,7 @@ import re
 from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Set, Union
 from urllib.parse import unquote_plus, urlparse
 
 import magic
@@ -255,13 +255,12 @@ class MitmImage:
         self.client_queue.put_nowait(
             (
                 "associate_url",
-                [
-                    [
+                {
+                    "hashes": [
                         upload_resp["hash"],
                     ],
-                    [url],
-                ],
-                {},
+                    "add": [url],
+                },
             )
         )
         # update data
@@ -427,7 +426,7 @@ class MitmImage:
         >>> obj.client_queue.put_nowait = mock.Mock()
         >>> obj.add_additional_url('https://example.com/1.jpg')
         >>> obj.client_queue.put_nowait.assert_called_once_with((
-        ...     'add_url', [], {
+        ...     'add_url', {
         ...         'url': 'https://example.com/sub/1.jpg',
         ...         'page_name': obj.additional_page_name,
         ...         'service_names_to_additional_tags': {
@@ -465,31 +464,26 @@ class MitmImage:
                     kwargs["service_names_to_additional_tags"] = {
                         "my tags": ["filename:{}".format(filename)]
                     }
-                args: Tuple[str, List[str], Dict[str, Any]] = (
+                args = (
                     "add_url",
-                    [],
                     kwargs,
                 )
                 self.client_queue.put_nowait(args)
 
     async def client_worker(self):  # pragma: no cover
-        queue = self.client_queue
         while True:
             # Get a "work item" out of the queue.
             try:
-                cmd, args, kwargs = await queue.get()
-                msg = {LogKey.MESSAGE.value: "cmd:{}".format(cmd)}
-                if args:
-                    msg["args"] = args
-                if kwargs:
-                    msg["kwargs"] = kwargs
-                self.logger.debug(msg)
+                cmd, kwargs = await self.client_queue.get()
+                self.logger.debug(
+                    {LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs}
+                )
                 async with self.client_lock:
-                    getattr(self.client, cmd)(*args, **kwargs)
+                    getattr(self.client, cmd)(**kwargs)
             except Exception as err:
                 self.logger.error(str(err), exc_info=True)
             # Notify the queue that the "work item" has been processed.
-            queue.task_done()
+            self.client_queue.task_done()
 
     async def post_upload_worker(self):  # pragma: no cover
         while True:
@@ -500,13 +494,12 @@ class MitmImage:
                     self.client_queue.put_nowait(
                         (
                             "associate_url",
-                            [
-                                [
+                            {
+                                "hashes": [
                                     upload_resp["hash"],
                                 ],
-                                [url],
-                            ],
-                            {},
+                                "add": [url],
+                            },
                         )
                     )
                     # update data
@@ -518,10 +511,10 @@ class MitmImage:
                     tags.append("filename:{}".format(url_filename))
                 if referer:
                     tags.append("referer:{}".format(referer))
-                kwargs: Dict[str, Any] = {"page_name": "mitmimage"}
+                kwargs: Dict[str, Any] = {"page_name": "mitmimage", "url": url}
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
-                self.client_queue.put_nowait(("add_url", [url], kwargs))
+                self.client_queue.put_nowait(("add_url", kwargs))
             except Exception as err:
                 self.logger.error(
                     err.message if hasattr(err, "message") else str(err), exc_info=True
@@ -674,7 +667,7 @@ class MitmImage:
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
                 self.client_queue.put_nowait(
-                    ("add_url", [url], {"page_name": "mitmimage"})
+                    ("add_url", {"url": url, "page_name": "mitmimage"})
                 )
                 referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait((url, None, referer))
@@ -877,7 +870,7 @@ class MitmImage:
             try:
                 resp = self.upload(flow)
                 self.client_queue.put_nowait(
-                    ("add_url", [url], {"page_name": "mitmimage"})
+                    ("add_url", {"url": url, "page_name": "mitmimage"})
                 )
                 resp_history.append(resp)
                 if remove and resp is not None:
