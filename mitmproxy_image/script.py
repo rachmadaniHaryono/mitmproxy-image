@@ -486,12 +486,8 @@ class MitmImage:
                 self.logger.debug(msg)
                 async with self.client_lock:
                     getattr(self.client, cmd)(*args, **kwargs)
-            except ConnectionError as err:
-                self.info.debug(str(err), exc_info=True)
             except Exception as err:
-                self.logger.error(
-                    err.message if hasattr(err, "message") else str(err), exc_info=True
-                )
+                self.logger.error(str(err), exc_info=True)
             # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
