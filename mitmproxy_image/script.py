@@ -625,6 +625,7 @@ class MitmImage:
                     ImportStatus.PreviouslyDeleted,
                     ImportStatus.Importable,
                     ImportStatus.Failed,
+                    8,
                 ]:
                     return
                 try:
