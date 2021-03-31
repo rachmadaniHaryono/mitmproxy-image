@@ -15,7 +15,7 @@ from urllib.parse import unquote_plus, urlparse
 
 import magic
 import yaml
-from hydrus import APIError, Client, ConnectionError, ImportStatus
+from hydrus import APIError, Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -485,7 +485,9 @@ class MitmImage:
             try:
                 # Get a "work item" out of the queue.
                 url, upload_resp, referer = await self.post_upload_queue.get()
+                hash_ = None
                 if upload_resp:
+                    hash_ = upload_resp.get("hash", None)
                     self.client_queue.put_nowait(
                         (
                             "associate_url",
@@ -509,6 +511,16 @@ class MitmImage:
                 kwargs: Dict[str, Any] = {"page_name": "mitmimage", "url": url}
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
+                    if hash_:
+                        self.client_queue.put_nowait(
+                            (
+                                "add_tags",
+                                {
+                                    "hashes": [hash_],
+                                    "service_to_action_to_tags": {"my tags": {TagAction.Add: tags}},
+                                },
+                            )
+                        )
                 self.client_queue.put_nowait(("add_url", kwargs))
             except Exception as err:
                 self.logger.exception(str(err))
