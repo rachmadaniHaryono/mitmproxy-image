@@ -467,9 +467,14 @@ class MitmImage:
             # Get a "work item" out of the queue.
             try:
                 cmd, kwargs = await self.client_queue.get()
-                self.logger.debug({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs})
                 async with self.client_lock:
-                    getattr(self.client, cmd)(**kwargs)
+                    res = getattr(self.client, cmd)(**kwargs)
+                    self.logger.debug(
+                        {LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs, "res": res}
+                    )
+            except ConnectionError as err:
+                self.logger.debug(str(err), exc_info=True)
+                self.logger.error({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs})
             except Exception as err:
                 self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
