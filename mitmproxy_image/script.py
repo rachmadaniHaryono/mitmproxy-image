@@ -842,7 +842,5 @@ class MitmImage:
             except Exception as err:
                 self.logger.exception(str(err))
         data = [x["status"] for x in resp_history if x is not None]
-        if data:
-            [x.info(Counter(data)) for x in [self.logger, ctx.log]]
-        else:
-            [x.info("upload finished") for x in [self.logger, ctx.log]]
+        for obj in [self.logger, ctx.log]:
+            obj.info(Counter(data) if data else "upload finished")
