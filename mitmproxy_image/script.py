@@ -373,7 +373,7 @@ class MitmImage:
             else:
                 list(map(self.logger.info, log_msg))
 
-    def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
+    def get_url_filename(self, url: str) -> Optional[str]:
         """Get url filename.
 
         >>> MitmImage().get_url_filename('http://example.com/1.jpg')
@@ -394,15 +394,6 @@ class MitmImage:
                             }
                         )
                         return None
-            if url_filename and len(url_filename) > max_len:
-                self.logger.info(
-                    {
-                        LogKey.MESSAGE.value: "url filename too long",
-                        LogKey.URL.value: url,
-                    }
-                )
-
-                return None
         except Exception as err:  # pragma: no cover
             self.logger.exception(str(err))
         return url_filename
