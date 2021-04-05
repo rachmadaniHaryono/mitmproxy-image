@@ -378,7 +378,6 @@ class MitmImage:
 
         >>> MitmImage().get_url_filename('http://example.com/1.jpg')
         '1'
-        >>> MitmImage().get_url_filename('http://example.com/1234.jpg', max_len=1)
         """
         url_filename = None
         try:
