@@ -383,17 +383,18 @@ class MitmImage:
         url_filename = None
         try:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
-            if url_filename:
-                for item in self.config.get("block_url_filename_regex", []):
-                    if re.match(item[0], url):  # pragma: no cover
-                        self.logger.debug(
-                            {
-                                LogKey.KEY.value: "skip filename",
-                                LogKey.MESSAGE.value: item[1],
-                                LogKey.URL.value: url,
-                            }
-                        )
-                        return None
+            if not url_filename:
+                return None
+            for item in self.config.get("block_url_filename_regex", []):
+                if re.match(item[0], url):  # pragma: no cover
+                    self.logger.debug(
+                        {
+                            LogKey.KEY.value: "skip filename",
+                            LogKey.MESSAGE.value: item[1],
+                            LogKey.URL.value: url,
+                        }
+                    )
+                    return None
         except Exception as err:  # pragma: no cover
             self.logger.exception(str(err))
         return url_filename
