@@ -625,9 +625,10 @@ class MitmImage:
                 hash_: str = next(iter(hashes))
                 status = self.hash_data.get(hash_, None)
                 if status is not None and status in [
-                    ImportStatus.PreviouslyDeleted,
-                    ImportStatus.Importable,
                     ImportStatus.Failed,
+                    ImportStatus.Importable,
+                    ImportStatus.PreviouslyDeleted,
+                    ImportStatus.Vetoed,
                     8,
                 ]:
                     return
