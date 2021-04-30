@@ -37,9 +37,6 @@ setup(
     zip_safe=False,
     python_requires=">=3.6",
     install_requires=[
-        "appdirs>=1.4.3",
-        "click>=7.0",
-        "Flask>=1.0.2",
         "hydrus-api>=2.14.3",
         "ipdb>=0.13.3",
         "mitmproxy>=6.0.0",
@@ -52,8 +49,6 @@ setup(
     ],
     extras_require={
         "dev": [
-            "flask-shell-ipython>=0.3.1",
-            "ipython>=7.1.1",
             "pdbpp>=0.9.2",
         ]
         + TEST,
