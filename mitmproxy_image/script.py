@@ -121,6 +121,8 @@ class MitmImage:
         except Exception as err:  # pragma: no cover
             self.logger.exception(str(err))
             self.view = None
+        self.host_block_regex = []
+        self.block_regex = []
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
