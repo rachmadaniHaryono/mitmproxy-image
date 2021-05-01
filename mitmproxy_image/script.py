@@ -168,7 +168,7 @@ class MitmImage:
             )
             return False
         mimetype_sets = self.config.get("mimetype", [])
-        if not mimetype_sets and maintype == "image":
+        if not mimetype_sets and maintype in ["image", "video", "audio"]:
             return True
         if (
             mimetype_sets
