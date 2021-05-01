@@ -11,7 +11,7 @@ from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Set, Union
-from urllib.parse import unquote_plus, urlparse
+from urllib.parse import unquote_plus, urlparse, urlencode, urlunparse, parse_qsl
 
 import magic
 import yaml
@@ -93,8 +93,6 @@ class MitmImage:
     hash_data: Dict[str, str]
     config: Dict[str, Any]
 
-    default_access_key = "918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1"
-    client = Client(default_access_key)
     # default path
     default_config_path = os.path.expanduser("~/mitmimage.yaml")
     default_log_path = os.path.expanduser("~/mitmimage.log")
@@ -121,6 +119,8 @@ class MitmImage:
         except Exception as err:  # pragma: no cover
             self.logger.exception(str(err))
             self.view = None
+        self.host_block_regex = []
+        self.block_regex = []
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
@@ -128,6 +128,14 @@ class MitmImage:
         self.cached_urls = set()
         self.remove_view_enable = True
         self.skip_flow = set()
+        try:
+            ak = ctx.options.deferred["hydrus_access_key"]
+        except Exception:
+            ak = None
+        if ak:
+            self.client = Client(ak)
+        else:
+            self.client = Client()
 
     def is_valid_content_type(
         self,
@@ -160,7 +168,7 @@ class MitmImage:
             )
             return False
         mimetype_sets = self.config.get("mimetype", [])
-        if not mimetype_sets and maintype == "image":
+        if not mimetype_sets and maintype in ["image", "video", "audio"]:
             return True
         if (
             mimetype_sets
@@ -302,7 +310,7 @@ class MitmImage:
         loader.add_option(
             name="hydrus_access_key",
             typespec=str,
-            default=self.default_access_key,
+            default="",
             help="Hydrus Access Key",
         )
         loader.add_option(
@@ -347,11 +355,9 @@ class MitmImage:
 
     def configure(self, updates):  # pragma: no cover
         log_msg = []
-        if "hydrus_access_key" in updates:
-            hydrus_access_key = ctx.options.hydrus_access_key
-            if hydrus_access_key and hydrus_access_key != self.client._access_key:
-                self.client = Client(hydrus_access_key)
-                log_msg.append("mitmimage: client initiated with new access key.")
+        if "hydrus_access_key" in updates and ctx.options.hydrus_access_key:
+            self.client = Client(ctx.options.hydrus_access_key)
+            log_msg.append("client initiated")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
         if "mitmimage_remove_view" in updates:
@@ -632,27 +638,36 @@ class MitmImage:
                     8,
                 ]:
                     return
-                try:
-                    file_data = self.client.get_file(hash_=hash_)
-                except APIError as err:
-                    self.logger.error(
-                        {
-                            LogKey.HASH.value: hash_,
-                            LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
-                            LogKey.STATUS.value: status,
-                            LogKey.URL.value: url,
-                        }
+                redirect = True
+                if not redirect:
+                    try:
+                        file_data = self.client.get_file(hash_=hash_)
+                    except APIError as err:
+                        self.logger.error(
+                            {
+                                LogKey.HASH.value: hash_,
+                                LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                                LogKey.STATUS.value: status,
+                                LogKey.URL.value: url,
+                            }
+                        )
+                        return
+                    #  NOTE http.Response.make used on mitmproxy v'7.0.0.dev'
+                    make = http.HTTPResponse.make if hasattr(http, "HTTPResponse") else http.Response.make  # type: ignore
+                    flow.response = make(
+                        content=file_data.content,
+                        headers=dict(file_data.headers),
                     )
-                    return
-                if hasattr(http, "HTTPResponse"):
-                    make = http.HTTPResponse.make  # type: ignore
                 else:
-                    #  NOTE used on mitmproxy v'7.0.0.dev'
-                    make = http.Response.make  # type: ignore
-                flow.response = make(
-                    content=file_data.content,
-                    headers=dict(file_data.headers),
-                )
+                    src_url = self.client._api_url + self.client._FILE_ROUTE
+                    params = {"hash": hash_, "Hydrus-Client-API-Access-Key": self.client._access_key}
+                    url_parts = list(urlparse(src_url))
+                    query = dict(parse_qsl(url_parts[4]))
+                    query.update(params)
+                    url_parts[4] = urlencode(query)
+                    flow.request.url = urlunparse(url_parts)
+                    # NOTE skip to not process file from hydrus
+                    self.skip_flow.add(flow.id)
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
                 self.post_upload_queue.put_nowait(
