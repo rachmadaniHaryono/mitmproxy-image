@@ -11,7 +11,7 @@ from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Set, Union
-from urllib.parse import unquote_plus, urlparse
+from urllib.parse import unquote_plus, urlparse, urlencode, urlunparse, parse_qsl
 
 import magic
 import yaml
@@ -628,30 +628,40 @@ class MitmImage:
                     ImportStatus.PreviouslyDeleted,
                     ImportStatus.Importable,
                     ImportStatus.Failed,
+                    7,
                     8,
                 ]:
                     return
-                try:
-                    file_data = self.client.get_file(hash_=hash_)
-                except APIError as err:
-                    self.logger.error(
-                        {
-                            LogKey.HASH.value: hash_,
-                            LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
-                            LogKey.STATUS.value: status,
-                            LogKey.URL.value: url,
-                        }
+                redirect = True
+                if not redirect:
+                    try:
+                        file_data = self.client.get_file(hash_=hash_)
+                    except APIError as err:
+                        self.logger.error(
+                            {
+                                LogKey.HASH.value: hash_,
+                                LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
+                                LogKey.STATUS.value: status,
+                                LogKey.URL.value: url,
+                            }
+                        )
+                        return
+                    #  NOTE http.Response.make used on mitmproxy v'7.0.0.dev'
+                    make = http.HTTPResponse.make if hasattr(http, "HTTPResponse") else http.Response.make  # type: ignore
+                    flow.response = make(
+                        content=file_data.content,
+                        headers=dict(file_data.headers),
                     )
-                    return
-                if hasattr(http, "HTTPResponse"):
-                    make = http.HTTPResponse.make  # type: ignore
                 else:
-                    #  NOTE used on mitmproxy v'7.0.0.dev'
-                    make = http.Response.make  # type: ignore
-                flow.response = make(
-                    content=file_data.content,
-                    headers=dict(file_data.headers),
-                )
+                    src_url = self.client._api_url + self.client._FILE_ROUTE
+                    params = {'hash': hash_, 'Hydrus-Client-API-Access-Key': self.client._access_key}
+                    url_parts = list(urlparse(src_url))
+                    query = dict(parse_qsl(url_parts[4]))
+                    query.update(params)
+                    url_parts[4] = urlencode(query)
+                    flow.request.url = urlunparse(url_parts)
+                    # NOTE skip to not process file from hydrus
+                    self.skip_flow.add(flow.id)
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
                 self.post_upload_queue.put_nowait(
