@@ -93,8 +93,6 @@ class MitmImage:
     hash_data: Dict[str, str]
     config: Dict[str, Any]
 
-    default_access_key = "918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1"
-    client = Client(default_access_key)
     # default path
     default_config_path = os.path.expanduser("~/mitmimage.yaml")
     default_log_path = os.path.expanduser("~/mitmimage.log")
@@ -130,6 +128,14 @@ class MitmImage:
         self.cached_urls = set()
         self.remove_view_enable = True
         self.skip_flow = set()
+        try:
+            ak = ctx.options.deferred['hydrus_access_key']
+        except Exception:
+            ak = None
+        if ak:
+            self.client = Client(ak)
+        else:
+            self.client = Client()
 
     def is_valid_content_type(
         self,
@@ -304,7 +310,7 @@ class MitmImage:
         loader.add_option(
             name="hydrus_access_key",
             typespec=str,
-            default=self.default_access_key,
+            default='',
             help="Hydrus Access Key",
         )
         loader.add_option(
@@ -349,11 +355,9 @@ class MitmImage:
 
     def configure(self, updates):  # pragma: no cover
         log_msg = []
-        if "hydrus_access_key" in updates:
-            hydrus_access_key = ctx.options.hydrus_access_key
-            if hydrus_access_key and hydrus_access_key != self.client._access_key:
-                self.client = Client(hydrus_access_key)
-                log_msg.append("mitmimage: client initiated with new access key.")
+        if "hydrus_access_key" in updates and ctx.options.hydrus_access_key:
+            self.client = Client(ctx.options.hydrus_access_key)
+            log_msg.append("client initiated")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
             self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
         if "mitmimage_remove_view" in updates:
