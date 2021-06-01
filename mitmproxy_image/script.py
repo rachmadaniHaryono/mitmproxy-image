@@ -653,7 +653,9 @@ class MitmImage:
                         )
                         return
                     #  NOTE http.Response.make used on mitmproxy v'7.0.0.dev'
-                    make = http.HTTPResponse.make if hasattr(http, "HTTPResponse") else http.Response.make  # type: ignore
+                    make = (
+                        http.HTTPResponse.make if hasattr(http, "HTTPResponse") else http.Response.make
+                    )  # type: ignore
                     flow.response = make(
                         content=file_data.content,
                         headers=dict(file_data.headers),
