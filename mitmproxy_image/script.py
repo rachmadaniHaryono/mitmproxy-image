@@ -719,7 +719,11 @@ class MitmImage:
         if flow.response is None:
             return True
         mimetype = None
-        if flow.response.content is not None:
+        try:
+            valid_resp_content = flow.response.content is not None
+        except ValueError as err:
+            self.logger.debug(str(err), exc_info=True)
+        if valid_resp_content:
             mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
         if mimetype is None:
             self.logger.debug(
