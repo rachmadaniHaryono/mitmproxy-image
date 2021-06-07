@@ -39,6 +39,30 @@ AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 
+def get_readable_url(url: str) -> str:
+    """get readable url.
+
+    >>> get_readable_url('http://example.com')
+    'http://example.com'
+    >>> get_readable_url('http://example.com/%d0%ad%d1%82%d1%82%d0%b8')
+    'http://example.com/Этти'
+    >>> get_readable_url('http://example.com/?q=%d0%ad%d1%82%d1%82%d0%b8')
+    'http://example.com/?q=Этти'
+    >>> get_readable_url('https://example/search?q=type,value,text%0acomments,connorcomments,connor')
+    'https://example/search?q=type,value,text comments,connorcomments,connor'
+    """
+    p_url = urlparse(url)
+    # no change when no query and path
+    if not p_url.query and not p_url.path:
+        return url
+    # replace query and path if url have it
+    if p_url.query:
+        p_url = p_url._replace(query=unquote_plus(p_url.query).replace("\n", " "))
+    if p_url.path:
+        p_url = p_url._replace(path=unquote_plus(p_url.path).replace("\n", " "))
+    return p_url.geturl()
+
+
 def get_mimetype(flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> Optional[str]:
     """Get mimetype from flow or url.
 
@@ -217,7 +241,7 @@ class MitmImage:
         If `from_hydrus` is `on_empty`, ask client only when url not in self.url_data.
 
         >>> # url don't have any hashes on self.url_data and client
-        >>> MitmImage().get_hashes('http://example.com')
+        >>> MitmImage().get_hashes('http://example.com')  # doctest: +SKIP
         set()
         """
         assert from_hydrus in ["always", "on_empty"]
@@ -561,7 +585,9 @@ class MitmImage:
                     ImportStatus.PreviouslyDeleted,
                     ImportStatus.Success,
                 ]:
-                    self.post_upload_queue.put_nowait((url, upload_resp, referer))
+                    self.post_upload_queue.put_nowait(
+                        (url, upload_resp, None if referer is None else get_readable_url(referer))
+                    )
                 elif status in [ImportStatus.Failed, ImportStatus.Vetoed, 8] and hash_:
                     self.url_data[url].add(hash_)
                     self.hash_data[hash_] = status
@@ -674,8 +700,9 @@ class MitmImage:
                     self.skip_flow.add(flow.id)
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
+                referer = flow.request.headers.get("referer", None)
                 self.post_upload_queue.put_nowait(
-                    (url, None, flow.request.headers.get("referer", None))
+                    (url, None, None if referer is None else get_readable_url(referer))
                 )
                 self.logger.info({LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"})
             else:
@@ -761,7 +788,9 @@ class MitmImage:
             else:
                 # NOTE: add referer & url filename to url
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait((url, None, referer))
+                self.post_upload_queue.put_nowait(
+                    (url, None, None if referer is None else get_readable_url(referer))
+                )
                 hashes_status = [(self.hash_data.get(x, None), x) for x in hashes]
                 msg = {
                     LogKey.KEY.value: "add",
