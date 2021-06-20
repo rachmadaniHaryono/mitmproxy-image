@@ -455,7 +455,9 @@ class MitmImage:
             match = rs.cpatt.match(url)
             if match and match.groups():
                 new_url = rs.url_fmt.format(*match.groups())
-                if new_url == url:  # pragma: no cover
+                if new_url == url and rs.page_name != self.page_name:
+                    pass
+                elif new_url == url:  # pragma: no cover
                     continue
                 url_sets.append((new_url, rs.page_name))
                 log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
