@@ -163,15 +163,9 @@ class MitmImage:
 
     def is_valid_content_type(
         self,
-        flow: Optional[http.HTTPFlow] = None,
-        url: Optional[str] = None,
         mimetype: Optional[str] = None,
     ) -> bool:
-        """check if flow, url or mimetype is valid.
-
-        If mimetype parameter is given ignore flow and url paramter."""
-        if not mimetype:
-            mimetype = get_mimetype(flow, url)
+        """check if mimetype is valid."""
         if not mimetype:
             return False
         try:
@@ -185,8 +179,6 @@ class MitmImage:
             self.logger.info(
                 {
                     LogKey.MIME.value: mimetype,
-                    LogKey.URL.value: url,
-                    LogKey.FLOW.value: str(flow),
                     LogKey.MESSAGE.value: "unknown",
                 }
             )
@@ -655,7 +647,7 @@ class MitmImage:
                 )
                 return
             hashes = self.get_hashes(url, "always")
-            if not hashes and not self.is_valid_content_type(url=url):
+            if not hashes and not self.is_valid_content_type(mimetype=get_mimetype(url=url)):
                 return
             if len(hashes) == 1:
                 hash_: str = next(iter(hashes))
