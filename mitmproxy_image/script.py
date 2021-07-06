@@ -103,6 +103,17 @@ def get_mimetype(flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
     return p_header[0] if len(p_header) > 0 else None
 
 
+def get_redirect_url(hash_, client):
+    """Get redirect url."""
+    src_url = client._api_url + client._FILE_ROUTE
+    params = {"hash": hash_, "Hydrus-Client-API-Access-Key": client._access_key}
+    url_parts = list(urlparse(src_url))
+    query = dict(parse_qsl(url_parts[4]))
+    query.update(params)
+    url_parts[4] = urlencode(query)
+    return urlunparse(url_parts)
+
+
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):  # pragma: no cover
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
