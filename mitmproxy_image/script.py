@@ -699,13 +699,7 @@ class MitmImage:
                         headers=dict(file_data.headers),
                     )
                 else:
-                    src_url = self.client._api_url + self.client._FILE_ROUTE
-                    params = {"hash": hash_, "Hydrus-Client-API-Access-Key": self.client._access_key}
-                    url_parts = list(urlparse(src_url))
-                    query = dict(parse_qsl(url_parts[4]))
-                    query.update(params)
-                    url_parts[4] = urlencode(query)
-                    flow.request.url = urlunparse(url_parts)
+                    flow.request.url = get_redirect_url(hash_, self.client)
                     # NOTE skip to not process file from hydrus
                     self.skip_flow.add(flow.id)
                 if url not in self.cached_urls:
