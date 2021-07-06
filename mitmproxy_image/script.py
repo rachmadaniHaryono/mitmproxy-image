@@ -104,7 +104,12 @@ def get_mimetype(flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
 
 
 def get_redirect_url(hash_, client):
-    """Get redirect url."""
+    """Get redirect url.
+    >>> from types import SimpleNamespace
+    >>> get_redirect_url("1234", SimpleNamespace(
+    ...  _api_url="https://127.0.0.1", _FILE_ROUTE="/file", _access_key="5678"))
+    'https://127.0.0.1/file?hash=1234&Hydrus-Client-API-Access-Key=5678'
+    """
     src_url = client._api_url + client._FILE_ROUTE
     params = {"hash": hash_, "Hydrus-Client-API-Access-Key": client._access_key}
     url_parts = list(urlparse(src_url))
