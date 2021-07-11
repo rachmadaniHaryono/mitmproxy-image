@@ -152,7 +152,6 @@ class MitmImage:
         #  other
         #  NOTE config attribute is created here because it may not initiated on load_config
         self.config = {}
-        self.load_config(self.default_config_path)
         try:
             if hasattr(ctx, "master"):  # pragma: no cover
                 self.view = ctx.master.addons.get("view")
@@ -161,6 +160,7 @@ class MitmImage:
             self.view = None
         self.host_block_regex = []
         self.block_regex = []
+        self.load_config(self.default_config_path)
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
@@ -308,13 +308,25 @@ class MitmImage:
                 if self.ctx_log:
                     ctx.log.info("mitmimage: view filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
-                self.host_block_regex = self.config.get("host_block_regex", [])
-                self.host_block_regex = [re.compile(x) for x in self.host_block_regex]
-                self.block_regex = self.config.get("block_regex", [])
+                host_block_regex_old = self.host_block_regex.copy()
+                self.host_block_regex = [
+                    re.compile(x) for x in self.config.get("host_block_regex", [])
+                ]
                 self.block_regex = [
-                    BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False)) for x in self.block_regex
+                    BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
+                    for x in self.config.get("block_regex", [])
                 ]
                 if self.ctx_log:
+                    ctx.log.info(
+                        "mitmimage: host block regex old\n{}.".format(
+                            "\n".join([str(x) for x in host_block_regex_old])
+                        )
+                    )
+                    ctx.log.info(
+                        "mitmimage: host block regex new\n{}.".format(
+                            "\n".join([str(x) for x in self.host_block_regex])
+                        )
+                    )
                     ctx.log.info("mitmimage: load {} block regex.".format(len(self.block_regex)))
                     ctx.log.info(
                         "mitmimage: load {} url filename block regex.".format(
@@ -391,7 +403,7 @@ class MitmImage:
             self.client = Client(ctx.options.hydrus_access_key)
             log_msg.append("client initiated")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
-            self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
+            self.load_config(os.path.expanduser(ctx.options.mitmimage_config))
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
             log_msg.append("mitmimage: remove view: {}.".format(self.remove_view_enable))
