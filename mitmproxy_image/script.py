@@ -645,7 +645,13 @@ class MitmImage:
         url: str = flow.request.pretty_url
         match = first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
         if match:
-            self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
+            self.logger.debug(
+                {
+                    LogKey.URL.value: url,
+                    LogKey.KEY.value: "host block",
+                    LogKey.MESSAGE.value: str(match),
+                }
+            )
             return True
         match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
         if match:
