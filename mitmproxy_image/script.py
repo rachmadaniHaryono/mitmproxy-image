@@ -694,32 +694,9 @@ class MitmImage:
                     8,
                 ]:
                     return
-                redirect = True
-                if not redirect:
-                    try:
-                        file_data = self.client.get_file(hash_=hash_)
-                    except APIError as err:
-                        self.logger.error(
-                            {
-                                LogKey.HASH.value: hash_,
-                                LogKey.MESSAGE.value: "{}:{}".format(type(err).__name__, err),
-                                LogKey.STATUS.value: status,
-                                LogKey.URL.value: url,
-                            }
-                        )
-                        return
-                    #  NOTE http.Response.make used on mitmproxy v'7.0.0.dev'
-                    make = (
-                        http.HTTPResponse.make if hasattr(http, "HTTPResponse") else http.Response.make
-                    )  # type: ignore
-                    flow.response = make(
-                        content=file_data.content,
-                        headers=dict(file_data.headers),
-                    )
-                else:
-                    flow.request.url = get_redirect_url(hash_, self.client)
-                    # NOTE skip to not process file from hydrus
-                    self.skip_flow.add(flow.id)
+                flow.request.url = get_redirect_url(hash_, self.client)
+                # NOTE skip to not process file from hydrus
+                self.skip_flow.add(flow.id)
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
                 referer = flow.request.headers.get("referer", None)
