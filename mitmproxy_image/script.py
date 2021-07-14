@@ -11,11 +11,11 @@ from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Set, Union
-from urllib.parse import unquote_plus, urlparse, urlencode, urlunparse, parse_qsl
+from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunparse
 
 import magic
 import yaml
-from hydrus import APIError, Client, ConnectionError, ImportStatus, TagAction
+from hydrus import Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -170,12 +170,11 @@ class MitmImage:
         self.skip_flow = set()
         try:
             ak = ctx.options.deferred["hydrus_access_key"]
+            if ak and not isinstance(ak, str):
+                ak = ak[0]
         except Exception:
             ak = None
-        if ak:
-            self.client = Client(ak)
-        else:
-            self.client = Client()
+        self.client = Client(ak) if ak else Client()
 
     def is_valid_content_type(
         self,
