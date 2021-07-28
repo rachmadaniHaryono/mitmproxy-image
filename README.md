@@ -8,10 +8,10 @@ Download image using mitmproxy on hydrus.
 - Set up your browser for mitmproxy ([guide](https://docs.mitmproxy.org/stable/overview-getting-started/)) or
 use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 
-- Run the application (by default it will use `127.0.0.1:5007`):
+- Run the application
 
 ```console
-$ mitmproxy-image run-mitmproxy
+$ mitmproxy-image
 ```
 
 If configuration is succesful,
@@ -26,12 +26,14 @@ such as imagus (
 [chrome](https://chrome.google.com/webstore/detail/imagus/immpkjjlgappgfkkfieppnmlhakdmaab?hl=en),
 [firefox](https://addons.mozilla.org/en-US/firefox/addon/imagus/)
 ) or maxurl (
-[chrome]
 [firefox](https://addons.mozilla.org/en-US/firefox/addon/image-max-url/)
 [github](https://github.com/qsniyg/maxurl)
 )
 
 ![demo](https://user-images.githubusercontent.com/6340878/111593026-776fe280-8804-11eb-904e-1a1ae0ac960e.gif)
+
+note: the appearance, command line and hydrus version may differ from actual version,
+but the workflow is as shown on the gif.
 
 ## Prerequisites
 
@@ -42,13 +44,15 @@ To install the program run:
 ```console
 $ pip install .
 $ # or
+$ pip install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
+$ # or
 $ python setup.py install
 ```
 
 
 ## Development environment and release process
 
- - create virtualenv with Flask and mitmproxy_image installed into it (latter is installed in
+ - create virtualenv with mitmproxy_image installed into it (latter is installed in
    [develop mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode) which allows
    modifying source code directly without a need to re-install the app): `make venv`
 
@@ -56,6 +60,6 @@ $ python setup.py install
 
  - create source distribution: `python setup.py sdist`
 
- ## License
+## License
 
 This project is licensed under the MIT License

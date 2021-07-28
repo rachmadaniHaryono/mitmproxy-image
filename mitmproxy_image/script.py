@@ -10,12 +10,12 @@ import re
 from collections import Counter, defaultdict, namedtuple
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
-from urllib.parse import unquote_plus, urlparse
+from typing import Any, Dict, Optional, Sequence, Set, Union
+from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunparse
 
 import magic
 import yaml
-from hydrus import APIError, Client, ConnectionError, ImportStatus
+from hydrus import Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
@@ -39,9 +39,31 @@ AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 
-def get_mimetype(
-    flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None
-) -> Optional[str]:
+def get_readable_url(url: str) -> str:
+    """get readable url.
+
+    >>> get_readable_url('http://example.com')
+    'http://example.com'
+    >>> get_readable_url('http://example.com/%d0%ad%d1%82%d1%82%d0%b8')
+    'http://example.com/Этти'
+    >>> get_readable_url('http://example.com/?q=%d0%ad%d1%82%d1%82%d0%b8')
+    'http://example.com/?q=Этти'
+    >>> get_readable_url('https://example/search?q=type,value,text%0acomments,connorcomments,connor')
+    'https://example/search?q=type,value,text comments,connorcomments,connor'
+    """
+    p_url = urlparse(url)
+    # no change when no query and path
+    if not p_url.query and not p_url.path:
+        return url
+    # replace query and path if url have it
+    if p_url.query:
+        p_url = p_url._replace(query=unquote_plus(p_url.query).replace("\n", " "))
+    if p_url.path:
+        p_url = p_url._replace(path=unquote_plus(p_url.path).replace("\n", " "))
+    return p_url.geturl()
+
+
+def get_mimetype(flow: Optional[http.HTTPFlow] = None, url: Optional[str] = None) -> Optional[str]:
     """Get mimetype from flow or url.
 
     >>> from types import SimpleNamespace
@@ -66,7 +88,7 @@ def get_mimetype(
         if flow is not None and flow.response:
             header = flow.response.data.headers["Content-type"]
     except Exception as err:
-        logging.getLogger().debug(str(err), exc_info=True)
+        logging.getLogger().exception(str(err))
         if flow is not None:
             url = getattr(getattr(flow, "request", None), "pretty_url", None)
     if url is not None:
@@ -81,12 +103,26 @@ def get_mimetype(
     return p_header[0] if len(p_header) > 0 else None
 
 
+def get_redirect_url(hash_, client):
+    """Get redirect url.
+    >>> from types import SimpleNamespace
+    >>> get_redirect_url("1234", SimpleNamespace(
+    ...  _api_url="https://127.0.0.1", _FILE_ROUTE="/file", _access_key="5678"))
+    'https://127.0.0.1/file?hash=1234&Hydrus-Client-API-Access-Key=5678'
+    """
+    src_url = client._api_url + client._FILE_ROUTE
+    params = {"hash": hash_, "Hydrus-Client-API-Access-Key": client._access_key}
+    url_parts = list(urlparse(src_url))
+    query = dict(parse_qsl(url_parts[4]))
+    query.update(params)
+    url_parts[4] = urlencode(query)
+    return urlunparse(url_parts)
+
+
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):  # pragma: no cover
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
-        log_record["p"] = "{}:{}:{}".format(
-            record.levelname[0], record.funcName, record.lineno
-        )
+        log_record["p"] = "{}:{}:{}".format(record.levelname[0], record.funcName, record.lineno)
         if not log_record.get("message"):
             del log_record["message"]
 
@@ -97,10 +133,6 @@ class MitmImage:
     hash_data: Dict[str, str]
     config: Dict[str, Any]
 
-    default_access_key = (
-        "918efdc1d28ae710b46fc814ee818100a102786140ede877db94cedf3d733cc1"
-    )
-    client = Client(default_access_key)
     # default path
     default_config_path = os.path.expanduser("~/mitmimage.yaml")
     default_log_path = os.path.expanduser("~/mitmimage.log")
@@ -120,31 +152,35 @@ class MitmImage:
         #  other
         #  NOTE config attribute is created here because it may not initiated on load_config
         self.config = {}
-        self.load_config(self.default_config_path)
         try:
             if hasattr(ctx, "master"):  # pragma: no cover
                 self.view = ctx.master.addons.get("view")
         except Exception as err:  # pragma: no cover
-            self.logger.exception("{}".format(str(err)))
+            self.logger.exception(str(err))
             self.view = None
+        self.host_block_regex = []
+        self.block_regex = []
+        self.load_config(self.default_config_path)
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.cached_urls = set()
         self.remove_view_enable = True
+        self.skip_flow = set()
+        try:
+            ak = ctx.options.deferred["hydrus_access_key"]
+            if ak and not isinstance(ak, str):
+                ak = ak[0]
+        except Exception:
+            ak = None
+        self.client = Client(ak) if ak else Client()
 
     def is_valid_content_type(
         self,
-        flow: Optional[http.HTTPFlow] = None,
-        url: Optional[str] = None,
         mimetype: Optional[str] = None,
     ) -> bool:
-        """check if flow, url or mimetype is valid.
-
-        If mimetype parameter is given ignore flow and url paramter."""
-        if not mimetype:
-            mimetype = get_mimetype(flow, url)
+        """check if mimetype is valid."""
         if not mimetype:
             return False
         try:
@@ -153,19 +189,17 @@ class MitmImage:
             else:
                 maintype, subtype = mimetype.lower().split("/")
             subtype = subtype.lower()
-        except ValueError as err:
+        except ValueError as err:  # pragma: no cover
             self.logger.debug(err, exc_info=True)
             self.logger.info(
                 {
                     LogKey.MIME.value: mimetype,
-                    LogKey.URL.value: url,
-                    LogKey.FLOW.value: str(flow),
                     LogKey.MESSAGE.value: "unknown",
                 }
             )
             return False
         mimetype_sets = self.config.get("mimetype", [])
-        if not mimetype_sets and maintype == "image":
+        if not mimetype_sets and maintype in ["image", "video", "audio"]:
             return True
         if (
             mimetype_sets
@@ -214,7 +248,7 @@ class MitmImage:
         If `from_hydrus` is `on_empty`, ask client only when url not in self.url_data.
 
         >>> # url don't have any hashes on self.url_data and client
-        >>> MitmImage().get_hashes('http://example.com')
+        >>> MitmImage().get_hashes('http://example.com')  # doctest: +SKIP
         set()
         """
         assert from_hydrus in ["always", "on_empty"]
@@ -237,31 +271,24 @@ class MitmImage:
         url = flow.request.pretty_url  # type: ignore
         response = flow.response  # type: ignore
         if response is None:
-            self.logger.debug(
-                {LogKey.MESSAGE.value: "no response", LogKey.URL.value: url}
-            )
+            self.logger.debug({LogKey.MESSAGE.value: "no response", LogKey.URL.value: url})
             return None
         content = response.get_content()
         if content is None:
-            self.logger.debug(
-                {LogKey.MESSAGE.value: "no content", LogKey.URL.value: url}
-            )
+            self.logger.debug({LogKey.MESSAGE.value: "no content", LogKey.URL.value: url})
             return None
         # upload file
         upload_resp = self.client.add_file(io.BytesIO(content))
-        self.logger.info(
-            {LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url}
-        )
+        self.logger.info({LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url})
         self.client_queue.put_nowait(
             (
                 "associate_url",
-                [
-                    [
+                {
+                    "hashes": [
                         upload_resp["hash"],
                     ],
-                    [url],
-                ],
-                {},
+                    "add": [url],
+                },
             )
         )
         # update data
@@ -280,17 +307,26 @@ class MitmImage:
                 if self.ctx_log:
                     ctx.log.info("mitmimage: view filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
-                self.host_block_regex = self.config.get("host_block_regex", [])
-                self.host_block_regex = [re.compile(x) for x in self.host_block_regex]
-                self.block_regex = self.config.get("block_regex", [])
+                host_block_regex_old = self.host_block_regex.copy()
+                self.host_block_regex = [
+                    re.compile(x) for x in self.config.get("host_block_regex", [])
+                ]
                 self.block_regex = [
                     BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
-                    for x in self.block_regex
+                    for x in self.config.get("block_regex", [])
                 ]
                 if self.ctx_log:
                     ctx.log.info(
-                        "mitmimage: load {} block regex.".format(len(self.block_regex))
+                        "mitmimage: host block regex old\n{}.".format(
+                            "\n".join([str(x) for x in host_block_regex_old])
+                        )
                     )
+                    ctx.log.info(
+                        "mitmimage: host block regex new\n{}.".format(
+                            "\n".join([str(x) for x in self.host_block_regex])
+                        )
+                    )
+                    ctx.log.info("mitmimage: load {} block regex.".format(len(self.block_regex)))
                     ctx.log.info(
                         "mitmimage: load {} url filename block regex.".format(
                             len(self.config.get("block_url_filename_regex", []))
@@ -307,7 +343,7 @@ class MitmImage:
                     for item in self.add_url_regex
                 ]
         except Exception as err:
-            self.logger.exception(str(err), exc_info=True)
+            self.logger.exception(str(err))
             if self.ctx_log:
                 ctx.log.error("mitmimage: error loading config, {}".format(err))
 
@@ -317,7 +353,7 @@ class MitmImage:
         loader.add_option(
             name="hydrus_access_key",
             typespec=str,
-            default=self.default_access_key,
+            default="",
             help="Hydrus Access Key",
         )
         loader.add_option(
@@ -358,19 +394,18 @@ class MitmImage:
             if self.ctx_log:  # pragma: no cover
                 ctx.log.info("mitmimage: log path: {}.".format(filename))
         except Exception as err:  # pragma: no cover
-            self.logger.exception(str(err), exc_info=True)
+            self.logger.exception(str(err))
 
     def configure(self, updates):  # pragma: no cover
-        if "hydrus_access_key" in updates:
-            hydrus_access_key = ctx.options.hydrus_access_key
-            if hydrus_access_key and hydrus_access_key != self.client._access_key:
-                self.client = Client(hydrus_access_key)
-                ctx.log.info("mitmimage: client initiated with new access key.")
+        log_msg = []
+        if "hydrus_access_key" in updates and ctx.options.hydrus_access_key:
+            self.client = Client(ctx.options.hydrus_access_key)
+            log_msg.append("client initiated")
         if "mitmimage_config" in updates and ctx.options.mitmimage_config:
-            self.load_config(os.path.expanduser("ctx.options.mitmimage_config"))
+            self.load_config(os.path.expanduser(ctx.options.mitmimage_config))
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
-            ctx.log.info("mitmimage: remove view: {}.".format(self.remove_view_enable))
+            log_msg.append("mitmimage: remove view: {}.".format(self.remove_view_enable))
         if "mitmimage_debug" in updates:
             if ctx.options.mitmimage_debug:
                 self.logger.setLevel(logging.DEBUG)
@@ -378,40 +413,36 @@ class MitmImage:
             else:
                 self.logger.setLevel(logging.INFO)
                 self.logger.handlers[0].setLevel(logging.INFO)
-            ctx.log.info("mitmimage: log level: {}.".format(self.logger.level))
+            log_msg.append("mitmimage: log level: {}.".format(self.logger.level))
         if "mitmimage_log_file" in updates and ctx.options.mitmimage_log_file:
             self.set_log_path(os.path.expanduser(ctx.options.mitmimage_log_file))
+        if log_msg:
+            if self.ctx_log:
+                list(map(ctx.log, log_msg))
+            else:
+                list(map(self.logger.info, log_msg))
 
-    def get_url_filename(self, url: str, max_len: int = 120) -> Optional[str]:
+    def get_url_filename(self, url: str) -> Optional[str]:
         """Get url filename.
 
         >>> MitmImage().get_url_filename('http://example.com/1.jpg')
         '1'
-        >>> MitmImage().get_url_filename('http://example.com/1234.jpg', max_len=1)
         """
         url_filename = None
         try:
             url_filename = unquote_plus(Path(urlparse(url).path).stem)
-            if url_filename:
-                for item in self.config.get("block_url_filename_regex", []):
-                    if re.match(item[0], url):  # pragma: no cover
-                        self.logger.debug(
-                            {
-                                LogKey.KEY.value: "skip filename",
-                                LogKey.MESSAGE.value: item[1],
-                                LogKey.URL.value: url,
-                            }
-                        )
-                        return None
-            if url_filename and len(url_filename) > max_len:
-                self.logger.info(
-                    {
-                        LogKey.MESSAGE.value: "url filename too long",
-                        LogKey.URL.value: url,
-                    }
-                )
-
+            if not url_filename:
                 return None
+            for item in self.config.get("block_url_filename_regex", []):
+                if re.match(item[0], url):  # pragma: no cover
+                    self.logger.debug(
+                        {
+                            LogKey.KEY.value: "skip filename",
+                            LogKey.MESSAGE.value: item[1],
+                            LogKey.URL.value: url,
+                        }
+                    )
+                    return None
         except Exception as err:  # pragma: no cover
             self.logger.exception(str(err))
         return url_filename
@@ -427,7 +458,7 @@ class MitmImage:
         >>> obj.client_queue.put_nowait = mock.Mock()
         >>> obj.add_additional_url('https://example.com/1.jpg')
         >>> obj.client_queue.put_nowait.assert_called_once_with((
-        ...     'add_url', [], {
+        ...     'add_url', {
         ...         'url': 'https://example.com/sub/1.jpg',
         ...         'page_name': obj.additional_page_name,
         ...         'service_names_to_additional_tags': {
@@ -443,7 +474,9 @@ class MitmImage:
             match = rs.cpatt.match(url)
             if match and match.groups():
                 new_url = rs.url_fmt.format(*match.groups())
-                if new_url == url:  # pragma: no cover
+                if new_url == url and rs.page_name != self.page_name:
+                    pass
+                elif new_url == url:  # pragma: no cover
                     continue
                 url_sets.append((new_url, rs.page_name))
                 log_msg = {LogKey.ORIGINAL.value: url, LogKey.TARGET.value: new_url}
@@ -465,52 +498,47 @@ class MitmImage:
                     kwargs["service_names_to_additional_tags"] = {
                         "my tags": ["filename:{}".format(filename)]
                     }
-                args: Tuple[str, List[str], Dict[str, Any]] = (
+                args = (
                     "add_url",
-                    [],
                     kwargs,
                 )
                 self.client_queue.put_nowait(args)
 
     async def client_worker(self):  # pragma: no cover
-        queue = self.client_queue
         while True:
             # Get a "work item" out of the queue.
             try:
-                cmd, args, kwargs = await queue.get()
-                msg = {LogKey.MESSAGE.value: "cmd:{}".format(cmd)}
-                if args:
-                    msg["args"] = args
-                if kwargs:
-                    msg["kwargs"] = kwargs
-                self.logger.debug(msg)
+                cmd, kwargs = await self.client_queue.get()
                 async with self.client_lock:
-                    getattr(self.client, cmd)(*args, **kwargs)
+                    res = getattr(self.client, cmd)(**kwargs)
+                    self.logger.debug(
+                        {LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs, "res": res}
+                    )
             except ConnectionError as err:
-                self.info.debug(str(err), exc_info=True)
+                self.logger.debug(str(err), exc_info=True)
+                self.logger.error({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs})
             except Exception as err:
-                self.logger.error(
-                    err.message if hasattr(err, "message") else str(err), exc_info=True
-                )
+                self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
-            queue.task_done()
+            self.client_queue.task_done()
 
     async def post_upload_worker(self):  # pragma: no cover
         while True:
             try:
                 # Get a "work item" out of the queue.
                 url, upload_resp, referer = await self.post_upload_queue.get()
+                hash_ = None
                 if upload_resp:
+                    hash_ = upload_resp.get("hash", None)
                     self.client_queue.put_nowait(
                         (
                             "associate_url",
-                            [
-                                [
+                            {
+                                "hashes": [
                                     upload_resp["hash"],
                                 ],
-                                [url],
-                            ],
-                            {},
+                                "add": [url],
+                            },
                         )
                     )
                     # update data
@@ -522,14 +550,22 @@ class MitmImage:
                     tags.append("filename:{}".format(url_filename))
                 if referer:
                     tags.append("referer:{}".format(referer))
-                kwargs: Dict[str, Any] = {"page_name": "mitmimage"}
+                kwargs: Dict[str, Any] = {"page_name": "mitmimage", "url": url}
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
-                self.client_queue.put_nowait(("add_url", [url], kwargs))
+                    if hash_:
+                        self.client_queue.put_nowait(
+                            (
+                                "add_tags",
+                                {
+                                    "hashes": [hash_],
+                                    "service_to_action_to_tags": {"my tags": {TagAction.Add: tags}},
+                                },
+                            )
+                        )
+                self.client_queue.put_nowait(("add_url", kwargs))
             except Exception as err:
-                self.logger.error(
-                    err.message if hasattr(err, "message") else str(err), exc_info=True
-                )
+                self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
             self.post_upload_queue.task_done()
 
@@ -570,7 +606,9 @@ class MitmImage:
                     ImportStatus.PreviouslyDeleted,
                     ImportStatus.Success,
                 ]:
-                    self.post_upload_queue.put_nowait((url, upload_resp, referer))
+                    self.post_upload_queue.put_nowait(
+                        (url, upload_resp, None if referer is None else get_readable_url(referer))
+                    )
                 elif status in [ImportStatus.Failed, ImportStatus.Vetoed, 8] and hash_:
                     self.url_data[url].add(hash_)
                     self.hash_data[hash_] = status
@@ -596,27 +634,24 @@ class MitmImage:
                     }
                 )
             except Exception as err:
-                self.logger.error(str(err), exc_info=True)
+                self.logger.exception(str(err))
             self.upload_queue.task_done()
 
-    def check_request_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
-        """Check request flow.
-
-        Result will determine:
-        - does flow need to be removed
-        - does request need be processed"""
-        res = {"remove": False, "return": False}
+    def check_request_flow(self, flow: http.HTTPFlow) -> bool:
+        """Check request flow and determine if the flow need to be skipped."""
+        if flow.request.method != "GET":
+            return True
         url: str = flow.request.pretty_url
-        if flow.request.method in ["POST", "HEAD"]:
-            res["remove"], res["return"] = True, True
-            return res
-        match = first_true(
-            self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-        )
+        match = first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
         if match:
-            self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
-            res["remove"], res["return"] = True, True
-            return res
+            self.logger.debug(
+                {
+                    LogKey.URL.value: url,
+                    LogKey.KEY.value: "host block",
+                    LogKey.MESSAGE.value: str(match),
+                }
+            )
+            return True
         match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
         if match:
             if match.log_flag:
@@ -627,77 +662,52 @@ class MitmImage:
                         LogKey.URL.value: url,
                     }
                 )
-            res["remove"], res["return"] = True, True
-        return res
+            return True
+        return False
 
     @concurrent
     def request(self, flow: http.HTTPFlow):
         try:
             url: str = flow.request.pretty_url
             self.add_additional_url(url)
-            check_res = self.check_request_flow(flow)
-            if check_res["remove"]:
-                self.remove_from_view(flow)
-            if check_res["return"]:
+            if self.check_request_flow(flow):
+                self.skip_flow.add(flow.id)
+                self.logger.debug(
+                    {
+                        LogKey.URL.value: url,
+                        LogKey.MESSAGE.value: "flow id:{}".format(flow.id),
+                    }
+                )
                 return
             hashes = self.get_hashes(url, "always")
-            if not hashes and not self.is_valid_content_type(url=url):
+            if not hashes and not self.is_valid_content_type(mimetype=get_mimetype(url=url)):
                 return
             if len(hashes) == 1:
                 hash_: str = next(iter(hashes))
                 status = self.hash_data.get(hash_, None)
                 if status is not None and status in [
-                    ImportStatus.PreviouslyDeleted,
-                    ImportStatus.Importable,
                     ImportStatus.Failed,
+                    ImportStatus.Importable,
+                    ImportStatus.PreviouslyDeleted,
+                    ImportStatus.Vetoed,
+                    8,
                 ]:
                     return
-                try:
-                    file_data = self.client.get_file(hash_=hash_)
-                except APIError as err:
-                    self.logger.error(
-                        {
-                            LogKey.HASH.value: hash_,
-                            LogKey.MESSAGE.value: "{}:{}".format(
-                                type(err).__name__, err
-                            ),
-                            LogKey.STATUS.value: status,
-                            LogKey.URL.value: url,
-                        }
-                    )
-                    return
-                if hasattr(http, "HTTPResponse"):
-                    make = http.HTTPResponse.make  # type: ignore
-                else:
-                    #  NOTE used on mitmproxy v'7.0.0.dev'
-                    make = http.Response.make  # type: ignore
-                flow.response = make(
-                    content=file_data.content,
-                    headers=dict(file_data.headers),
-                )
+                flow.request.url = get_redirect_url(hash_, self.client)
+                # NOTE skip to not process file from hydrus
+                self.skip_flow.add(flow.id)
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
-                self.client_queue.put_nowait(
-                    ("add_url", [url], {"page_name": "mitmimage"})
-                )
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait((url, None, referer))
-                self.logger.info(
-                    {LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"}
+                self.post_upload_queue.put_nowait(
+                    (url, None, None if referer is None else get_readable_url(referer))
                 )
-                self.remove_from_view(flow=flow)
-            elif hashes:
-                self.logger.debug(
-                    {
-                        "hash count": len(hashes),
-                        "url hash": "\n".join(hashes),
-                        LogKey.URL.value: url,
-                    }
-                )
+                self.logger.info({LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"})
             else:
                 self.logger.debug(
                     {
-                        LogKey.MESSAGE.value: "no hash",
+                        "hash count": len(hashes),
+                        "url hash": hashes,
                         LogKey.URL.value: url,
                     }
                 )
@@ -710,44 +720,35 @@ class MitmImage:
                 }
             )
         except Exception as err:
-            self.logger.exception(str(err), exc_info=True)
+            self.logger.exception(str(err))
 
-    def check_response_flow(self, flow: http.HTTPFlow) -> Dict[str, bool]:
+    def check_response_flow(self, flow: http.HTTPFlow) -> bool:
         """Check response flow.
 
         Result will determine:
         - does flow need to be removed
         - does request need be processed"""
-        res = {"remove": False, "return": False}
-        if flow.request.method in ["POST", "HEAD"]:
-            res["remove"], res["return"] = True, True
-            return res
         url = flow.request.pretty_url
-        match = first_true(
-            self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-        )
-        if match:
-            self.logger.debug({LogKey.URL.value: url, LogKey.KEY.value: "host block"})
-            res["remove"], res["return"] = True, True
-            return res
-        match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-        if match:
-            if match.log_flag:
-                self.logger.debug(
-                    {
-                        LogKey.KEY.value: "rskip",
-                        LogKey.MESSAGE.value: match.name,
-                        LogKey.URL.value: url,
-                    }
-                )
-            res["remove"], res["return"] = True, True
-            return res
+        if flow.id in self.skip_flow:
+            self.skip_flow.remove(flow.id)
+            self.logger.debug(
+                {
+                    LogKey.URL.value: url,
+                    LogKey.MESSAGE.value: "skip flow id:{}".format(flow.id),
+                }
+            )
+            return True
+        # skip when it is cached
+        if url in self.cached_urls:
+            return True
         if flow.response is None:
-            res["remove"], res["return"] = True, True
-            return res
+            return True
         mimetype = None
-        if flow.response.content is not None:
-            mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
+        try:
+            if flow.response.content is not None:
+                mimetype = magic.from_buffer(flow.response.content, mime=True)
+        except ValueError as err:
+            self.logger.debug(str(err), exc_info=True)
         if mimetype is None:
             self.logger.debug(
                 {
@@ -757,22 +758,15 @@ class MitmImage:
                 }
             )
         elif not self.is_valid_content_type(mimetype=mimetype):
-            res["remove"], res["return"] = True, True
-            return res
-        # skip when it is cached
-        if url in self.cached_urls:
-            res["remove"], res["return"] = True, True
-            return res
-        return res
+            return True
+        return False
 
     @concurrent
     def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         try:
-            check_res = self.check_response_flow(flow)
-            if check_res["remove"]:
+            if self.check_response_flow(flow):
                 self.remove_from_view(flow)
-            if check_res["return"]:
                 return
             url: str = flow.request.pretty_url
             hashes = self.get_hashes(url, "on_empty")
@@ -791,7 +785,9 @@ class MitmImage:
             else:
                 # NOTE: add referer & url filename to url
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait((url, None, referer))
+                self.post_upload_queue.put_nowait(
+                    (url, None, None if referer is None else get_readable_url(referer))
+                )
                 hashes_status = [(self.hash_data.get(x, None), x) for x in hashes]
                 msg = {
                     LogKey.KEY.value: "add",
@@ -880,16 +876,12 @@ class MitmImage:
                 continue
             try:
                 resp = self.upload(flow)
-                self.client_queue.put_nowait(
-                    ("add_url", [url], {"page_name": "mitmimage"})
-                )
+                self.client_queue.put_nowait(("add_url", {"url": url, "page_name": "mitmimage"}))
                 resp_history.append(resp)
                 if remove and resp is not None:
                     self.remove_from_view(flow)
             except Exception as err:
-                self.logger.error(str(err))
+                self.logger.exception(str(err))
         data = [x["status"] for x in resp_history if x is not None]
-        if data:
-            [x.info(Counter(data)) for x in [self.logger, ctx.log]]
-        else:
-            [x.info("upload finished") for x in [self.logger, ctx.log]]
+        for obj in [self.logger, ctx.log]:
+            obj.info(Counter(data) if data else "upload finished")

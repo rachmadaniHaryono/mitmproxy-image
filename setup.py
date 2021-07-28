@@ -25,7 +25,7 @@ TEST = [
 setup(
     name="mitmproxy-image",
     version=version["__version__"],
-    descriptioin="Download image using mitmproxy",
+    description="Download image using mitmproxy",
     long_description=__doc__,
     long_description_content_type="text/markdown",
     author="Rachmadani Haryono",
@@ -37,13 +37,10 @@ setup(
     zip_safe=False,
     python_requires=">=3.6",
     install_requires=[
-        "appdirs>=1.4.3",
-        "click>=7.0",
-        "Flask>=1.0.2",
         "hydrus-api>=2.14.3",
         "ipdb>=0.13.3",
-        "mitmproxy>=6.0.0",
-        "more-itertools==8.7.0",
+        "mitmproxy>=7.0.0",
+        "more-itertools>=8.7.0",
         "Pillow>=5.3.0",
         "python-json-logger>=2.0.1",
         "python-magic>=0.4.22",
@@ -52,16 +49,12 @@ setup(
     ],
     extras_require={
         "dev": [
-            "flask-shell-ipython>=0.3.1",
-            "ipython>=7.1.1",
             "pdbpp>=0.9.2",
         ]
         + TEST,
         "test": TEST,
     },
-    entry_points={
-        "console_scripts": ["mitmproxy-image = mitmproxy_image.__main__:cli"]
-    },
+    entry_points={"console_scripts": ["mitmproxy-image = mitmproxy_image.__main__:mitmproxy"]},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",
