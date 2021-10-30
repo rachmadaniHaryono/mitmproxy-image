@@ -20,28 +20,6 @@ def test_mitmimage_init():
 
 
 @pytest.mark.parametrize(
-    "headers,res",
-    [
-        [{}, False],
-        [{"Content-type": "text/html"}, False],
-        [{"Content-type": "image/webp"}, True],
-    ],
-)
-def test_mitmimage_is_valid_content_type(headers, res):
-    mock_flow = mock.Mock()
-    mock_flow.response.data.headers = headers
-    mock_flow.request.pretty_url = "https://example.com"
-    obj = MitmImage()
-    assert obj.is_valid_content_type(mock_flow) == res
-
-
-def test_is_valid_content_type_url():
-    url = "https://example.com/v/t1.0-9/4_o.jpg?_nc_cat=100"
-    obj = MitmImage()
-    assert obj.is_valid_content_type(url=url)
-
-
-@pytest.mark.parametrize(
     "mimetype, exp_res, config_mimetype",
     [
         [None, False, None],
@@ -118,6 +96,8 @@ def test_get_hashes(from_hydrus, valid_ct):
         return valid_ct
 
     obj.is_valid_content_type = is_valid_content_type
+    obj.client = mock.Mock()
+    obj.client.get_url_files.return_value = {}
     try:
         assert not obj.get_hashes("http://example.com", from_hydrus)
     except ConnectionError as err:
