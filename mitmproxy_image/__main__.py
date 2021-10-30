@@ -23,6 +23,11 @@ from .version import __version__
 
 
 def mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
+    """run mitmproxy (custom).
+
+    this is based from
+    https://github.com/mitmproxy/mitmproxy/blob/1c10abef000ba2f112bc00119bcdb6707d6ff08e/mitmproxy/tools/main.py#L123
+    """
     if os.name == "nt":
         import urwid
 
@@ -42,6 +47,11 @@ def run(
     extra: typing.Callable[[typing.Any], dict] = None,
 ) -> master.Master:  # pragma: no cover
     """
+    run program.
+
+    this is based from
+    https://github.com/mitmproxy/mitmproxy/blob/1c10abef000ba2f112bc00119bcdb6707d6ff08e/mitmproxy/tools/main.py#L51
+
     extra: Extra argument processing callable which returns a dict of
     options.
     """
@@ -83,7 +93,7 @@ def run(
         process_options(parser, opts, args)
 
         if args.options:
-            print(optmanager.dump_defaults(opts))
+            print(optmanager.dump_defaults(opts, sys.stdout))
             sys.exit(0)
         if args.commands:
             master.commands.dump()
