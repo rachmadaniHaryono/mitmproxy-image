@@ -258,7 +258,7 @@ class MitmImage:
             return hashes
         huf_resp = self.client.get_url_files(url)
         # ufs = get_url_status
-        for ufs in huf_resp["url_file_statuses"]:
+        for ufs in huf_resp.get("url_file_statuses", []):
             if ufs["hash"] == EMPTY_HASH:
                 continue
             self.url_data[url].add(ufs["hash"])
