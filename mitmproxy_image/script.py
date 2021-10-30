@@ -639,7 +639,7 @@ class MitmImage:
 
     def check_request_flow(self, flow: http.HTTPFlow) -> bool:
         """Check request flow and determine if the flow need to be skipped."""
-        if flow.request.method != "GET":
+        if str(flow.request.method).lower() != "get":
             return True
         url: str = flow.request.pretty_url
         match = first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
