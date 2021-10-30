@@ -1,2 +1,31 @@
 [tool.black]
 line-length = 103
+
+[tool.poetry]
+name = "mitmproxy-image"
+version = "1.2.0"
+description = "Download image using mitmproxy"
+license = "MIT"
+classifiers = ["Development Status :: 3 - Alpha", "Environment :: Console", "Environment :: Web Environment", "Intended Audience :: Developers", "Intended Audience :: End Users/Desktop", "License :: OSI Approved :: MIT License", "Natural Language :: English", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3 :: Only", "Programming Language :: Python :: 3.5", "Programming Language :: Python :: 3.6", "Topic :: Internet :: WWW/HTTP :: Indexing/Search", "Topic :: Utilities"]
+homepage = "https://github.com/rachmadaniHaryono/mitmproxy-image"
+authors = ["Rachmadani Haryono <foreturiga@gmail.com>"]
+
+[tool.poetry.dependencies]
+python=">=3.8,<4.0"
+hydrus-api = ">=2.14.3"
+ipdb = ">=0.13.3"
+mitmproxy = ">=7.0.0"
+more-itertools = ">=8.7.0"
+pillow = ">=5.3.0"
+python-json-logger = ">=2.0.1"
+python-magic = ">=0.4.22"
+pyyaml = ">=5.3.1"
+requests = ">=2.21.0"
+
+[tool.poetry.dev-dependencies]
+pytest-mypy = "^0.8.1"
+pdbpp = "^0.10.3"
+pytest = "^6.2.5"
+pytest-cov = "^3.0.0"
+pytest-flake8 = "^1.0.7"
+pre-commit = "^2.15.0"
