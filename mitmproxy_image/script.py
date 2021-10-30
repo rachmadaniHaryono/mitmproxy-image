@@ -488,7 +488,7 @@ class MitmImage:
             self.logger.info(
                 {
                     LogKey.ORIGINAL.value: url,
-                    LogKey.TARGET.value: set([x[0] for x in url_sets]),
+                    LogKey.TARGET.value: {x[0] for x in url_sets},
                 }
             )
             for (new_url, page_name) in url_sets:
