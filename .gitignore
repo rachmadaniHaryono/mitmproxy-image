@@ -125,3 +125,4 @@ settings.cfg
 tests/pickle/*
 todo.md
 youtube_wl*
+poetry.lock
