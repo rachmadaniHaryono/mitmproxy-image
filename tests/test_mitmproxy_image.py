@@ -3,6 +3,7 @@ import logging
 import os
 from argparse import Namespace
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 from hydrus import ConnectionError
@@ -102,6 +103,30 @@ def test_get_hashes(from_hydrus, valid_ct):
         assert not obj.get_hashes("http://example.com", from_hydrus)
     except ConnectionError as err:
         logging.error(str(err), exc_info=True)
+
+
+@pytest.mark.golden_test("data/url*.yaml")
+def test_urls(golden):
+    obj = MitmImage()
+    obj.load_config('/home/r3r/mitmimage.yaml')
+    obj.client_queue.put_nowait = mock.Mock()
+    flow = mock.Mock()
+    flow.request.method = 'get'
+    res = []
+    urls = golden['urls']
+    for url in golden['urls']:
+        flow.request.pretty_url = url
+        flow.request.pretty_host = urlparse(url).netloc
+        obj.client_queue.put_nowait.reset_mock()
+        obj.add_additional_url(url)
+        call_args_list = obj.client_queue.put_nowait.call_args_list
+        if not call_args_list:
+            call_args_list = []
+        call_args_output = []
+        for call_args in call_args_list:
+            call_args_output.append(list(call_args)[0][0][1])
+        res.append([obj.check_request_flow(flow), call_args_output])
+    assert res == golden.out["output"]
 
 
 if __name__ == "__main__":
