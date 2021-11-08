@@ -438,7 +438,7 @@ class MitmImage:
                     self.logger.debug(
                         {
                             LogKey.KEY.value: "skip filename",
-                            LogKey.MESSAGE.value: item[1],
+                            LogKey.MESSAGE.value: nth(item, 1, item[0]),
                             LogKey.URL.value: url,
                         }
                     )

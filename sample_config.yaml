@@ -19,11 +19,11 @@ block_regex:
 
 block_url_filename_regex:
 # description: regex rule exclude filename
-# it consist of regex, name
+# it consist of regex, name (optional)
 # example:
 # - - profile_images.*
 #   - profile_images
-
+# - - random_filename.*
 
 mimetype:
 # description: allowed mimetype
