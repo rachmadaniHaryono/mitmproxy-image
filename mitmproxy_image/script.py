@@ -312,7 +312,7 @@ class MitmImage:
                     re.compile(x) for x in self.config.get("host_block_regex", [])
                 ]
                 self.block_regex = [
-                    BlockRegex(re.compile(x[0]), x[1], nth(x, 2, False))
+                    BlockRegex(re.compile(x[0]), nth(x, 1, x[0]), nth(x, 2, False))
                     for x in self.config.get("block_regex", [])
                 ]
                 if self.ctx_log:
