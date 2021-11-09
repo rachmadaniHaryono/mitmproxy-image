@@ -11,12 +11,13 @@ block_regex:
   - - https?://(i.ytimg.com|localhost:3000)/(an|vi)_webp/([^/]+)/(mqdefault.*|sddefault).webp
   - - https?://.+googlevideo.com/
   - - https?://abs-0.twimg.com/emoji/v2/svg/.+.svg
+  - - https?://abs.twimg.com
   - - https?://holodex.net/favicon.ico
   - - https?://i.ytimg.com/sb/[^/]+/storyboard[^/]+/.+.jpg
   - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hq720|mqdefault).jpg
   - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)&name=(small|\d+x\d+)
-  - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=\d+x\d+
-  - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal).jpg
+  - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=(\d+x\d+|large|small)
+  - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|mini|normal).(jpg|png)
   - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
   - - https?://www.youtube.com/watch\?v=
 add_url_regex:
@@ -32,8 +33,8 @@ add_url_regex:
      - https://{0}ggpht.com/{1}s0?imgmax=0
    - - http://localhost:3000/(ggpht.*=)
      - http://localhost:3000/{0}s0?imgmax=0
-   - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal).jpg
-     - https://pbs.twimg.com/profile_images/{0}.jpg
+   - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal|mini).(jpg|png)
+     - https://pbs.twimg.com/profile_images/{0}.{2}
    - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)
      - https://pbs.twimg.com/card_img/{0}?format={1}&name=orig
    - - https?://pbs.twimg.com/media/([^?]+)\?format=([^&]+)

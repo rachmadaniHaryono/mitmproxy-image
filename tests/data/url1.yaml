@@ -8,6 +8,8 @@ urls:
 - http://localhost:3000/vi/YjZu2dRqzD0/mqdefault.jpg
 - http://localhost:3000/watch?v=hDg6iElIwsk
 - https://abs-0.twimg.com/emoji/v2/svg/1f51e.svg
+- https://abs.twimg.com/favicons/twitter-pip.ico
+- https://abs.twimg.com/hashflags/Lazada1111_2021/Lazada1111_2021.png
 - https://avatars.githubusercontent.com/t/3008851?s=40&v=4
 - https://avatars.githubusercontent.com/u/6340878
 - https://holodex.net/favicon.ico
@@ -16,7 +18,11 @@ urls:
 - https://i.ytimg.com/sb/dMft_m1HeYE/storyboard3_L1/M2.jpg?sigh=rs$AOn4CLCfNuOH_gREe2jEWuEIkf1fsp4Ajg&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgjP3J-MBg==
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
+- https://pbs.twimg.com/media/FDF-jKcVgAA9UFK?format=jpg&name=small
+- https://pbs.twimg.com/media/FDhMCbvaUAAkXqM?format=jpg&name=large
 - https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=240x240
+- https://pbs.twimg.com/profile_images/1275858117893468165/SsjMbPlo_mini.jpg
+- https://pbs.twimg.com/profile_images/1364269923351080961/fXz-QcOK_normal.png
 - https://pbs.twimg.com/profile_images/979392579354710018/4gSWrksq_normal.jpg
 - https://r5---sn-npoeenee.googlevideo.com/videoplayback?expire=1636319450&ei=euyHYZz0Ecuc4t4PxOu2sAc&ip=202.67.38.20&id=o-AG6dfrBmPLWb7mowpRMe6IX0uitYLnK8TiwMCmsoF-ci&itag=250&source=youtube&requiressl=yes&vprv=1&mime=audio%2Fwebm&ns=um4PCG_s8H3swTD3_dEAqlwG&gir=yes&clen=511795&dur=59.801&lmt=1636289635499196&keepalive=yes&fexp=24001373,24007246&c=WEB_EMBEDDED_PLAYER&txp=6311224&n=TK_FsfkIVELKHg&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cvprv%2Cmime%2Cns%2Cgir%2Cclen%2Cdur%2Clmt&sig=AOq0QJ8wRQIhAN5B1PZLDlCUsZC1ppvQymhBxcIoiwP8CYK1DL0pcSHQAiBkzO0x6iRJkOEJ43jr1F6gHfsTY44JEPc5eoBC6X0PVg%3D%3D&alr=yes&cpn=BxTa3A0zOljycg5h&cver=1.20211102.01.00&cm2rm=sn-uigxxi0ujipnvo-c2oe7l,sn-npoz776&redirect_counter=2&cms_redirect=yes&mh=an&mm=34&mn=sn-npoeenee&ms=ltu&mt=1636297716&mv=m&mvi=5&pl=24&lsparams=mh,mm,mn,ms,mv,mvi,pl&lsig=AG3C_xAwRQIhAMCalRl3YvhOiiBdEzbl4FbKHN3p3C39jO1FycC-mAwYAiAxvHsvo6_RvQvjK9sRaIHc_u6nQ1knK-L85twBRpgynw%3D%3D&range=0-364&rn=7&rbuf=0
 - https://www.youtube.com/embed/VupT9JCJaOY
@@ -75,6 +81,12 @@ output:
 - - https://abs-0.twimg.com/emoji/v2/svg/1f51e.svg
   - true
   - []
+- - https://abs.twimg.com/favicons/twitter-pip.ico
+  - true
+  - []
+- - https://abs.twimg.com/hashflags/Lazada1111_2021/Lazada1111_2021.png
+  - true
+  - []
 - - https://avatars.githubusercontent.com/t/3008851?s=40&v=4
   - true
   - []
@@ -108,6 +120,20 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=orig
+- - https://pbs.twimg.com/media/FDF-jKcVgAA9UFK?format=jpg&name=small
+  - true
+  - - page_name: mitmimage_plus
+      url: https://pbs.twimg.com/media/FDF-jKcVgAA9UFK?format=jpg&name=orig
+      service_names_to_additional_tags:
+        my tags:
+        - filename:FDF-jKcVgAA9UFK
+- - https://pbs.twimg.com/media/FDhMCbvaUAAkXqM?format=jpg&name=large
+  - true
+  - - page_name: mitmimage_plus
+      url: https://pbs.twimg.com/media/FDhMCbvaUAAkXqM?format=jpg&name=orig
+      service_names_to_additional_tags:
+        my tags:
+        - filename:FDhMCbvaUAAkXqM
 - - https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=240x240
   - true
   - - page_name: mitmimage_plus
@@ -115,6 +141,14 @@ output:
       service_names_to_additional_tags:
         my tags:
         - filename:FDI1j3HaQAAnlMs
+- - https://pbs.twimg.com/profile_images/1275858117893468165/SsjMbPlo_mini.jpg
+  - true
+  - - page_name: mitmimage_plus
+      url: https://pbs.twimg.com/profile_images/1275858117893468165/SsjMbPlo.jpg
+- - https://pbs.twimg.com/profile_images/1364269923351080961/fXz-QcOK_normal.png
+  - true
+  - - page_name: mitmimage_plus
+      url: https://pbs.twimg.com/profile_images/1364269923351080961/fXz-QcOK.png
 - - https://pbs.twimg.com/profile_images/979392579354710018/4gSWrksq_normal.jpg
   - true
   - - page_name: mitmimage_plus
