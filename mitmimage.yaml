@@ -2,6 +2,7 @@ hydrus_access_key: 4bd08d98f1e566a5ec78afe42c070d303b5340fd47a814782f30b43316c2c
 
 block_regex:
   - - http://localhost:3000/(ggpht.+=)s((?!0\?imgmax=0).*)
+  - - http://localhost:3000/(ggpht.+=)w
   - - http://localhost:3000/vi/([^/]+)/(hq720|hqdefault|mqdefault).jpg
   - - http://localhost:3000/watch\?v=
   - - https://(.+)ggpht.com/(.+=)w
@@ -14,6 +15,7 @@ block_regex:
   - - https?://i.ytimg.com/sb/[^/]+/storyboard[^/]+/.+.jpg
   - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hq720|mqdefault).jpg
   - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)&name=(small|\d+x\d+)
+  - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=\d+x\d+
   - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal).jpg
   - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
 add_url_regex:
@@ -23,16 +25,18 @@ add_url_regex:
      - http://localhost:3000/watch?v={1}
    - - https://(www.)?youtube.com/watch\?v=([^&]+)
      - http://localhost:3000/watch?v={1}
-   - - https://(.+)ggpht.com/(.+=s)(?!0\?imgmax=0)
+   - - https://(.+)ggpht.com/(.*=s)(?!0\?imgmax=0)
      - https://{0}ggpht.com/{1}0?imgmax=0
-   - - https://(.+)ggpht.com/(.+=)w
+   - - https://(.+)ggpht.com/(.*=)w
      - https://{0}ggpht.com/{1}s0?imgmax=0
-   - - http://localhost:3000/(ggpht.+=s)(?!0\?imgmax=0)
-     - http://localhost:3000/{0}0?imgmax=0
+   - - http://localhost:3000/(ggpht.*=)
+     - http://localhost:3000/{0}s0?imgmax=0
    - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal).jpg
      - https://pbs.twimg.com/profile_images/{0}.jpg
    - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)
      - https://pbs.twimg.com/card_img/{0}?format={1}&name=orig
+   - - https?://pbs.twimg.com/media/([^?]+)\?format=([^&]+)
+     - https://pbs.twimg.com/media/{0}?format={1}&name=orig
 block_url_filename_regex:
    - - http://localhost:3000/(ggpht.+=s)
    - - https://(.+)ggpht.com/(.+=(s|w))
