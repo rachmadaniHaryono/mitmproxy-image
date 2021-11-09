@@ -1,4 +1,6 @@
 urls:
+- http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=w2560-fcrop64
+- http://localhost:3000/ggpht/ytc/AKedOLQ1smfBol4LVBtzkJmPVIpiCROeZRavWmki4g=s0?imgmax=0
 - http://localhost:3000/ggpht/ytc/AKedOLQxVRsYrwGYuJSTKVuotfDoOav0_aRHAg2OaN0exA=s176-c-k-c0x00ffffff-no-rj
 - http://localhost:3000/vi/YjZu2dRqzD0/hq720.jpg
 - http://localhost:3000/vi/YjZu2dRqzD0/hqdefault.jpg
@@ -9,10 +11,12 @@ urls:
 - https://avatars.githubusercontent.com/t/3008851?s=40&v=4
 - https://avatars.githubusercontent.com/u/6340878
 - https://holodex.net/favicon.ico
+- https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
 - https://i.ytimg.com/sb/DgFS1Do_1As/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLBennbNSH_MKh1BoWQYTVW_DuzCHQ&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgi2uKWMBg==
 - https://i.ytimg.com/sb/dMft_m1HeYE/storyboard3_L1/M2.jpg?sigh=rs$AOn4CLCfNuOH_gREe2jEWuEIkf1fsp4Ajg&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgjP3J-MBg==
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
+- https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=240x240
 - https://pbs.twimg.com/profile_images/979392579354710018/4gSWrksq_normal.jpg
 - https://r5---sn-npoeenee.googlevideo.com/videoplayback?expire=1636319450&ei=euyHYZz0Ecuc4t4PxOu2sAc&ip=202.67.38.20&id=o-AG6dfrBmPLWb7mowpRMe6IX0uitYLnK8TiwMCmsoF-ci&itag=250&source=youtube&requiressl=yes&vprv=1&mime=audio%2Fwebm&ns=um4PCG_s8H3swTD3_dEAqlwG&gir=yes&clen=511795&dur=59.801&lmt=1636289635499196&keepalive=yes&fexp=24001373,24007246&c=WEB_EMBEDDED_PLAYER&txp=6311224&n=TK_FsfkIVELKHg&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cvprv%2Cmime%2Cns%2Cgir%2Cclen%2Cdur%2Clmt&sig=AOq0QJ8wRQIhAN5B1PZLDlCUsZC1ppvQymhBxcIoiwP8CYK1DL0pcSHQAiBkzO0x6iRJkOEJ43jr1F6gHfsTY44JEPc5eoBC6X0PVg%3D%3D&alr=yes&cpn=BxTa3A0zOljycg5h&cver=1.20211102.01.00&cm2rm=sn-uigxxi0ujipnvo-c2oe7l,sn-npoz776&redirect_counter=2&cms_redirect=yes&mh=an&mm=34&mn=sn-npoeenee&ms=ltu&mt=1636297716&mv=m&mvi=5&pl=24&lsparams=mh,mm,mn,ms,mv,mvi,pl&lsig=AG3C_xAwRQIhAMCalRl3YvhOiiBdEzbl4FbKHN3p3C39jO1FycC-mAwYAiAxvHsvo6_RvQvjK9sRaIHc_u6nQ1knK-L85twBRpgynw%3D%3D&range=0-364&rn=7&rbuf=0
 - https://www.youtube.com/embed/VupT9JCJaOY
@@ -24,6 +28,14 @@ urls:
 - https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s0?imgmax=0
 - https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s48-c-k-c0x00ffffff-no-rj
 output:
+- - http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=w2560-fcrop64
+  - true
+  - - page_name: mitmimage_plus
+      url: http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=s0?imgmax=0
+- - http://localhost:3000/ggpht/ytc/AKedOLQ1smfBol4LVBtzkJmPVIpiCROeZRavWmki4g=s0?imgmax=0
+  - false
+  - - page_name: mitmimage_plus
+      url: http://localhost:3000/ggpht/ytc/AKedOLQ1smfBol4LVBtzkJmPVIpiCROeZRavWmki4g=s0?imgmax=s0?imgmax=0
 - - http://localhost:3000/ggpht/ytc/AKedOLQxVRsYrwGYuJSTKVuotfDoOav0_aRHAg2OaN0exA=s176-c-k-c0x00ffffff-no-rj
   - true
   - - page_name: mitmimage_plus
@@ -71,6 +83,13 @@ output:
 - - https://holodex.net/favicon.ico
   - true
   - []
+- - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
+  - true
+  - - page_name: mitmimage_plus
+      url: http://localhost:3000/watch?v=JBS5dPq1Blw
+      service_names_to_additional_tags:
+        my tags:
+        - filename:watch
 - - https://i.ytimg.com/sb/DgFS1Do_1As/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLBennbNSH_MKh1BoWQYTVW_DuzCHQ&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgi2uKWMBg==
   - true
   - []
@@ -88,6 +107,13 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=orig
+- - https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=240x240
+  - true
+  - - page_name: mitmimage_plus
+      url: https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=orig
+      service_names_to_additional_tags:
+        my tags:
+        - filename:FDI1j3HaQAAnlMs
 - - https://pbs.twimg.com/profile_images/979392579354710018/4gSWrksq_normal.jpg
   - true
   - - page_name: mitmimage_plus
