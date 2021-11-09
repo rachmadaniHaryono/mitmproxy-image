@@ -18,6 +18,7 @@ block_regex:
   - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=\d+x\d+
   - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal).jpg
   - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
+  - - https?://www.youtube.com/watch\?v=
 add_url_regex:
    - - https?://(localhost:3000|i.ytimg.com)/(an_webp|vi|vi_webp)/([^/]+)
      - http://localhost:3000/watch?v={2}
