@@ -17,6 +17,7 @@ urls:
 - https://i.ytimg.com/sb/DgFS1Do_1As/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLBennbNSH_MKh1BoWQYTVW_DuzCHQ&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgi2uKWMBg==
 - https://i.ytimg.com/sb/dMft_m1HeYE/storyboard3_L1/M2.jpg?sigh=rs$AOn4CLCfNuOH_gREe2jEWuEIkf1fsp4Ajg&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgjP3J-MBg==
 - https://i.ytimg.com/sb/TWtiXmdie8Q/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLCLt61kpS4OzQx_SA4qfCfQRpB6ZA&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgigo-GLBg==
+- https://i.ytimg.com/vi/CbHyPmW29o4/hqdefault_live.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAoR8Awkt3mF6-41JScnanKuz9lcQ
 - https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
@@ -107,6 +108,13 @@ output:
   - true
 - - https://i.ytimg.com/sb/TWtiXmdie8Q/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLCLt61kpS4OzQx_SA4qfCfQRpB6ZA&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgigo-GLBg==
   - true
+- - https://i.ytimg.com/vi/CbHyPmW29o4/hqdefault_live.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAoR8Awkt3mF6-41JScnanKuz9lcQ
+  - true
+  - - page_name: mitmimage_plus
+      url: http://localhost:3000/watch?v=CbHyPmW29o4
+      service_names_to_additional_tags:
+        my tags:
+        - filename:watch
 - - https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
   - true
   - - page_name: mitmimage_plus
