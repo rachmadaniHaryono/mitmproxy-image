@@ -125,7 +125,10 @@ def test_urls(golden):
         call_args_output = []
         for call_args in call_args_list:
             call_args_output.append(list(call_args)[0][0][1])
-        res.append([url, obj.check_request_flow(flow), call_args_output])
+        if call_args_output:
+            res.append([url, obj.check_request_flow(flow), call_args_output]) 
+        else:
+            res.append([url, obj.check_request_flow(flow)]) 
     assert res == golden.out["output"]
 
 
