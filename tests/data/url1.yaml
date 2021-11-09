@@ -19,6 +19,7 @@ urls:
 - https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
+- https://pbs.twimg.com/ext_tw_video_thumb/1457912434920939527/pu/img/w5nqy8at8TTJsHd2?format=jpg&name=small
 - https://pbs.twimg.com/media/FDF-jKcVgAA9UFK?format=jpg&name=small
 - https://pbs.twimg.com/media/FDhMCbvaUAAkXqM?format=jpg&name=large
 - https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=240x240
@@ -121,6 +122,13 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=orig
+- - https://pbs.twimg.com/ext_tw_video_thumb/1457912434920939527/pu/img/w5nqy8at8TTJsHd2?format=jpg&name=small
+  - true
+  - - page_name: mitmimage_plus
+      url: https://pbs.twimg.com/ext_tw_video_thumb/1457912434920939527/pu/img/w5nqy8at8TTJsHd2?format=jpg&name=orig
+      service_names_to_additional_tags:
+        my tags:
+        - filename:w5nqy8at8TTJsHd2
 - - https://pbs.twimg.com/media/FDF-jKcVgAA9UFK?format=jpg&name=small
   - true
   - - page_name: mitmimage_plus

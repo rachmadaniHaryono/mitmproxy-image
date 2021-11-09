@@ -20,6 +20,7 @@ block_regex:
   - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|mini|normal).(jpg|png)
   - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
   - - https?://www.youtube.com/watch\?v=
+  - - https://pbs.twimg.com/ext_tw_video_thumb/([^?]+)\?format=([^&]+)&name=small
 add_url_regex:
    - - https?://(localhost:3000|i.ytimg.com)/(an_webp|vi|vi_webp)/([^/]+)
      - http://localhost:3000/watch?v={2}
@@ -39,6 +40,8 @@ add_url_regex:
      - https://pbs.twimg.com/card_img/{0}?format={1}&name=orig
    - - https?://pbs.twimg.com/media/([^?]+)\?format=([^&]+)
      - https://pbs.twimg.com/media/{0}?format={1}&name=orig
+   - - https://pbs.twimg.com/ext_tw_video_thumb/([^?]+)\?format=([^&]+)
+     - https://pbs.twimg.com/ext_tw_video_thumb/{0}?format={1}&name=orig
 block_url_filename_regex:
    - - http://localhost:3000/(ggpht.+=s)
    - - https://(.+)ggpht.com/(.+=(s|w))
