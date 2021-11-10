@@ -19,6 +19,7 @@ urls:
 - https://i.ytimg.com/sb/TWtiXmdie8Q/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLCLt61kpS4OzQx_SA4qfCfQRpB6ZA&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgigo-GLBg==
 - https://i.ytimg.com/vi/CbHyPmW29o4/hqdefault_live.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAoR8Awkt3mF6-41JScnanKuz9lcQ
 - https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
+- https://i.ytimg.com/vi/U7thapvPKkg/hqdefault_996066.jpg?rs=AOn4CLClQv0XvF5LucxgK2XI8qzi7Vypkg&sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
 - https://pbs.twimg.com/ext_tw_video_thumb/1457912434920939527/pu/img/w5nqy8at8TTJsHd2?format=jpg&name=small
@@ -119,6 +120,13 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: http://localhost:3000/watch?v=dh_DKqZ9oLs
+      service_names_to_additional_tags:
+        my tags:
+        - filename:watch
+- - https://i.ytimg.com/vi/U7thapvPKkg/hqdefault_996066.jpg?rs=AOn4CLClQv0XvF5LucxgK2XI8qzi7Vypkg&sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==
+  - false
+  - - page_name: mitmimage_plus
+      url: http://localhost:3000/watch?v=U7thapvPKkg
       service_names_to_additional_tags:
         my tags:
         - filename:watch
