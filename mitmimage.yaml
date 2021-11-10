@@ -5,23 +5,23 @@ block_regex:
   - - http://localhost:3000/(ggpht.+=)w
   - - http://localhost:3000/vi/([^/]+)/(hq720|hqdefault|mqdefault).jpg
   - - http://localhost:3000/watch\?v=
-  - - https://(.+)ggpht.com/(.+=)w
-  - - https://avatars.githubusercontent.com/[^/]+/\d+
+  - - https?://(.+)ggpht.com/(.+=)w
   - - https?://(.+)ggpht.com/(.+=s)(?!0\?imgmax=0)
   - - https?://(i.ytimg.com|localhost:3000)/(an|vi)_webp/([^/]+)/(mqdefault.*|sddefault).webp
   - - https?://.+googlevideo.com/
   - - https?://abs-0.twimg.com/emoji/v2/svg/.+.svg
   - - https?://abs.twimg.com
+  - - https?://avatars.githubusercontent.com/[^/]+/\d+
   - - https?://holodex.net/favicon.ico
   - - https?://i.ytimg.com/sb/[^/]+/storyboard[^/]+/.+.jpg
   - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hqdefault_live|hq720|mqdefault).jpg
   - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)&name=(small|\d+x\d+)
+  - - https?://pbs.twimg.com/ext_tw_video_thumb/([^?]+)\?format=([^&]+)&name=small
   - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=(\d+x\d+|large|small)
   - - https?://pbs.twimg.com/profile_images/(.+)_(bigger|mini|normal).(jpg|png)
+  - - https?://secure.gravatar.com/avatar/([^?]+)\?(?!s=9999).*
   - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
   - - https?://www.youtube.com/watch\?v=
-  - - https://pbs.twimg.com/ext_tw_video_thumb/([^?]+)\?format=([^&]+)&name=small
-  - - https?://secure.gravatar.com/avatar/([^?]+)\?(?!s=9999).*
 add_url_regex:
    - - https?://(localhost:3000|i.ytimg.com)/(an_webp|vi|vi_webp)/([^/]+)
      - http://localhost:3000/watch?v={2}
@@ -47,7 +47,7 @@ add_url_regex:
      - https://secure.gravatar.com/avatar/{0}?s=9999&d=mm&r=g
 block_url_filename_regex:
    - - http://localhost:3000/(ggpht.+=s)
-   - - https://(.+)ggpht.com/(.+=(s|w))
+   - - https?://(.+)ggpht.com/(.+=(s|w))
    - - https?://pbs.twimg.com/card_img/([^?]+)
    - - https?://pbs.twimg.com/profile_images/([^_]+)
    - - https?://secure.gravatar.com/avatar/
