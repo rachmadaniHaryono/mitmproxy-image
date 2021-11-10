@@ -1,3 +1,5 @@
+# https://githubmemory.com/repo/tholo/pytest-flake8/issues/81
+
 [tool.black]
 line-length = 103
 
@@ -11,7 +13,7 @@ homepage = "https://github.com/rachmadaniHaryono/mitmproxy-image"
 authors = ["Rachmadani Haryono <foreturiga@gmail.com>"]
 
 [tool.poetry.dependencies]
-python=">=3.8,<4.0"
+python = ">=3.8,<4.0"
 hydrus-api = ">=2.14.3"
 ipdb = ">=0.13.3"
 mitmproxy = ">=7.0.0"
@@ -22,7 +24,6 @@ python-magic = ">=0.4.22"
 pyyaml = ">=5.3.1"
 requests = ">=2.21.0"
 
-# https://githubmemory.com/repo/tholo/pytest-flake8/issues/81
 [tool.poetry.dev-dependencies]
 flake8 = "<4.0.0"
 pytest-mypy = "^0.8.1"
@@ -36,3 +37,6 @@ pytest-golden = "^0.2.1"
 
 [tool.poetry.scripts]
 mitmproxy-image = 'mitmproxy_image.__main__:mitmproxy'
+
+[tool.pytest.ini_options]
+enable_assertion_pass_hook = true
