@@ -17,7 +17,7 @@ block_regex:
   - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hqdefault_live|hq720|mqdefault).jpg
   - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)&name=(small|\d+x\d+)
   - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=(\d+x\d+|large|small)
-  - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|mini|normal).(jpg|png)
+  - - https?://pbs.twimg.com/profile_images/(.+)_(bigger|mini|normal).(jpg|png)
   - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
   - - https?://www.youtube.com/watch\?v=
   - - https://pbs.twimg.com/ext_tw_video_thumb/([^?]+)\?format=([^&]+)&name=small
@@ -34,7 +34,7 @@ add_url_regex:
      - https://{0}ggpht.com/{1}s0?imgmax=0
    - - http://localhost:3000/(ggpht.*=)
      - http://localhost:3000/{0}s0?imgmax=0
-   - - https?://pbs.twimg.com/profile_images/([^_]+)_(bigger|normal|mini).(jpg|png)
+   - - https?://pbs.twimg.com/profile_images/(.+)_(bigger|mini|normal).(jpg|png)
      - https://pbs.twimg.com/profile_images/{0}.{2}
    - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)
      - https://pbs.twimg.com/card_img/{0}?format={1}&name=orig
