@@ -12,6 +12,8 @@ urls:
 - https://abs.twimg.com/hashflags/Lazada1111_2021/Lazada1111_2021.png
 - https://avatars.githubusercontent.com/t/3008851?s=40&v=4
 - https://avatars.githubusercontent.com/u/6340878
+- https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=32
+- https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=4096
 - https://holodex.net/favicon.ico
 - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
 - https://i.ytimg.com/sb/DgFS1Do_1As/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLBennbNSH_MKh1BoWQYTVW_DuzCHQ&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgi2uKWMBg==
@@ -97,6 +99,14 @@ output:
   - true
 - - https://avatars.githubusercontent.com/u/6340878
   - true
+- - https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=32
+  - true
+  - - page_name: mitmimage_plus
+      url: https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=4096
+- - https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=4096
+  - false
+  - - page_name: mitmimage_plus
+      url: https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=4096
 - - https://holodex.net/favicon.ico
   - true
 - - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG

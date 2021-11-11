@@ -12,6 +12,7 @@ block_regex:
   - - https?://abs-0.twimg.com/emoji/v2/svg/.+.svg
   - - https?://abs.twimg.com
   - - https?://avatars.githubusercontent.com/[^/]+/\d+
+  - - https?://cdn.discordapp.com/avatars/([^?]+)\?(?!size=4096)
   - - https?://holodex.net/favicon.ico
   - - https?://i.ytimg.com/sb/[^/]+/storyboard[^/]+/.+.jpg
   - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hqdefault_live|hq720|mqdefault).jpg
@@ -45,8 +46,11 @@ add_url_regex:
      - https://pbs.twimg.com/ext_tw_video_thumb/{0}?format={1}&name=orig
    - - https?://secure.gravatar.com/avatar/([^?]+)
      - https://secure.gravatar.com/avatar/{0}?s=9999&d=mm&r=g
+   - - https?://cdn.discordapp.com/avatars/([^?]+)\?
+     - https://cdn.discordapp.com/avatars/{0}?size=4096
 block_url_filename_regex:
    - - http://localhost:3000/(ggpht.+=s)
+   - - https://cdn.discordapp.com/avatars/
    - - https?://(.+)ggpht.com/(.+=(s|w))
    - - https?://pbs.twimg.com/card_img/([^?]+)
    - - https?://pbs.twimg.com/profile_images/([^_]+)
