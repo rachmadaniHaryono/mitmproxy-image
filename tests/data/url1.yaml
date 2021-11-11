@@ -46,6 +46,8 @@ urls:
 - https://yt3.ggpht.com/ytc/AKedOLQxVRsYrwGYuJSTKVuotfDoOav0_aRHAg2OaN0exA=s176-c-k-c0x00ffffff-no-rj
 - https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s0?imgmax=0
 - https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s48-c-k-c0x00ffffff-no-rj
+- https://mangadex.org/favicon.svg
+- https://mangadex.org/flags/ru.svg
 output:
 - - http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=w2560-fcrop64
   - true
@@ -255,3 +257,7 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s0?imgmax=0
+- - https://mangadex.org/favicon.svg
+  - true
+- - https://mangadex.org/flags/ru.svg
+  - true

@@ -16,6 +16,7 @@ block_regex:
   - - https?://holodex.net/favicon.ico
   - - https?://i.ytimg.com/sb/[^/]+/storyboard[^/]+/.+.jpg
   - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hqdefault_live|hq720|mqdefault).jpg
+  - - https?://mangadex.org/.*\.svg
   - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)&name=(small|\d+x\d+)
   - - https?://pbs.twimg.com/ext_tw_video_thumb/([^?]+)\?format=([^&]+)&name=small
   - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=(\d+x\d+|large|small)
