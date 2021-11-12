@@ -38,5 +38,8 @@ pytest-golden = "^0.2.1"
 [tool.poetry.scripts]
 mitmproxy-image = 'mitmproxy_image.__main__:mitmproxy'
 
+[tool.pyright]
+pythonPlatform = "all"
+
 [tool.pytest.ini_options]
 enable_assertion_pass_hook = true
