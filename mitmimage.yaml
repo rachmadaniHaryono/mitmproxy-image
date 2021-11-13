@@ -2,6 +2,7 @@
 hydrus_access_key: 4bd08d98f1e566a5ec78afe42c070d303b5340fd47a814782f30b43316c2cecf
 
 block_regex:
+   - - .*favicon.ico$
    - - http://localhost:3000/(ggpht.+=)s((?!0\?imgmax=0).*)
    - - http://localhost:3000/(ggpht.+=)w
    - - http://localhost:3000/vi/([^/]+)/(hq720|hqdefault|mqdefault).jpg
@@ -14,7 +15,6 @@ block_regex:
    - - https?://abs.twimg.com
    - - https?://avatars.githubusercontent.com/[^/]+/\d+
    - - https?://cdn.discordapp.com/avatars/([^?]+)\?(?!size=4096)
-   - - favicon.ico$
    - - https?://i.ytimg.com/sb/[^/]+/storyboard[^/]+/.+.jpg
    - - https?://i.ytimg.com/vi/([^/]+)/(hqdefault|hqdefault_live|hq720|mqdefault).jpg
    - - https?://mangadex.org/.*\.svg
