@@ -5,4 +5,5 @@ ignore: |
 
 rules:
     line-length:
+        max: 95
         allow-non-breakable-inline-mappings: true
