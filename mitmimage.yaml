@@ -23,6 +23,7 @@ block_regex:
    - - https?://pbs.twimg.com/media/[^?]+\?format=[^&]+&name=(\d+x\d+|large|small)
    - - https?://pbs.twimg.com/profile_images/(.+)_(bigger|mini|normal).(jpg|png)
    - - https?://secure.gravatar.com/avatar/([^?]+)\?(?!s=9999).*
+   - - https?://video.+uncensoredleak.com
    - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
    - - https?://www.youtube.com/watch\?v=
 add_url_regex:
@@ -62,6 +63,11 @@ add_url_regex:
      - https://secure.gravatar.com/avatar/{0}?s=9999&d=mm&r=g
    - - https?://cdn.discordapp.com/avatars/([^?]+)\?
      - https://cdn.discordapp.com/avatars/{0}?size=4096
+   - - https://(video-preview.+yandex.net/.+.mp4)
+     - https://{0}
+     - false
+     - []
+     - no_limit
 block_url_filename_regex:
    - - http://localhost:3000/(ggpht.+=s)
    - - https://cdn.discordapp.com/avatars/
