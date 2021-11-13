@@ -51,40 +51,40 @@ urls:
 output:
 - - http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=w2560-fcrop64
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=s0?imgmax=0
 - - http://localhost:3000/ggpht/ytc/AKedOLQ1smfBol4LVBtzkJmPVIpiCROeZRavWmki4g=s0?imgmax=0
   - false
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/ggpht/ytc/AKedOLQ1smfBol4LVBtzkJmPVIpiCROeZRavWmki4g=s0?imgmax=s0?imgmax=0
 - - http://localhost:3000/ggpht/ytc/AKedOLQxVRsYrwGYuJSTKVuotfDoOav0_aRHAg2OaN0exA=s176-c-k-c0x00ffffff-no-rj
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/ggpht/ytc/AKedOLQxVRsYrwGYuJSTKVuotfDoOav0_aRHAg2OaN0exA=s0?imgmax=0
 - - http://localhost:3000/vi/YjZu2dRqzD0/hq720.jpg
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=YjZu2dRqzD0
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - http://localhost:3000/vi/YjZu2dRqzD0/hqdefault.jpg
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=YjZu2dRqzD0
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - http://localhost:3000/vi/YjZu2dRqzD0/maxres.jpg
   - false
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=YjZu2dRqzD0
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - http://localhost:3000/vi/YjZu2dRqzD0/mqdefault.jpg
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=YjZu2dRqzD0
       service_names_to_additional_tags:
         my tags:
@@ -113,7 +113,7 @@ output:
   - true
 - - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=JBS5dPq1Blw
       service_names_to_additional_tags:
         my tags:
@@ -126,28 +126,28 @@ output:
   - true
 - - https://i.ytimg.com/vi/CbHyPmW29o4/hqdefault_live.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAoR8Awkt3mF6-41JScnanKuz9lcQ
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=CbHyPmW29o4
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=dh_DKqZ9oLs
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - https://i.ytimg.com/vi/U7thapvPKkg/hqdefault_996066.jpg?rs=AOn4CLClQv0XvF5LucxgK2XI8qzi7Vypkg&sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==
   - false
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=U7thapvPKkg
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=QOzYtdaIRAA
       service_names_to_additional_tags:
         my tags:
@@ -216,7 +216,7 @@ output:
       url: https://secure.gravatar.com/avatar/3336eb4d33e3a8884b26055969b30e3c?s=9999&d=mm&r=g
 - - https://www.youtube.com/embed/VupT9JCJaOY
   - false
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=VupT9JCJaOY
       service_names_to_additional_tags:
         my tags:
@@ -225,14 +225,14 @@ output:
   - true
 - - https://www.youtube.com/watch?v=5R-mDnwiQI4
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=5R-mDnwiQI4
       service_names_to_additional_tags:
         my tags:
         - filename:watch
 - - https://www.youtube.com/watch?v=VupT9JCJaOY
   - true
-  - - page_name: mitmimage_plus
+  - - page_name: localhost
       url: http://localhost:3000/watch?v=VupT9JCJaOY
       service_names_to_additional_tags:
         my tags:
