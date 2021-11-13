@@ -172,13 +172,15 @@ class MitmImage:
         self.cached_urls = set()
         self.remove_view_enable = True
         self.skip_flow = set()
-        ak = None
+        ak: T.Optional[str] = None
+        ctx_ak = None
         try:
-            ak = ctx.options.deferred["hydrus_access_key"]
-            if ak and not isinstance(ak, str):
-                ak = ak[0]
-        except Exception:
-            self.client = Client(ak if isinstance(ak, str) and ak else None)
+            ctx_ak = ctx.options.deferred["hydrus_access_key"]
+            if ctx_ak:
+                ak = ctx_ak[0]
+        except Exception as err:
+            self.logger.error({LogKey.MESSAGE.value: "access_key error: {}".format(err), "ak": ctx_ak})
+        self.client = Client(ak if isinstance(ak, str) and ak else None)
 
     def is_valid_content_type(
         self,
