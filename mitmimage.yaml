@@ -1,3 +1,4 @@
+---
 hydrus_access_key: 4bd08d98f1e566a5ec78afe42c070d303b5340fd47a814782f30b43316c2cecf
 
 block_regex:
@@ -27,16 +28,28 @@ block_regex:
 add_url_regex:
    - - https?://(localhost:3000|i.ytimg.com)/(an_webp|vi|vi_webp)/([^/]+)
      - http://localhost:3000/watch?v={2}
+     - false
+     - []
+     - localhost
    - - https://(www.)youtube.com/embed/([^/]+)/?
      - http://localhost:3000/watch?v={1}
+     - false
+     - []
+     - localhost
    - - https://(www.)?youtube.com/watch\?v=([^&]+)
      - http://localhost:3000/watch?v={1}
+     - false
+     - []
+     - localhost
    - - https://(.+)ggpht.com/(.*=s)(?!0\?imgmax=0)
      - https://{0}ggpht.com/{1}0?imgmax=0
    - - https://(.+)ggpht.com/(.*=)w
      - https://{0}ggpht.com/{1}s0?imgmax=0
    - - http://localhost:3000/(ggpht.*=)
      - http://localhost:3000/{0}s0?imgmax=0
+     - false
+     - []
+     - localhost
    - - https?://pbs.twimg.com/profile_images/(.+)_(bigger|mini|normal).(jpg|png)
      - https://pbs.twimg.com/profile_images/{0}.{2}
    - - https?://pbs.twimg.com/card_img/([^?]+)\?format=([^&]+)
