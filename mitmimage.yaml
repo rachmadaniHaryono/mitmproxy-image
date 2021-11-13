@@ -26,6 +26,7 @@ block_regex:
    - - https?://video.+uncensoredleak.com
    - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
    - - https?://www.youtube.com/watch\?v=
+   - - https://github.githubassets.com/images/icons
 add_url_regex:
    - - https?://(localhost:3000|i.ytimg.com)/(an_webp|vi|vi_webp)/([^/]+)
      - http://localhost:3000/watch?v={2}
