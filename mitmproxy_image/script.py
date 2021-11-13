@@ -577,10 +577,11 @@ class MitmImage:
 
     async def upload_worker(self):  # pragma: no cover
         while True:
-            url = flow.request.pretty_url  # type: ignore
+            url: T.Optional[str] = None
             try:
                 # Get a "work item" out of the queue.
                 flow = await self.upload_queue.get()
+                url = flow.request.pretty_url
                 response = flow.response  # type: ignore
                 if response is None:
                     self.logger.debug(
