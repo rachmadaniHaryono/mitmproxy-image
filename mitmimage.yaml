@@ -7,6 +7,8 @@ block_regex:
    - - http://localhost:3000/(ggpht.+=)w
    - - http://localhost:3000/vi/([^/]+)/(hq720|hqdefault|mqdefault).jpg
    - - http://localhost:3000/watch\?v=
+   - - https://github.githubassets.com/images/icons
+   - - https://machineslicedbread.xyz/wp-content/plugins
    - - https?://(.+)ggpht.com/(.+=)w
    - - https?://(.+)ggpht.com/(.+=s)(?!0\?imgmax=0)
    - - https?://(i.ytimg.com|localhost:3000)/(an|vi)_webp/([^/]+)/(mqdefault.*|sddefault).webp
@@ -26,7 +28,6 @@ block_regex:
    - - https?://video.+uncensoredleak.com
    - - https?://www.youtube.com/s/gaming/emoji/[^/]+/emoji_.+.svg
    - - https?://www.youtube.com/watch\?v=
-   - - https://github.githubassets.com/images/icons
 add_url_regex:
    - - https?://(localhost:3000|i.ytimg.com)/(an_webp|vi|vi_webp)/([^/]+)
      - http://localhost:3000/watch?v={2}

@@ -24,6 +24,7 @@ urls:
 - https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
 - https://i.ytimg.com/vi/U7thapvPKkg/hqdefault_996066.jpg?rs=AOn4CLClQv0XvF5LucxgK2XI8qzi7Vypkg&sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
+- https://machineslicedbread.xyz/wp-content/plugins/fd-footnotes/fdfootnotes.js?ver=1.34
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
 - https://pbs.twimg.com/ext_tw_video_thumb/1457912434920939527/pu/img/w5nqy8at8TTJsHd2?format=jpg&name=small
 - https://pbs.twimg.com/media/D_iFLtxUwAIQ3aV.jpg:large
@@ -157,6 +158,8 @@ output:
       service_names_to_additional_tags:
         my tags:
         - filename:watch
+- - https://machineslicedbread.xyz/wp-content/plugins/fd-footnotes/fdfootnotes.js?ver=1.34
+  - true
 - - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
   - true
   - - page_name: mitmimage_plus
