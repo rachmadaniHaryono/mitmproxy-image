@@ -67,7 +67,8 @@ add_url_regex:
      - https://cdn.discordapp.com/avatars/{0}?size=4096
    - - https?://pbs.twimg.com/media/(.+)\.([^:?]+)
      - https://pbs.twimg.com/media/{0}?format={1}&name=orig
-     - https://cdn.discordapp.com/avatars/{0}?size=4096
+   - - https://.+nhentai.net/galleries/(.+)/(cover|thumb).jpg
+     - https://i.nhentai.net/galleries/{0}/1.jpg
    - - https://(video-preview.+yandex.net/.+.mp4)
      - https://{0}
      - false

@@ -16,6 +16,7 @@ urls:
 - https://cdn.discordapp.com/avatars/635157317863735300/b27175aba682559ecd9aaedc41c21e68.png?size=4096
 - https://github.githubassets.com/images/icons/emoji/unicode/1f389.png
 - https://holodex.net/favicon.ico
+- https://i.nhentai.net/galleries/1975220/1.jpg
 - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
 - https://i.ytimg.com/sb/DgFS1Do_1As/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLBennbNSH_MKh1BoWQYTVW_DuzCHQ&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgi2uKWMBg==
 - https://i.ytimg.com/sb/dMft_m1HeYE/storyboard3_L1/M2.jpg?sigh=rs$AOn4CLCfNuOH_gREe2jEWuEIkf1fsp4Ajg&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgjP3J-MBg==
@@ -25,6 +26,8 @@ urls:
 - https://i.ytimg.com/vi/U7thapvPKkg/hqdefault_996066.jpg?rs=AOn4CLClQv0XvF5LucxgK2XI8qzi7Vypkg&sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
 - https://machineslicedbread.xyz/wp-content/plugins/fd-footnotes/fdfootnotes.js?ver=1.34
+- https://mangadex.org/favicon.svg
+- https://mangadex.org/flags/ru.svg
 - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
 - https://pbs.twimg.com/ext_tw_video_thumb/1457912434920939527/pu/img/w5nqy8at8TTJsHd2?format=jpg&name=small
 - https://pbs.twimg.com/media/D_iFLtxUwAIQ3aV.jpg:large
@@ -40,6 +43,8 @@ urls:
 - https://r5---sn-npoeenee.googlevideo.com/videoplayback?expire=1636319450&ei=euyHYZz0Ecuc4t4PxOu2sAc&ip=202.67.38.20&id=o-AG6dfrBmPLWb7mowpRMe6IX0uitYLnK8TiwMCmsoF-ci&itag=250&source=youtube&requiressl=yes&vprv=1&mime=audio%2Fwebm&ns=um4PCG_s8H3swTD3_dEAqlwG&gir=yes&clen=511795&dur=59.801&lmt=1636289635499196&keepalive=yes&fexp=24001373,24007246&c=WEB_EMBEDDED_PLAYER&txp=6311224&n=TK_FsfkIVELKHg&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cvprv%2Cmime%2Cns%2Cgir%2Cclen%2Cdur%2Clmt&sig=AOq0QJ8wRQIhAN5B1PZLDlCUsZC1ppvQymhBxcIoiwP8CYK1DL0pcSHQAiBkzO0x6iRJkOEJ43jr1F6gHfsTY44JEPc5eoBC6X0PVg%3D%3D&alr=yes&cpn=BxTa3A0zOljycg5h&cver=1.20211102.01.00&cm2rm=sn-uigxxi0ujipnvo-c2oe7l,sn-npoz776&redirect_counter=2&cms_redirect=yes&mh=an&mm=34&mn=sn-npoeenee&ms=ltu&mt=1636297716&mv=m&mvi=5&pl=24&lsparams=mh,mm,mn,ms,mv,mvi,pl&lsig=AG3C_xAwRQIhAMCalRl3YvhOiiBdEzbl4FbKHN3p3C39jO1FycC-mAwYAiAxvHsvo6_RvQvjK9sRaIHc_u6nQ1knK-L85twBRpgynw%3D%3D&range=0-364&rn=7&rbuf=0
 - https://secure.gravatar.com/avatar/3336eb4d33e3a8884b26055969b30e3c?s=60&d=mm&r=g
 - https://secure.gravatar.com/avatar/3336eb4d33e3a8884b26055969b30e3c?s=9999&d=mm&r=g
+- https://t2.nhentai.net/galleries/1975220/cover.jpg
+- https://t2.nhentai.net/galleries/2059832/thumb.jpg
 - https://www.youtube.com/embed/VupT9JCJaOY
 - https://www.youtube.com/s/gaming/emoji/7ff574f2/emoji_u1f444.svg
 - https://www.youtube.com/watch?v=5R-mDnwiQI4
@@ -50,8 +55,6 @@ urls:
 - https://yt3.ggpht.com/ytc/AKedOLQxVRsYrwGYuJSTKVuotfDoOav0_aRHAg2OaN0exA=s176-c-k-c0x00ffffff-no-rj
 - https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s0?imgmax=0
 - https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s48-c-k-c0x00ffffff-no-rj
-- https://mangadex.org/favicon.svg
-- https://mangadex.org/flags/ru.svg
 output:
 - - http://localhost:3000/ggpht/de3t5WmdQ7Esoudex56GumH55DGPWvdqlLV7nz1CUu-iYDBAPxwzNTOUEVbFMpUZ1KQiPhY1Cw=w2560-fcrop64
   - true
@@ -117,6 +120,8 @@ output:
   - true
 - - https://holodex.net/favicon.ico
   - true
+- - https://i.nhentai.net/galleries/1975220/1.jpg
+  - false
 - - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
   - true
   - - page_name: localhost
@@ -159,6 +164,10 @@ output:
         my tags:
         - filename:watch
 - - https://machineslicedbread.xyz/wp-content/plugins/fd-footnotes/fdfootnotes.js?ver=1.34
+  - true
+- - https://mangadex.org/favicon.svg
+  - true
+- - https://mangadex.org/flags/ru.svg
   - true
 - - https://pbs.twimg.com/card_img/1455098609041502211/-kn7wrT8?format=jpg&name=small
   - true
@@ -221,6 +230,20 @@ output:
   - false
   - - page_name: mitmimage_plus
       url: https://secure.gravatar.com/avatar/3336eb4d33e3a8884b26055969b30e3c?s=9999&d=mm&r=g
+- - https://t2.nhentai.net/galleries/1975220/cover.jpg
+  - false
+  - - page_name: mitmimage_plus
+      url: https://i.nhentai.net/galleries/1975220/1.jpg
+      service_names_to_additional_tags:
+        my tags:
+        - filename:1
+- - https://t2.nhentai.net/galleries/2059832/thumb.jpg
+  - false
+  - - page_name: mitmimage_plus
+      url: https://i.nhentai.net/galleries/2059832/1.jpg
+      service_names_to_additional_tags:
+        my tags:
+        - filename:1
 - - https://www.youtube.com/embed/VupT9JCJaOY
   - false
   - - page_name: localhost
@@ -264,7 +287,3 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s0?imgmax=0
-- - https://mangadex.org/favicon.svg
-  - true
-- - https://mangadex.org/flags/ru.svg
-  - true
