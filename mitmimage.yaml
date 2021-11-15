@@ -76,9 +76,11 @@ add_url_regex:
      - no_limit
 block_url_filename_regex:
    - - http://localhost:3000/(ggpht.+=s)
-   - - https://cdn.discordapp.com/avatars/
-   - - https?://(.+)ggpht.com/(.+=(s|w))
-   - - https?://pbs.twimg.com/card_img/([^?]+)
+   - - https?://(.+)ggpht.com/
+   - - https?://cdn.discordapp.com/avatars/
+   - - https?://i.redd.it
+   - - https?://pbs.twimg.com/card_img/
    - - https?://pbs.twimg.com/media/
-   - - https?://pbs.twimg.com/profile_images/([^_]+)
+   - - https?://pbs.twimg.com/profile_images/
    - - https?://secure.gravatar.com/avatar/
+   - - https?://yandex-images.clstorage.net
