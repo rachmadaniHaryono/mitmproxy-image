@@ -97,7 +97,7 @@ def get_mimetype(
             url = getattr(getattr(flow, "request", None), "pretty_url", None)
     if url is not None:
         # no query url
-        nq_url = urlparse(url)._replace(query="").geturl()  # type: ignore
+        nq_url = urlparse(url)._replace(query="").geturl()
         nq_url_type = mimetypes.guess_type(nq_url)
         header = nq_url_type[0] if len(nq_url_type) > 0 else None
     if header is None:
@@ -262,10 +262,10 @@ class MitmImage:
         if hashes and from_hydrus == "on_empty":
             hashes.discard(EMPTY_HASH)
             return hashes
-        huf_resp = self.client.get_url_files(url)
+        # Note huf_resp should be TypedDict with {'url_file_statuses': T.List[UFS_TYPE]}
+        huf_resp: T.Dict[str, T.List[UFS_TYPE]] = self.client.get_url_files(url)  # type: ignore
         # ufs = get_url_status
-        ufs: UFS_TYPE
-        for ufs in huf_resp.get("url_file_statuses", []):  # type: ignore
+        for ufs in huf_resp.get("url_file_statuses", []):
             if ufs and ufs["hash"] == EMPTY_HASH:
                 continue
             self.url_data[url].add(ufs["hash"])
@@ -275,8 +275,8 @@ class MitmImage:
         return hashes
 
     def upload(self, flow: T.Union[http.HTTPFlow, Flow]) -> T.Optional[UFS_TYPE]:
-        url = flow.request.pretty_url  # type: ignore
-        response = flow.response  # type: ignore
+        url: str = flow.request.pretty_url  # type: ignore
+        response: T.Optional[T.Any] = flow.response  # type: ignore
         if response is None:
             self.logger.debug({LogKey.MESSAGE.value: "no response", LogKey.URL.value: url})
             return None
@@ -584,7 +584,7 @@ class MitmImage:
                 # Get a "work item" out of the queue.
                 flow = await self.upload_queue.get()
                 url = flow.request.pretty_url
-                response = flow.response  # type: ignore
+                response = flow.response
                 if response is None:
                     self.logger.debug(
                         {
@@ -609,7 +609,7 @@ class MitmImage:
                     upload_resp: UFS_TYPE = self.client.add_file(io.BytesIO(content))  # type: ignore
                 status = upload_resp["status"]
                 referer = flow.request.headers.get("referer", None)
-                hash_ = upload_resp.get("hash", None)
+                hash_: T.Optional[str] = upload_resp.get("hash", None)
                 if status in [
                     ImportStatus.Exists,
                     ImportStatus.PreviouslyDeleted,
@@ -619,7 +619,8 @@ class MitmImage:
                         (url, upload_resp, None if referer is None else get_readable_url(referer))
                     )
                 elif status in [ImportStatus.Failed, ImportStatus.Vetoed, 8] and hash_:
-                    self.url_data[url].add(hash_)
+                    if url:
+                        self.url_data[url].add(hash_)
                     self.hash_data[hash_] = status
                 else:
                     self.logger.debug(upload_resp)
@@ -868,7 +869,7 @@ class MitmImage:
     def upload_flow(self, flows: T.Sequence[Flow], remove: bool = False) -> None:
         resp_history = []
         for flow in flows:
-            url = flow.request.pretty_url  # type: ignore
+            url: str = flow.request.pretty_url  # type: ignore
             self.add_additional_url(url)
             match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
             if match:
