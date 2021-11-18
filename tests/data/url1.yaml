@@ -19,12 +19,20 @@ urls:
 - https://i.nhentai.net/galleries/1975220/1.jpg
 - https://i.ytimg.com/an_webp/JBS5dPq1Blw/mqdefault_6s.webp?du=3000&rs=AOn4CLDchlKWyzVy5qjTTozD69QEK1s_wQ&sqp=CNzGpowG
 - https://i.ytimg.com/sb/DgFS1Do_1As/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLBennbNSH_MKh1BoWQYTVW_DuzCHQ&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgi2uKWMBg==
-- https://i.ytimg.com/sb/dMft_m1HeYE/storyboard3_L1/M2.jpg?sigh=rs$AOn4CLCfNuOH_gREe2jEWuEIkf1fsp4Ajg&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgjP3J-MBg==
 - https://i.ytimg.com/sb/TWtiXmdie8Q/storyboard3_L1/M0.jpg?sigh=rs$AOn4CLCLt61kpS4OzQx_SA4qfCfQRpB6ZA&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgigo-GLBg==
+- https://i.ytimg.com/sb/dMft_m1HeYE/storyboard3_L1/M2.jpg?sigh=rs$AOn4CLCfNuOH_gREe2jEWuEIkf1fsp4Ajg&sqp=-oaymwENSDfyq4qpAwVwAcABBqLzl_8DBgjP3J-MBg==
 - https://i.ytimg.com/vi/CbHyPmW29o4/hqdefault_live.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAoR8Awkt3mF6-41JScnanKuz9lcQ
-- https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
 - https://i.ytimg.com/vi/U7thapvPKkg/hqdefault_996066.jpg?rs=AOn4CLClQv0XvF5LucxgK2XI8qzi7Vypkg&sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==
+- https://i.ytimg.com/vi/dh_DKqZ9oLs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB1CYZyPDHvSbmECtqcKQnwIyly6g
 - https://i.ytimg.com/vi_webp/QOzYtdaIRAA/sddefault.webp
+- https://img.sokmil.com/image/capture/cs_vod0058_01_T1515132578.jpg
+- https://img.sokmil.com/image/capture/ol_vod0058_01_T1515132578.jpg
+- https://img.sokmil.com/image/product/pe_vod0058_01_T1515126604.jpg
+- https://img.sokmil.com/image/product/pef_ons2750_01_100x142_T1612763694.jpg
+- https://img.sokmil.com/image/product/pef_smn0561_01_150x_T1608714982.jpg
+- https://img.sokmil.com/image/product/pef_smn0561_01_T1608714982.jpg
+- https://img.sokmil.com/image/product/pef_vod0058_01_150x_T1515126604.jpg
+- https://img.sokmil.com/image/product/pef_vod0058_01_T1515126604.jpg
 - https://machineslicedbread.xyz/wp-content/plugins/fd-footnotes/fdfootnotes.js?ver=1.34
 - https://mangadex.org/favicon.svg
 - https://mangadex.org/flags/ru.svg
@@ -33,8 +41,8 @@ urls:
 - https://pbs.twimg.com/media/D_iFLtxUwAIQ3aV.jpg:large
 - https://pbs.twimg.com/media/E89FeFWVoAMJRyo.jpg
 - https://pbs.twimg.com/media/FDF-jKcVgAA9UFK?format=jpg&name=small
-- https://pbs.twimg.com/media/FDhMCbvaUAAkXqM?format=jpg&name=large
 - https://pbs.twimg.com/media/FDI1j3HaQAAnlMs?format=jpg&name=240x240
+- https://pbs.twimg.com/media/FDhMCbvaUAAkXqM?format=jpg&name=large
 - https://pbs.twimg.com/profile_images/1275858117893468165/SsjMbPlo_mini.jpg
 - https://pbs.twimg.com/profile_images/1364269923351080961/fXz-QcOK_normal.png
 - https://pbs.twimg.com/profile_images/1394191038596599809/JhzF_SPO_normal.jpg
@@ -287,3 +295,39 @@ output:
   - true
   - - page_name: mitmimage_plus
       url: https://yt3.ggpht.com/ytc/AKedOLT-Z-IkS6aLR7REXNd1nFCOqPl-03_WG_icWJa0Qw=s0?imgmax=0
+- - https://img.sokmil.com/image/capture/cs_vod0058_01_T1515132578.jpg
+  - false
+  - - page_name: mitmimage_plus
+      url: https://img.sokmil.com/image/capture/ol_vod0058_01_T1515132578.jpg
+      service_names_to_additional_tags:
+        my tags:
+        - filename:ol_vod0058_01_T1515132578
+- - https://img.sokmil.com/image/capture/ol_vod0058_01_T1515132578.jpg
+  - false
+- - https://img.sokmil.com/image/product/pe_vod0058_01_T1515126604.jpg
+  - false
+- - https://img.sokmil.com/image/product/pef_ons2750_01_100x142_T1612763694.jpg
+  - false
+  - - page_name: mitmimage_plus
+      url: https://img.sokmil.com/image/product/pef_ons2750_01_T1612763694.jpg
+      service_names_to_additional_tags:
+        my tags:
+        - filename:pef_ons2750_01_T1612763694
+- - https://img.sokmil.com/image/product/pef_smn0561_01_150x_T1608714982.jpg
+  - false
+  - - page_name: mitmimage_plus
+      url: https://img.sokmil.com/image/product/pef_smn0561_01_T1608714982.jpg
+      service_names_to_additional_tags:
+        my tags:
+        - filename:pef_smn0561_01_T1608714982
+- - https://img.sokmil.com/image/product/pef_smn0561_01_T1608714982.jpg
+  - false
+- - https://img.sokmil.com/image/product/pef_vod0058_01_150x_T1515126604.jpg
+  - false
+  - - page_name: mitmimage_plus
+      url: https://img.sokmil.com/image/product/pef_vod0058_01_T1515126604.jpg
+      service_names_to_additional_tags:
+        my tags:
+        - filename:pef_vod0058_01_T1515126604
+- - https://img.sokmil.com/image/product/pef_vod0058_01_T1515126604.jpg
+  - false
