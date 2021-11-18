@@ -108,13 +108,12 @@ def test_get_hashes(from_hydrus, valid_ct):
 @pytest.mark.golden_test("data/url*.yaml")
 def test_urls(golden):
     obj = MitmImage()
-    obj.load_config('/home/r3r/mitmimage.yaml')
+    obj.load_config("/home/r3r/mitmimage.yaml")
     obj.client_queue.put_nowait = mock.Mock()
     flow = mock.Mock()
-    flow.request.method = 'get'
+    flow.request.method = "get"
     res = []
-    urls = golden['urls']
-    for url in golden['urls']:
+    for url in (urls := sorted(golden["urls"])):
         flow.request.pretty_url = url
         flow.request.pretty_host = urlparse(url).netloc
         obj.client_queue.put_nowait.reset_mock()
@@ -126,10 +125,11 @@ def test_urls(golden):
         for call_args in call_args_list:
             call_args_output.append(list(call_args)[0][0][1])
         if call_args_output:
-            res.append([url, obj.check_request_flow(flow), call_args_output]) 
+            res.append([url, obj.check_request_flow(flow), call_args_output])
         else:
-            res.append([url, obj.check_request_flow(flow)]) 
+            res.append([url, obj.check_request_flow(flow)])
     assert res == golden.out["output"]
+    assert list(urls) == golden.out["urls"]
 
 
 if __name__ == "__main__":
