@@ -69,6 +69,10 @@ add_url_regex:
      - https://pbs.twimg.com/media/{0}?format={1}&name=orig
    - - https://.+nhentai.net/galleries/(.+)/(cover|thumb).jpg
      - https://i.nhentai.net/galleries/{0}/1.jpg
+   - - https://img.sokmil.com(/image/capture/)cs(_\w+\d+_\d+_\w+\d+\.\w+)
+     - https://img.sokmil.com{0}ol{1}
+   - - https://img.sokmil.com(/image/product/\w+_\w+\d+_\d+_)\d+\w+(\d+)?_(\w+\d+\.\w+)
+     - https://img.sokmil.com{0}{2}
    - - https://(video-preview.+yandex.net/.+.mp4)
      - https://{0}
      - false
