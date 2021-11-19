@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunpars
 import magic
 import yaml
 from hydrus import Client, ConnectionError, ImportStatus, TagAction
-from mitmproxy import command, ctx, http
+from mitmproxy import command, ctx, flowfilter, http
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
 from more_itertools import first_true, nth
@@ -181,6 +181,8 @@ class MitmImage:
         except Exception as err:
             self.logger.error({LogKey.MESSAGE.value: "access_key error: {}".format(err), "ak": ctx_ak})
         self.client = Client(ak if isinstance(ak, str) and ak else None)
+        # NOTE only match when self.client._api_url not changed
+        self.base_filter = f"~m GET & !(~websocket | ~d '{urlparse(self.client._api_url).netloc}')"
 
     def is_valid_content_type(
         self,
@@ -625,15 +627,13 @@ class MitmImage:
                 else:
                     self.logger.debug(upload_resp)
                 log_msg = {LogKey.STATUS.value: status, LogKey.URL.value: url}
+                note = upload_resp.get("note", None)
                 if self.logger.level == logging.DEBUG:
-                    log_msg.update(
-                        {
-                            LogKey.HASH.value: hash_,
-                            "note": upload_resp.get("note", None),
-                        }
-                    )
+                    log_msg.update({LogKey.HASH.value: hash_, "note": note})
                     self.logger.debug(log_msg)
                 else:
+                    if status not in [ImportStatus.Success, ImportStatus.Exists] and note:
+                        log_msg["note"] = note
                     self.logger.info(log_msg)
             except ConnectionError as err:
                 self.logger.debug(str(err), exc_info=True)
@@ -649,11 +649,12 @@ class MitmImage:
 
     def check_request_flow(self, flow: http.HTTPFlow) -> bool:
         """Check request flow and determine if the flow need to be skipped."""
-        if str(flow.request.method).lower() != "get":
-            return True
         url: str = flow.request.pretty_url
-        match = first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
-        if match:
+        if self.host_block_regex and (
+            match := first_true(
+                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
+            )
+        ):
             self.logger.debug(
                 {
                     LogKey.URL.value: url,
@@ -662,8 +663,9 @@ class MitmImage:
                 }
             )
             return True
-        match = first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-        if match:
+        if self.block_regex and (
+            match := first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+        ):
             if match.log_flag:
                 self.logger.debug(
                     {
@@ -680,6 +682,11 @@ class MitmImage:
         url: str = flow.request.pretty_url
         try:
             self.add_additional_url(url)
+            try:
+                if not flowfilter.match(self.base_filter, flow):
+                    return
+            except ValueError as err:
+                raise ValueError(str(err) + f', filter:"{self.base_filter}"')
             if self.check_request_flow(flow):
                 self.skip_flow.add(flow.id)
                 self.logger.debug(
@@ -776,6 +783,11 @@ class MitmImage:
         """Handle response."""
         url: str = flow.request.pretty_url
         try:
+            try:
+                if not flowfilter.match(self.base_filter + ' & ~ts "(audio|image|video)"', flow):
+                    return
+            except ValueError as err:
+                raise ValueError(str(err) + f', filter:"{self.base_filter}"')
             if self.check_response_flow(flow):
                 self.remove_from_view(flow)
                 return
