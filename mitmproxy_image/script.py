@@ -524,7 +524,10 @@ class MitmImage:
             except Exception as err:
                 self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
-            self.flow_remove_queue.task_done()
+            try:
+                self.flow_remove_queue.task_done()
+            except ValueError as err:
+                self.logger.warning("ValueError:" + str(err))
 
     async def client_worker(self):  # pragma: no cover
         while True:
