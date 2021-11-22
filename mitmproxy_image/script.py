@@ -649,7 +649,7 @@ class MitmImage:
                     self.logger.debug(log_msg)
                 else:
                     if status not in [ImportStatus.Success, ImportStatus.Exists] and note:
-                        log_msg["note"] = note
+                        log_msg["note"] = note.splitlines()[-1]
                     self.logger.info(log_msg)
             except ConnectionError as err:
                 self.logger.debug(str(err), exc_info=True)
