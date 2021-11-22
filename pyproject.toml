@@ -27,7 +27,6 @@ requests = ">=2.21.0"
 [tool.poetry.dev-dependencies]
 flake8 = "<4.0.0"
 pytest-mypy = "^0.8.1"
-pdbpp = "^0.10.3"
 pytest = "^6.2.5"
 pytest-cov = "^3.0.0"
 pytest-flake8 = "^1.0.7"
