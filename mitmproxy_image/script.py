@@ -168,6 +168,7 @@ class MitmImage:
         self.upload_queue = asyncio.Queue()
         self.post_upload_queue = asyncio.Queue()
         self.client_queue = asyncio.Queue()
+        self.flow_remove_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.cached_urls = set()
         self.remove_view_enable = True
@@ -513,6 +514,18 @@ class MitmImage:
                 )
                 self.client_queue.put_nowait(args)
 
+    async def flow_remove_worker(self):  # pragma: no cover
+        while True:
+            item = None
+            try:
+                # Get a "work item" out of the queue.
+                item = await self.flow_remove_queue.get()
+                self.remove_from_view(item)
+            except Exception as err:
+                self.logger.exception(str(err))
+            # Notify the queue that the "work item" has been processed.
+            self.flow_remove_queue.task_done()
+
     async def client_worker(self):  # pragma: no cover
         while True:
             # Get a "work item" out of the queue.
@@ -789,7 +802,7 @@ class MitmImage:
             except ValueError as err:
                 raise ValueError(str(err) + f', filter:"{self.base_filter}"')
             if self.check_response_flow(flow):
-                self.remove_from_view(flow)
+                self.flow_remove_queue.put_nowait(flow)
                 return
             hashes = self.get_hashes(url, "on_empty")
             single_hash_data = None
@@ -825,7 +838,7 @@ class MitmImage:
                 else:
                     msg.update({LogKey.MESSAGE.value: str(hashes_status)})
                 self.logger.info(msg)
-            self.remove_from_view(flow)
+            self.flow_remove_queue.put_nowait(flow)
         except ConnectionError as err:
             self.logger.debug(str(err), exc_info=True)
             self.logger.error(
@@ -842,7 +855,7 @@ class MitmImage:
         interrupted connections. This is distinct from a valid server HTTP
         error response, which is simply a response with an HTTP error code.
         """
-        self.remove_from_view(flow)  # pragma: no cover
+        self.flow_remove_queue.put_nowait(flow)  # pragma: no cover
 
     @property
     def ctx_log(self):
@@ -896,14 +909,14 @@ class MitmImage:
                         )
                         for x in [self.logger, ctx.log]
                     ]
-                self.remove_from_view(flow)
+                self.flow_remove_queue.put_nowait(flow)
                 continue
             try:
                 resp = self.upload(flow)
                 self.client_queue.put_nowait(("add_url", {"url": url, "page_name": "mitmimage"}))
                 resp_history.append(resp)
                 if remove and resp is not None:
-                    self.remove_from_view(flow)
+                    self.flow_remove_queue.put_nowait(flow)
             except Exception as err:
                 self.logger.exception(str(err))
         data = [x["status"] for x in resp_history if x is not None]
