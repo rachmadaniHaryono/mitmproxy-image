@@ -1,0 +1,7 @@
+[pytest]
+command = 'poetry'
+args = ['run','pytest', '-vv']
+
+[pytest-update-goldens]
+command = 'poetry'
+args = ['run','pytest', '-vv', '--update-goldens']
