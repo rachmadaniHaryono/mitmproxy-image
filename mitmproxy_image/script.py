@@ -169,7 +169,6 @@ class MitmImage:
         self.client_queue = asyncio.Queue()
         self.flow_remove_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
-        self.cached_urls = set()
         self.remove_view_enable = True
         self.skip_flow = set()
         ak: T.Optional[str] = None
@@ -857,6 +856,7 @@ class MitmImage:
     def clear_data(self) -> None:
         self.url_data = defaultdict(set)
         self.hash_data = {}
+        self.cached_urls = set()
         if self.ctx_log:  # pragma: no cover
             ctx.log.info("mitmimage: data cleared")
 
