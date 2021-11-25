@@ -779,7 +779,7 @@ class MitmImage:
         mimetype = None
         try:
             if flow.response.content is not None:
-                mimetype = magic.from_buffer(flow.response.content, mime=True)
+                mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
         except ValueError as err:
             self.logger.debug(str(err), exc_info=True)
         if mimetype is None:
