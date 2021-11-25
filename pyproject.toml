@@ -20,7 +20,6 @@ mitmproxy = ">=7.0.0"
 more-itertools = ">=8.7.0"
 pillow = ">=5.3.0"
 python-json-logger = ">=2.0.1"
-python-magic = ">=0.4.22"
 pyyaml = ">=5.3.1"
 requests = ">=2.21.0"
 

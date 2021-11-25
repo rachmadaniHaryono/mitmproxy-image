@@ -13,7 +13,6 @@ from enum import Enum
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunparse
 
-import magic
 import yaml
 from hydrus import Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, flowfilter, http
@@ -775,22 +774,6 @@ class MitmImage:
         if url in self.cached_urls:
             return True
         if flow.response is None:
-            return True
-        mimetype = None
-        try:
-            if flow.response.content is not None:
-                mimetype = magic.from_buffer(flow.response.content[:2049], mime=True)
-        except ValueError as err:
-            self.logger.debug(str(err), exc_info=True)
-        if mimetype is None:
-            self.logger.debug(
-                {
-                    LogKey.KEY.value: "no mimetype",
-                    LogKey.MESSAGE.value: vars(flow.response),
-                    LogKey.URL.value: url,
-                }
-            )
-        elif not self.is_valid_content_type(mimetype=mimetype):
             return True
         return False
 
