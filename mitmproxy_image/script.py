@@ -21,7 +21,7 @@ from mitmproxy.script import concurrent
 from more_itertools import first_true, nth
 from pythonjsonlogger import jsonlogger
 
-UFS_TYPE = T.TypedDict("ufs_type", {"hash": str, "status": ImportStatus})
+UFS_TYPE = T.TypedDict("UFS_TYPE", {"hash": str, "status": ImportStatus})
 
 
 class LogKey(Enum):
@@ -135,6 +135,7 @@ class MitmImage:
     url_data: T.Dict[str, T.Set[str]]
     hash_data: T.Dict[str, ImportStatus]
     config: T.Dict[str, T.Any]
+    cached_urls: T.Set[str]
 
     # default path
     default_config_path = os.path.expanduser("~/mitmimage.yaml")
