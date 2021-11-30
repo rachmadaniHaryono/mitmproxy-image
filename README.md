@@ -12,6 +12,12 @@ use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 
 ```console
 $ mitmproxy-image
+$ # another example
+$ mitmproxy-image \
+--listen-host 127.0.0.1 \
+--listen-port 5007 \
+--set hydrus_access_key=$HYDRUS_ACCESS_KEY \
+--view-filter '~m GET & ~t "(audio|image|video)" & !~websocket'
 ```
 
 If configuration is succesful,
@@ -26,7 +32,7 @@ such as imagus (
 [chrome](https://chrome.google.com/webstore/detail/imagus/immpkjjlgappgfkkfieppnmlhakdmaab?hl=en),
 [firefox](https://addons.mozilla.org/en-US/firefox/addon/imagus/)
 ) or maxurl (
-[firefox](https://addons.mozilla.org/en-US/firefox/addon/image-max-url/)
+[firefox](https://addons.mozilla.org/en-US/firefox/addon/image-max-url/),
 [github](https://github.com/qsniyg/maxurl)
 )
 
@@ -42,23 +48,18 @@ This is built to be used with Python 3.
 To install the program run:
 
 ```console
-$ pip install .
+$ # recommended
+$ pipx install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
 $ # or
-$ pip install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
-$ # or
-$ python setup.py install
+$ pip3 install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
 ```
 
 
 ## Development environment and release process
 
- - create virtualenv with mitmproxy_image installed into it (latter is installed in
-   [develop mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode) which allows
-   modifying source code directly without a need to re-install the app): `make venv`
+ - run tests: `poetry run pytest --flake8 --mypy --doctest-modules`
 
- - run tests: `pytest --flake8 --mypy --doctest-modules .`
-
- - create source distribution: `python setup.py sdist`
+ - build: `poetry build`
 
 ## License
 
