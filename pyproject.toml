@@ -41,3 +41,6 @@ pythonPlatform = "all"
 
 [tool.pytest.ini_options]
 enable_assertion_pass_hook = true
+filterwarnings = [
+  'ignore::DeprecationWarning:flake8.plugins.manager:',
+]
