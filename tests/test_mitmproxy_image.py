@@ -1,4 +1,3 @@
-import itertools
 import logging
 import os
 from argparse import Namespace
@@ -6,9 +5,8 @@ from unittest import mock
 from urllib.parse import urlparse
 
 import pytest
-from hydrus import ConnectionError
 
-from mitmproxy_image.script import MitmImage, get_mimetype
+from mitmproxy_image.script import GhMode, MitmImage, get_mimetype
 
 PICKLE_PATH = os.path.join(os.path.dirname(__file__), "pickle", "20200120_223805.pickle")
 pickle_path_exist = pytest.mark.skipif(
@@ -88,21 +86,43 @@ def test_get_mimetype(flow, url, exp_res):
 
 
 @pytest.mark.parametrize(
-    "from_hydrus, valid_ct", itertools.product(["always", "on_empty"], [True, False])
+    "mode, url_data, ufss, exp_res",
+    (
+        [GhMode.ON_EMPTY, {}, [], (set(), {}, {})],
+        [GhMode.ON_EMPTY, {}, [{"hash": "hash1"}], ({"hash1"}, {"url": {"hash1"}}, {})],
+        [
+            GhMode.ON_EMPTY,
+            {"url": {"hash2"}},
+            [{"hash": "hash1"}],
+            ({"hash2"}, {"url": {"hash2"}}, {}),
+        ],
+        [
+            GhMode.ON_EMPTY,
+            {},
+            [{"hash": "hash1", "status": "s1"}],
+            ({"hash1"}, {"url": {"hash1"}}, {"status": "s1"}),
+        ],
+        [
+            GhMode.ALWAYS,
+            {},
+            [{"hash": "hash1", "status": "s1"}],
+            ({"hash1"}, {"url": {"hash1"}}, {"hash1": "s1"}),
+        ],
+        [
+            GhMode.ALWAYS,
+            {"url": {"hash2"}},
+            [{"hash": "hash1"}],
+            ({"hash1", "hash2"}, {"url": {"hash2", "hash1"}}, {}),
+        ],
+    ),
 )
-def test_get_hashes(from_hydrus, valid_ct):
+def test_get_hashes(mode, url_data, exp_res, ufss):
     obj = MitmImage()
-
-    def is_valid_content_type(url):
-        return valid_ct
-
-    obj.is_valid_content_type = is_valid_content_type
     obj.client = mock.Mock()
-    obj.client.get_url_files.return_value = {}
-    try:
-        assert not obj.get_hashes("http://example.com", from_hydrus)
-    except ConnectionError as err:
-        logging.error(str(err), exc_info=True)
+    obj.client.get_url_files.return_value = {"url_file_statuses": ufss}
+    obj.url_data.update(url_data)
+    res = obj.get_hashes("url", mode)
+    assert (res, dict(obj.url_data), obj.hash_data) == exp_res
 
 
 @pytest.mark.golden_test("data/url*.yaml")

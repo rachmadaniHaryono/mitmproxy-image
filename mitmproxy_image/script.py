@@ -36,6 +36,12 @@ class LogKey(Enum):
     URL = "u"
 
 
+class GhMode(Enum):
+    ON_EMPTY = 1
+    ALWAYS = 2
+    NEVER = 3
+
+
 AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -132,7 +138,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
 class MitmImage:
 
-    url_data: T.Dict[str, T.Set[str]]
+    url_data: defaultdict[str, T.Set[str]]
     hash_data: T.Dict[str, ImportStatus]
     config: T.Dict[str, T.Any]
     cached_urls: T.Set[str]
@@ -171,7 +177,7 @@ class MitmImage:
         self.flow_remove_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.remove_view_enable = True
-        self.mitmimage_cache = False
+        self.mitmimage_cache = True
         self.skip_flow = set()
         ak: T.Optional[str] = None
         ctx_ak = None
@@ -250,7 +256,7 @@ class MitmImage:
             del view._store[f.id]
             view.sig_store_remove.send(view, flow=f)
 
-    def get_hashes(self, url: str, from_hydrus: str = "on_empty") -> T.Set[str]:
+    def get_hashes(self, url: str, from_hydrus: GhMode = GhMode.ON_EMPTY) -> T.Set[str]:
         """get hashes based on url input.
 
         If `from_hydrus` is `always`, ask client everytime.
@@ -260,20 +266,20 @@ class MitmImage:
         >>> MitmImage().get_hashes('http://example.com')  # doctest: +SKIP
         set()
         """
-        assert from_hydrus in ["always", "on_empty"]
         hashes: T.Set[str] = self.url_data.get(url, set())
-        if hashes and from_hydrus == "on_empty":
-            hashes.discard(EMPTY_HASH)
+        hashes.discard(EMPTY_HASH)
+        if (hashes and from_hydrus == GhMode.ON_EMPTY) or GhMode.NEVER:
             return hashes
-        # Note huf_resp should be TypedDict with {'url_file_statuses': T.List[UFS_TYPE]}
-        huf_resp: T.Dict[str, T.List[UFS_TYPE]] = self.client.get_url_files(url)  # type: ignore
-        # ufs = get_url_status
-        for ufs in huf_resp.get("url_file_statuses", []):
-            if ufs and ufs["hash"] == EMPTY_HASH:
+        ufs: UFS_TYPE
+        for ufs in self.client.get_url_files(url).get("url_file_statuses", []):  # type:ignore
+            ufs_hash = ufs.get("hash")
+            if ufs and ufs_hash == EMPTY_HASH:
                 continue
-            self.url_data[url].add(ufs["hash"])
-            self.hash_data[ufs["hash"]] = ufs["status"]
-        hashes = self.url_data[url]
+            self.url_data[url].add(ufs_hash)
+            if ufs_status := ufs.get("status"):
+                self.hash_data[ufs_hash] = ufs_status
+        if url_data := self.url_data.get(url):
+            hashes.update(url_data)
         hashes.discard(EMPTY_HASH)
         return hashes
 
@@ -387,7 +393,7 @@ class MitmImage:
         loader.add_option(
             name="mitmimage_cache",
             typespec=bool,
-            default=False,
+            default=True,
             help="Enable mitmimage cache",
         )
 
@@ -723,7 +729,7 @@ class MitmImage:
                 return
             if not self.mitmimage_cache:
                 return
-            hashes = self.get_hashes(url, "always")
+            hashes = self.get_hashes(url, GhMode.NEVER)
             if not hashes and not self.is_valid_content_type(mimetype=get_mimetype(url=url)):
                 return
             if len(hashes) == 1:
@@ -802,7 +808,7 @@ class MitmImage:
             if self.check_response_flow(flow):
                 self.flow_remove_queue.put_nowait(flow)
                 return
-            hashes = self.get_hashes(url, "on_empty")
+            hashes = self.get_hashes(url, GhMode.ON_EMPTY)
             single_hash_data = None
             if hashes and len(hashes) == 1:
                 single_hash_data = self.hash_data.get(next(iter(hashes)), None)
