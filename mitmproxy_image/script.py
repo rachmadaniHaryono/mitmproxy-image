@@ -171,6 +171,7 @@ class MitmImage:
         self.flow_remove_queue = asyncio.Queue()
         self.client_lock = asyncio.Lock()
         self.remove_view_enable = True
+        self.mitmimage_cache = False
         self.skip_flow = set()
         ak: T.Optional[str] = None
         ctx_ak = None
@@ -384,6 +385,13 @@ class MitmImage:
             help="Set mitmimage logging level to DEBUG",
         )
         loader.add_option(
+            name="mitmimage_cache",
+            typespec=bool,
+            default=False,
+            help="Enable mitmimage cache",
+        )
+
+        loader.add_option(
             name="mitmimage_log_file",
             typespec=T.Optional[str],
             default=self.default_log_path,
@@ -425,6 +433,8 @@ class MitmImage:
             log_msg.append("mitmimage: log level: {}.".format(self.logger.level))
         if "mitmimage_log_file" in updates and ctx.options.mitmimage_log_file:
             self.set_log_path(os.path.expanduser(ctx.options.mitmimage_log_file))
+        if "mitmimage_cache" in updates:
+            self.mitmimage_cache = ctx.options.mitmimage_cache
         if log_msg:
             if self.ctx_log:
                 list(map(ctx.log, log_msg))
@@ -710,6 +720,8 @@ class MitmImage:
                         LogKey.MESSAGE.value: "flow id:{}".format(flow.id),
                     }
                 )
+                return
+            if not self.mitmimage_cache:
                 return
             hashes = self.get_hashes(url, "always")
             if not hashes and not self.is_valid_content_type(mimetype=get_mimetype(url=url)):
