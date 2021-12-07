@@ -1,17 +1,23 @@
-#!/usr/bin/env python
-"""This script download all the image.
+# Why does this file exist, and why not put this in `__main__`?
+#
+# You might be tempted to import things from `__main__` later,
+# but that will cause problems: the code will get executed twice:
+#
+# - When you run `python -m mitmproxy_image` python will execute
+#   `__main__.py` as a script. That means there won't be any
+#   `mitmproxy_image.__main__` in `sys.modules`.
+# - When you import `__main__` it will get executed again (as a module) because
+#   there's no `mitmproxy_image.__main__` in `sys.modules`.
 
-reference:
-https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_mirror.py
-https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
-https://stackoverflow.com/a/44873382/1766261
-"""
+"""Module that contains the command line application."""
+
 import argparse
 import asyncio
 import os
 import signal
 import sys
 import typing
+from typing import List, Optional
 
 from mitmproxy import exceptions, master, options, optmanager
 from mitmproxy.tools import cmdline
@@ -19,10 +25,9 @@ from mitmproxy.tools.main import assert_utf8_env, process_options
 from mitmproxy.utils import arg_check, debug
 
 from .script import MitmImage
-from .version import __version__
 
 
-def mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
+def mitmproxy(args=None) -> None:  # pragma: no cover
     """run mitmproxy (custom).
 
     this is based from
@@ -136,5 +141,19 @@ def run(
     return master
 
 
-if __name__ == "__main__":
-    mitmproxy(sys.argv[1:])  # pragma: no cover
+def main(args: Optional[List[str]] = None) -> int:
+    """
+    Run the main program.
+
+    This function is executed when you type `mitmproxy-image` or `python -m mitmproxy_image`.
+
+    This is only wrapper for `mitmproxy` function.
+
+    Arguments:
+        args: Arguments passed from the command line.
+
+    Returns:
+        An exit code.
+    """
+    res = mitmproxy(args)
+    return 0 if res is None else 1

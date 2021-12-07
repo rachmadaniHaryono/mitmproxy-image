@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+""" This script download all the image.
+
+Reference:
+- https://github.com/mitmproxy/mitmproxy/blob/master/examples/simple/internet_in_mirror.py
+- https://gist.github.com/denschub/2fcc4e03a11039616e5e6e599666f952
+- https://stackoverflow.com/a/44873382/1766261
+"""
 import asyncio
 import cgi
 import io
@@ -876,8 +883,13 @@ class MitmImage:
         self.url_data = defaultdict(set)
         self.hash_data = {}
         self.cached_urls = set()
-        if self.ctx_log:  # pragma: no cover
-            ctx.log.info("mitmimage: data cleared")
+        log_msg = "mitmimage: data cleared"
+        try:
+            if self.ctx_log:  # pragma: no cover
+                ctx.log.info(log_msg)
+        except Exception as err:
+            logging.info(log_msg)
+            logging.exception(err)
 
     @command.command("mitmimage.ipdb")
     def ipdb(self, flows: T.Sequence[Flow] = None) -> None:  # pragma: no cover
