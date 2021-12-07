@@ -77,9 +77,7 @@ def get_readable_url(url: str) -> str:
     return p_url.geturl()
 
 
-def get_mimetype(
-    flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = None
-) -> T.Optional[str]:
+def get_mimetype(flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = None) -> T.Optional[str]:
     """Get mimetype from flow or url.
 
     >>> from types import SimpleNamespace
@@ -331,18 +329,14 @@ class MitmImage:
                     ctx.log.info("mitmimage: view filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
                 host_block_regex_old = self.host_block_regex.copy()
-                self.host_block_regex = [
-                    re.compile(x) for x in self.config.get("host_block_regex", [])
-                ]
+                self.host_block_regex = [re.compile(x) for x in self.config.get("host_block_regex", [])]
                 self.block_regex = [
                     BlockRegex(re.compile(x[0]), nth(x, 1, x[0]), nth(x, 2, False))
                     for x in self.config.get("block_regex", [])
                 ]
                 if self.ctx_log:
                     ctx.log.info(
-                        "mitmimage: host block regex old\n{}.".format(
-                            "\n".join([str(x) for x in host_block_regex_old])
-                        )
+                        "mitmimage: host block regex old\n{}.".format("\n".join([str(x) for x in host_block_regex_old]))
                     )
                     ctx.log.info(
                         "mitmimage: host block regex new\n{}.".format(
@@ -527,9 +521,7 @@ class MitmImage:
                 kwargs = {"page_name": page_name, "url": new_url}
                 filename = self.get_url_filename(new_url)
                 if filename:
-                    kwargs["service_names_to_additional_tags"] = {
-                        "my tags": ["filename:{}".format(filename)]
-                    }
+                    kwargs["service_names_to_additional_tags"] = {"my tags": ["filename:{}".format(filename)]}
                 args = (
                     "add_url",
                     kwargs,
@@ -559,9 +551,7 @@ class MitmImage:
                 cmd, kwargs = await self.client_queue.get()
                 async with self.client_lock:
                     res = getattr(self.client, cmd)(**kwargs)
-                    self.logger.debug(
-                        {LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs, "res": res}
-                    )
+                    self.logger.debug({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs, "res": res})
             except ConnectionError as err:
                 self.logger.debug(str(err), exc_info=True)
                 self.logger.error({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs})
@@ -689,9 +679,7 @@ class MitmImage:
         """Check request flow and determine if the flow need to be skipped."""
         url: str = flow.request.pretty_url
         if self.host_block_regex and (
-            match := first_true(
-                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
-            )
+            match := first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
         ):
             self.logger.debug(
                 {
@@ -701,9 +689,7 @@ class MitmImage:
                 }
             )
             return True
-        if self.block_regex and (
-            match := first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
-        ):
+        if self.block_regex and (match := first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))):
             if match.log_flag:
                 self.logger.debug(
                     {
@@ -756,9 +742,7 @@ class MitmImage:
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait(
-                    (url, None, None if referer is None else get_readable_url(referer))
-                )
+                self.post_upload_queue.put_nowait((url, None, None if referer is None else get_readable_url(referer)))
                 self.logger.info({LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"})
             else:
                 self.logger.debug(
@@ -831,9 +815,7 @@ class MitmImage:
             else:
                 # NOTE: add referer & url filename to url
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait(
-                    (url, None, None if referer is None else get_readable_url(referer))
-                )
+                self.post_upload_queue.put_nowait((url, None, None if referer is None else get_readable_url(referer)))
                 hashes_status = [(self.hash_data.get(x, None), x) for x in hashes]
                 msg = {
                     LogKey.KEY.value: "add",

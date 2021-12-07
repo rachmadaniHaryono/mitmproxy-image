@@ -9,12 +9,6 @@ repos:
           - id: end-of-file-fixer
           - id: check-yaml
           - id: check-added-large-files
-    - repo: https://github.com/psf/black
-      rev: 21.10b0  # Replace by any tag/version: https://github.com/psf/black/tags
-      hooks:
-          - id: black
-            # Should be a command that runs python3.6+
-            language_version: python3
     - repo: https://gitlab.com/smop/pre-commit-hooks
       rev: v1.0.0
       hooks:
@@ -68,6 +62,12 @@ repos:
           - id: pytest
             name: Check pytest unit tests pass
             entry: poetry run duty test
+            pass_filenames: false
+            language: system
+            types: [python]
+          - id: format
+            name: run format task
+            entry: poetry run duty format
             pass_filenames: false
             language: system
             types: [python]

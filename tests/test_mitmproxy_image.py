@@ -86,10 +86,7 @@ def test_add_additional_url(url, exp_url, page_name):
         logging.info("No add_url_regex")
     obj.client_queue = MockQueue()  # type:ignore
     obj.add_additional_url(url)
-    history = [
-        (item[0][1].get("url", None), item[0][1].get("page_name", None))
-        for item in obj.client_queue.history
-    ]
+    history = [(item[0][1].get("url", None), item[0][1].get("page_name", None)) for item in obj.client_queue.history]
     assert (exp_url, page_name) in history
 
 
@@ -180,7 +177,7 @@ def test_urls(golden):
     flow = mock.Mock()
     flow.request.method = "get"
     res = []
-    for url in (urls := sorted(golden["urls"])):
+    for url in (urls := sorted(golden["urls"])) :
         flow.request.pretty_url = url
         flow.request.pretty_host = urlparse(url).netloc
         obj.client_queue.put_nowait.reset_mock()
