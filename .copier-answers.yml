@@ -1,0 +1,20 @@
+---
+# Changes here will be overwritten by Copier
+_commit: 0.3.2
+_src_path: gh:pawamoy/copier-poetry
+author_email: foreturiga@gmail.com
+author_fullname: Rachmadani Haryono
+author_username: rachmadaniHaryono
+copyright_date: '2021'
+copyright_holder: Rachmadani Haryono
+copyright_holder_email: foreturiga@gmail.com
+copyright_license: MIT License
+project_description: Download image using mitmproxy
+project_name: mitmproxy-image
+python_package_command_line_name: mitmproxy-image
+python_package_distribution_name: mitmproxy-image
+python_package_import_name: mitmproxy_image
+repository_name: mitmproxy-image
+repository_namespace: rachmadaniHaryono
+repository_provider: github.com
+use_precommit: true

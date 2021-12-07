@@ -1,3 +1,26 @@
+[make-check-file]
+command = 'make'
+args = ['check', "$(file)"]
+isBackground = true
+
+[make-check-file.problemMatcher]
+useStdout = true
+errorformat = '%f:%l:%c:\ %m'
+
+[make-format-file]
+command = 'make'
+args = ['format', "$(file)"]
+isBackground = true
+
+[pre-commit]
+command = 'poetry'
+args = ['run','pre-commit', 'run']
+isBackground = true
+
+[pre-commit.problemMatcher]
+useStdout = true
+errorformat = '%f:%l:%c: [%s]\ %m'
+
 [pytest]
 command = 'poetry'
 args = ['run','pytest', '-vv']
