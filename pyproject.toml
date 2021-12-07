@@ -84,6 +84,3 @@ mitmproxy-image = "mitmproxy_image.cli:main"
 
 [tool.pyright]
 pythonPlatform = "all"
-
-[tool.pytest.ini_options]
-enable_assertion_pass_hook = true

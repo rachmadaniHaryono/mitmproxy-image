@@ -9,8 +9,6 @@ import pytest
 
 from mitmproxy_image.script import GhMode, MitmImage, get_mimetype
 
-pytest.skip("migration")
-
 
 def test_mitmimage_init():
     """Test init."""
