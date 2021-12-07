@@ -1,5 +1,6 @@
+"""Test program."""
 import logging
-import os
+import typing as T  # noqa: WPS111, N812
 from argparse import Namespace
 from unittest import mock
 from urllib.parse import urlparse
@@ -8,26 +9,31 @@ import pytest
 
 from mitmproxy_image.script import GhMode, MitmImage, get_mimetype
 
-PICKLE_PATH = os.path.join(os.path.dirname(__file__), "pickle", "20200120_223805.pickle")
-pickle_path_exist = pytest.mark.skipif(
-    not os.path.isfile(PICKLE_PATH), reason="No pickled data found."
-)
+pytest.skip("migration")
 
 
 def test_mitmimage_init():
+    """Test init."""
     MitmImage()
 
 
 @pytest.mark.parametrize(
-    "mimetype, exp_res, config_mimetype",
+    ("mimetype", "exp_res", "config_mimetype"),
     [
-        [None, False, None],
-        ["jpg", True, None],
-        ["image/jpeg", True, None],
-        ["image/jpeg", True, []],
+        (None, False, None),
+        ("jpg", True, None),
+        ("image/jpeg", True, None),
+        ("image/jpeg", True, []),
     ],
 )
 def test_is_valid_content_type_mimetype(mimetype, exp_res, config_mimetype):
+    """Test is_valid_content_type method.
+
+    Args:
+        mimetype: input for tested method
+        exp_res: expected result
+        config_mimetype: mimetype from config
+    """
     obj = MitmImage()
     if config_mimetype is not None:
         obj.config["mimetype"] = config_mimetype
@@ -35,98 +41,139 @@ def test_is_valid_content_type_mimetype(mimetype, exp_res, config_mimetype):
 
 
 def get_au_regex_rules_test_data():
-    """get addditional url regex rules."""
+    """Get addditional url regex rules.
+
+    Returns:
+        None
+    """
     obj = MitmImage()
     obj.load_config(config_path=obj.default_config_path)
     res = []
-    for rule in filter(lambda x: len(x) > 3, getattr(obj, "config", {}).get("add_url_regex", [])):
-        page_name = rule[4] if 4 < len(rule) else "mitmimage_plus"
+    rules = filter(lambda arg: len(arg) > 3, getattr(obj, "config", {}).get("add_url_regex", []))
+    for rule in rules:
+        page_name = rule[4] if len(rule) > 4 else "mitmimage_plus"
         for sub_data in rule[3]:
             res.append(sub_data + [page_name])
     return res
 
 
-@pytest.mark.parametrize("url, exp_url, page_name", get_au_regex_rules_test_data())
+class MockQueue:
+    """Mock queue."""
+
+    history: T.List[T.Any] = []
+
+    def put_nowait(self, *args):
+        """Mock put_nowait method.
+
+        Args:
+            *args: args will appended to self.history
+        """
+        self.history.append(args)
+
+
+@pytest.mark.parametrize(("url", "exp_url", "page_name"), get_au_regex_rules_test_data())
 def test_add_additional_url(url, exp_url, page_name):
-    class MockQueue:
-        history = []
+    """Test add_additional_url method.
 
-        def put_nowait(self, *args):
-            self.history.append(args)
-
+    Args:
+        url: arg for add_additional_url
+        exp_url: expected url
+        page_name: hydrus page name
+    """
     obj = MitmImage()
     obj.load_config(config_path=obj.default_config_path)
     if not obj.add_url_regex:
         logging.info("No add_url_regex")
-    obj.client_queue = MockQueue()
+    obj.client_queue = MockQueue()  # type:ignore
     obj.add_additional_url(url)
     history = [
-        (x[0][1].get("url", None), x[0][1].get("page_name", None)) for x in obj.client_queue.history
+        (item[0][1].get("url", None), item[0][1].get("page_name", None))
+        for item in obj.client_queue.history
     ]
     assert (exp_url, page_name) in history
 
 
 @pytest.mark.parametrize(
-    "flow, url, exp_res",
+    ("flow", "url", "exp_res"),
     [
-        [Namespace(response=None), None, None],
-        [None, "http://example.com/index.html", "text/html"],
-        [None, "http://example.com/index.random", None],
-        [None, "http://google.com", "application/x-msdos-program"],
-        [None, "http://google.com/1.jpg", "image/jpeg"],
-        [Namespace(response=None), "http://example.com/index.html", None],
+        (Namespace(response=None), None, None),
+        (None, "http://example.com/index.html", "text/html"),
+        (None, "http://example.com/index.random", None),
+        (None, "http://google.com", "application/x-msdos-program"),
+        (None, "http://google.com/1.jpg", "image/jpeg"),
+        (Namespace(response=None), "http://example.com/index.html", None),
     ],
 )
 def test_get_mimetype(flow, url, exp_res):
+    """Test get_mimetype function.
+
+    Args:
+        flow: flow input
+        url: url input
+        exp_res: expected result
+    """
     if all([flow, url]):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Only require flow or url"):
             get_mimetype(flow, url)
     else:
         assert get_mimetype(flow, url) == exp_res
 
 
 @pytest.mark.parametrize(
-    "mode, url_data, ufss, exp_res",
-    (
-        [GhMode.ON_EMPTY, {}, [], (set(), {}, {})],
-        [GhMode.ON_EMPTY, {}, [{"hash": "hash1"}], ({"hash1"}, {"url": {"hash1"}}, {})],
-        [
+    ("mode", "url_data", "ufss", "exp_res"),
+    [
+        (GhMode.ON_EMPTY, {}, [], (set(), {}, {})),
+        (GhMode.ON_EMPTY, {}, [{"hash": "hash1"}], (set(), {}, {})),
+        (
             GhMode.ON_EMPTY,
             {"url": {"hash2"}},
             [{"hash": "hash1"}],
             ({"hash2"}, {"url": {"hash2"}}, {}),
-        ],
-        [
+        ),
+        (
             GhMode.ON_EMPTY,
             {},
             [{"hash": "hash1", "status": "s1"}],
-            ({"hash1"}, {"url": {"hash1"}}, {"status": "s1"}),
-        ],
-        [
+            (set(), {}, {}),
+        ),
+        (
             GhMode.ALWAYS,
             {},
             [{"hash": "hash1", "status": "s1"}],
-            ({"hash1"}, {"url": {"hash1"}}, {"hash1": "s1"}),
-        ],
-        [
+            (set(), {}, {}),
+        ),
+        (
             GhMode.ALWAYS,
             {"url": {"hash2"}},
             [{"hash": "hash1"}],
-            ({"hash1", "hash2"}, {"url": {"hash2", "hash1"}}, {}),
-        ],
-    ),
+            ({"hash2"}, {"url": {"hash2"}}, {}),
+        ),
+    ],
 )
 def test_get_hashes(mode, url_data, exp_res, ufss):
+    """Test get_hashes method.
+
+    Args:
+        mode: mode input
+        url_data: mock data for url
+        exp_res: expected result
+        ufss: list of urf file status
+    """
     obj = MitmImage()
     obj.client = mock.Mock()
     obj.client.get_url_files.return_value = {"url_file_statuses": ufss}
     obj.url_data.update(url_data)
     res = obj.get_hashes("url", mode)
-    assert (res, dict(obj.url_data), obj.hash_data) == exp_res
+    assert exp_res == (res, dict(obj.url_data), obj.hash_data)
 
 
 @pytest.mark.golden_test("data/url*.yaml")
 def test_urls(golden):
+    """Test urls.
+
+    Args:
+        golden: golden fixture
+    """
     obj = MitmImage()
     obj.load_config("/home/r3r/mitmimage.yaml")
     obj.client_queue.put_nowait = mock.Mock()
