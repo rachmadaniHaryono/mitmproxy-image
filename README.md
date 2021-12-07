@@ -1,7 +1,12 @@
-# mitmproxy_image
+# mitmproxy-image
+
+<!-- [![ci](https://github.com/rachmadaniHaryono/mitmproxy-image/workflows/ci/badge.svg)](https://github.com/rachmadaniHaryono/mitmproxy-image/actions?query=workflow%3Aci) -->
+<!-- [![documentation](https://img.shields.io/badge/docs-mkdocs%20material-blue.svg?style=flat)](https://rachmadaniHaryono.github.io/mitmproxy-image/) -->
+<!-- [![pypi version](https://img.shields.io/pypi/v/mitmproxy-image.svg)](https://pypi.org/project/mitmproxy-image/) -->
+<!-- [![gitter](https://badges.gitter.im/join%20chat.svg)](https://gitter.im/mitmproxy-image/community) -->
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Download image using mitmproxy on hydrus.
-
 
 ## Quick Start
 
@@ -41,25 +46,54 @@ such as imagus (
 note: the appearance, command line and hydrus version may differ from actual version,
 but the workflow is as shown on the gif.
 
-## Prerequisites
+## Requirements
 
-This is built to be used with Python 3.
+mitmproxy-image requires Python 3.8 or above.
 
-To install the program run:
+<details>
+<summary>To install Python 3.8, I recommend using <a href="https://github.com/pyenv/pyenv"><code>pyenv</code></a>.</summary>
 
-```console
-$ # recommended
-$ pipx install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
-$ # or
-$ pip3 install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
+```bash
+# install pyenv
+git clone https://github.com/pyenv/pyenv ~/.pyenv
+
+# setup pyenv (you should also put these three lines in .bashrc or similar)
+export PATH="${HOME}/.pyenv/bin:${PATH}"
+export PYENV_ROOT="${HOME}/.pyenv"
+eval "$(pyenv init -)"
+
+# install Python 3.8
+pyenv install 3.8
+
+# make it available globally
+pyenv global system 3.8
+```
+</details>
+
+## Installation
+
+With [`pipx`](https://github.com/pipxproject/pipx) (recommended):
+```bash
+python3.8 -m pip install --user pipx
+
+pipx install --python python3.8 https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
 ```
 
+With `pip`:
+```bash
+python3.8 -m pip install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
+```
 
 ## Development environment and release process
 
- - run tests: `poetry run pytest --flake8 --mypy --doctest-modules`
+- `poetry install`, setup project with poetry
+- `make format`, to auto-format the code
+- `make test`, to run the test suite
+- `make check`, to check if everything is OK
+- `make changelog`, to update the changelog
+- `make release version=x.y.z`, to release a version
 
- - build: `poetry build`
+This project use modified version of [copier-poetry](https://github.com/pawamoy/copier-poetry/)
 
 ## License
 
