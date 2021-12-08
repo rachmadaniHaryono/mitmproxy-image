@@ -1,6 +1,6 @@
 ---
 site_name: mitmproxy-image
-site_description: Download image using mitmproxy
+site_description: Download image using mitmproxy on hydrus.
 site_url: https://rachmadaniHaryono.github.io/mitmproxy-image
 repo_url: https://github.com/rachmadaniHaryono/mitmproxy-image
 repo_name: rachmadaniHaryono/mitmproxy-image

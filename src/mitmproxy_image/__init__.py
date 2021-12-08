@@ -1,7 +1,7 @@
 """
 mitmproxy-image package.
 
-Download image using mitmproxy
+Download image using mitmproxy on hydrus.
 """
 
 from typing import List
