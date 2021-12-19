@@ -23,6 +23,7 @@ from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunpars
 import yaml
 from hydrus import Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, flowfilter, http
+from mitmproxy.addons.view import View
 from mitmproxy.flow import Flow
 from mitmproxy.script import concurrent
 from more_itertools import first_true, nth
@@ -51,6 +52,30 @@ class GhMode(Enum):
 
 AURegex = namedtuple("AURegex", ["cpatt", "url_fmt", "log_flag", "page_name"])
 EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+
+def remove_from_view(flow: T.Union[http.HTTPFlow, Flow], view: View):
+    """remove flow from view.
+
+    This supposedly copy from `mitmproxy.addons.view.View.remove` class method.
+
+    But it will not kill the flow because it may still be needed to load the page.
+
+    Raises:
+        ValueError: can happen when send signal to View.sig_view_remove
+
+    """
+    # compatibility
+    f = flow
+    if f.id in view._store:
+        if f in view._view:
+            # We manually pass the index here because multiple flows may have the same
+            # sorting key, and we cannot reconstruct the index from that.
+            idx = view._view.index(f)
+            view._view.remove(f)
+            view.sig_view_remove.send(view, flow=f, index=idx)
+        del view._store[f.id]
+        view.sig_store_remove.send(view, flow=f)
 
 
 def get_readable_url(url: str) -> str:
@@ -141,6 +166,14 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             del log_record["message"]
 
 
+def init_view(logger) -> T.Optional[View]:
+    try:
+        if hasattr(ctx, "master"):
+            return ctx.master.addons.get("view")
+    except Exception as err:
+        logger.exception(err)
+
+
 class MitmImage:
 
     url_data: defaultdict[str, T.Set[str]]
@@ -167,12 +200,7 @@ class MitmImage:
         #  other
         #  NOTE config attribute is created here because it may not initiated on load_config
         self.config = {}
-        try:
-            if hasattr(ctx, "master"):  # pragma: no cover
-                self.view = ctx.master.addons.get("view")
-        except Exception as err:  # pragma: no cover
-            self.logger.exception(str(err))
-            self.view = None
+        self.view = init_view(logger=self.logger)
         self.host_block_regex = []
         self.block_regex = []
         self.load_config(self.default_config_path)
@@ -228,38 +256,6 @@ class MitmImage:
         ):
             return True
         return False
-
-    def remove_from_view(self, flow: T.Union[http.HTTPFlow, Flow]):  # pragma: no cover
-        """remove flow from view.
-
-        This supposedly copy from `mitmproxy.addons.view.View.remove` class method.
-
-        But it will not kill the flow because it may still be needed to load the page.
-        """
-        if not self.remove_view_enable:
-            return
-        # compatibility
-        f = flow
-        view = self.view
-
-        if view is None:
-            return
-
-        if f.id in view._store:
-            if f in view._view:
-                # We manually pass the index here because multiple flows may have the same
-                # sorting key, and we cannot reconstruct the index from that.
-                idx = view._view.index(f)
-                view._view.remove(f)
-                try:
-                    view.sig_view_remove.send(view, flow=f, index=idx)
-                except ValueError as err:
-                    self.logger.debug(
-                        str(err),
-                        exc_info=True,
-                    )
-            del view._store[f.id]
-            view.sig_store_remove.send(view, flow=f)
 
     def get_hashes(self, url: str, from_hydrus: GhMode = GhMode.ON_EMPTY) -> T.Set[str]:
         """get hashes based on url input.
@@ -534,7 +530,8 @@ class MitmImage:
             try:
                 # Get a "work item" out of the queue.
                 item = await self.flow_remove_queue.get()
-                self.remove_from_view(item)
+                if self.remove_view_enable and self.view:
+                    remove_from_view(flow=item, view=self.view)
             except Exception as err:
                 self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
