@@ -353,7 +353,7 @@ class MitmImage:
                     "hashes": [
                         upload_resp["hash"],
                     ],
-                    "add": [url],
+                    "urls_to_add": [url],
                 },
             )
         )
@@ -639,7 +639,7 @@ class MitmImage:
                             },
                         )
                     )
-                kwargs = {"destination_page_name": "mitmimage", "urls_to_add": [url]}
+                kwargs = {"destination_page_name": "mitmimage", "url": url}
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
                 self.client_queue.put_nowait(("add_url", kwargs))
@@ -777,7 +777,7 @@ class MitmImage:
                 if status is not None and status in [
                     ImportStatus.FAILED,
                     ImportStatus.IMPORTABLE,
-                    ImportStatus.PREVIOUSLYDELETED,
+                    ImportStatus.PREVIOUSLY_DELETED,
                     ImportStatus.VETOED,
                     8,
                 ]:
