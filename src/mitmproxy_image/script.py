@@ -272,9 +272,10 @@ class MitmImage:
         ak: T.Optional[str] = None
         ctx_ak = None
         try:
-            ctx_ak = ctx.options.deferred.get("hydrus_access_key")
-            if ctx_ak:
-                ak = ctx_ak[0]
+            if hasattr(ctx, "options"):
+                ctx_ak = ctx.options.deferred.get("hydrus_access_key")
+                if ctx_ak:
+                    ak = ctx_ak[0]
         except Exception as err:
             self.logger.error((str(err) + f", context access key: {ctx_ak}"), exc_info=True)
         self.client = Client(ak if isinstance(ak, str) and ak else None)
