@@ -10,7 +10,6 @@ exclude = "tests/fixtures"
 
 [tool.isort]
 line_length = 120
-not_skip = "__init__.py"
 multi_line_output = 3
 force_single_line = false
 balanced_wrapping = true
@@ -87,3 +86,29 @@ mitmproxy-image = "mitmproxy_image.cli:main"
 
 [tool.pyright]
 pythonPlatform = "all"
+
+[tool.pytest.ini_options]
+norecursedirs = [
+
+  ".git",
+  ".tox",
+  ".env",
+  "dist",
+  "build",
+]
+python_files = [
+  "test_*.py",
+  "*_test.py",
+  "tests.py",
+]
+addopts = [
+  "--cov",
+  "--cov-config config/coverage.ini",
+]
+testpaths = [
+  "tests",
+]
+filterwarnings = [
+    "ignore:Importing 'itsdangerous.json' is deprecated and will be removed in ItsDangerous 2.1. Use Python's 'json' module instead:DeprecationWarning",
+    "ignore:The patterns .* didn't match anything:pytest_golden.plugin.GoldenTestUsageWarning",
+]
