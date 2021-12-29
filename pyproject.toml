@@ -80,6 +80,7 @@ toml = "^0.10.2"
 types-PyYAML = "^6.0.1"
 types-toml = "^0.10.1"
 wps-light = "^0.15.2"
+pdbpp = "^0.10.3"
 
 [tool.poetry.scripts]
 mitmproxy-image = "mitmproxy_image.cli:main"

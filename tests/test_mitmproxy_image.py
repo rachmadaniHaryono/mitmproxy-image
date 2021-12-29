@@ -1,4 +1,5 @@
 """Test program."""
+import collections
 import logging
 import typing as T  # noqa: WPS111, N812
 from argparse import Namespace
@@ -7,7 +8,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-from mitmproxy_image.script import GhMode, MitmImage, get_mimetype
+from mitmproxy_image.script import GhMode, MitmImage, get_hashes, get_mimetype
 
 
 def test_mitmimage_init():
@@ -117,31 +118,21 @@ def test_get_mimetype(flow, url, exp_res):
 @pytest.mark.parametrize(
     ("mode", "url_data", "ufss", "exp_res"),
     [
-        (GhMode.ON_EMPTY, {}, [], (set(), {}, {})),
-        (GhMode.ON_EMPTY, {}, [{"hash": "hash1"}], (set(), {}, {})),
-        (
-            GhMode.ON_EMPTY,
-            {"url": {"hash2"}},
-            [{"hash": "hash1"}],
-            ({"hash2"}, {"url": {"hash2"}}, {}),
-        ),
-        (
-            GhMode.ON_EMPTY,
-            {},
-            [{"hash": "hash1", "status": "s1"}],
-            (set(), {}, {}),
-        ),
+        (GhMode.ON_EMPTY, {}, [], ({"hashes": set()}, None)),
+        (GhMode.ON_EMPTY, {}, [{"hash": "hash1"}], ({"hashes": set()}, None)),
+        (GhMode.ON_EMPTY, {"url": {"hash2"}}, [{"hash": "hash1"}], ({"hashes": {"hash2"}}, None)),
+        (GhMode.ON_EMPTY, {}, [{"hash": "hash1", "status": "s1"}], ({"hashes": set()}, None)),
         (
             GhMode.ALWAYS,
             {},
             [{"hash": "hash1", "status": "s1"}],
-            (set(), {}, {}),
+            ({"hashes": set(), "hash_data": {"hash1": "s1"}}, {"url": {"hash1"}}),
         ),
         (
             GhMode.ALWAYS,
             {"url": {"hash2"}},
             [{"hash": "hash1"}],
-            ({"hash2"}, {"url": {"hash2"}}, {}),
+            ({"hashes": {"hash2"}, "hash_data": {}}, {"url": {"hash1"}}),
         ),
     ],
 )
@@ -154,12 +145,15 @@ def test_get_hashes(mode, url_data, exp_res, ufss):
         exp_res: expected result
         ufss: list of urf file status
     """
-    obj = MitmImage()
-    obj.client = mock.Mock()
-    obj.client.get_url_files.return_value = {"url_file_statuses": ufss}
-    obj.url_data.update(url_data)
-    res = obj.get_hashes("url", mode)
-    assert exp_res == (res, dict(obj.url_data), obj.hash_data)
+    client = mock.Mock()
+    client.get_url_files.return_value = {"url_file_statuses": ufss}
+    url_data_arg = collections.defaultdict(set)
+    url_data_arg.update(url_data)
+    res = get_hashes(url="url", from_hydrus=mode, client=client, url_data=url_data).copy()
+    url_data = None
+    if "url_data_extra" in res:
+        url_data = dict(res.pop("url_data_extra"))
+    assert (res, url_data) == exp_res
 
 
 @pytest.mark.golden_test("data/url*.yaml")
