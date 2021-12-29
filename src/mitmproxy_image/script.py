@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunparse
 
 import yaml
-from hydrus import Client, ConnectionError, ImportStatus, TagAction
+from hydrus_api import Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, flowfilter, http
 from mitmproxy.addons.view import View
 from mitmproxy.flow import Flow
@@ -30,6 +30,14 @@ from more_itertools import first_true, nth
 from pythonjsonlogger import jsonlogger
 
 UFS_TYPE = T.TypedDict("UFS_TYPE", {"hash": str, "status": ImportStatus})
+URL_DATA_TYPE = defaultdict[str, T.Set[str]]
+HASH_DATA_TYPE = T.Dict[str, ImportStatus]
+
+
+class MULTI_HASH_DATA_TYPE(T.TypedDict, total=False):
+    hashes: T.Set[str]
+    url_data_extra: URL_DATA_TYPE
+    hash_data: HASH_DATA_TYPE
 
 
 class LogKey(Enum):
@@ -142,14 +150,14 @@ def get_mimetype(flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = 
     return p_header[0] if len(p_header) > 0 else None
 
 
-def get_redirect_url(hash_, client):
+def get_redirect_url(hash_: str, client: Client) -> str:
     """Get redirect url.
     >>> from types import SimpleNamespace
     >>> get_redirect_url("1234", SimpleNamespace(
     ...  _api_url="https://127.0.0.1", _FILE_ROUTE="/file", _access_key="5678"))
     'https://127.0.0.1/file?hash=1234&Hydrus-Client-API-Access-Key=5678'
     """
-    src_url = client._api_url + client._FILE_ROUTE
+    src_url = get_api_url(client) + client._FILE_ROUTE
     params = {"hash": hash_, "Hydrus-Client-API-Access-Key": client._access_key}
     url_parts = list(urlparse(src_url))
     query = dict(parse_qsl(url_parts[4]))
@@ -174,10 +182,59 @@ def init_view(logger) -> T.Optional[View]:
         logger.exception(err)
 
 
-class MitmImage:
-
-    url_data: defaultdict[str, T.Set[str]]
+class HashesData(T.TypedDict, total=False):
+    hashes: T.Set[str]
+    url_data_extra: T.Set[str]
     hash_data: T.Dict[str, ImportStatus]
+
+
+def get_hashes(
+    url: str,
+    from_hydrus: GhMode = GhMode.NEVER,
+    url_data: T.Optional[T.Dict[str, T.Set[str]]] = None,
+    client: Client = None,
+) -> MULTI_HASH_DATA_TYPE:
+    """get hashes based on url input.
+
+    If `from_hydrus` is `always`, ask client everytime.
+    If `from_hydrus` is `on_empty`, ask client only when url not in self.url_data.
+    If `from_hydrus` is `never`, never ask client.
+
+    >>> get_hashes('http://example.com')
+    {}
+    """
+    if url_data is None:
+        url_data = {}
+    hashes: T.Set[str] = url_data.get(url, set())
+    hashes.discard(EMPTY_HASH)
+    if from_hydrus == GhMode.ALWAYS and client is not None:
+        pass
+    elif (hashes and from_hydrus == GhMode.ON_EMPTY) or GhMode.NEVER or client is None:
+        return MULTI_HASH_DATA_TYPE(hashes=hashes)
+    url_data_extra = defaultdict(set)
+    hash_data = {}
+    ufs: UFS_TYPE
+    for ufs in client.get_url_files(url).get("url_file_statuses", []):
+        ufs_hash = ufs.get("hash")
+        if ufs and ufs_hash == EMPTY_HASH:
+            continue
+        url_data_extra[url].add(ufs_hash)
+        ufs_status: str
+        if ufs_status := ufs.get("status"):
+            hash_data[ufs_hash] = ufs_status
+    if new_url_data := url_data.get(url):
+        hashes.update(new_url_data)
+    hashes.discard(EMPTY_HASH)
+    return MULTI_HASH_DATA_TYPE(hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data)
+
+
+def get_api_url(client: Client) -> str:
+    return client._api_url if hasattr(client, "_api_url") else client.api_url
+
+
+class MitmImage:
+    url_data: URL_DATA_TYPE
+    hash_data: HASH_DATA_TYPE
     config: T.Dict[str, T.Any]
     cached_urls: T.Set[str]
 
@@ -222,7 +279,8 @@ class MitmImage:
             self.logger.error({LogKey.MESSAGE.value: "access_key error: {}".format(err), "ak": ctx_ak})
         self.client = Client(ak if isinstance(ak, str) and ak else None)
         # NOTE only match when self.client._api_url not changed
-        self.base_filter = f"~m GET & !(~websocket | ~d '{urlparse(self.client._api_url).netloc}')"
+        api_url = get_api_url(self.client)
+        self.base_filter = f"~m GET & !(~websocket | ~d '{api_url}')"
 
     def is_valid_content_type(
         self,
@@ -258,15 +316,6 @@ class MitmImage:
         return False
 
     def get_hashes(self, url: str, from_hydrus: GhMode = GhMode.ON_EMPTY) -> T.Set[str]:
-        """get hashes based on url input.
-
-        If `from_hydrus` is `always`, ask client everytime.
-        If `from_hydrus` is `on_empty`, ask client only when url not in self.url_data.
-
-        >>> # url don't have any hashes on self.url_data and client
-        >>> MitmImage().get_hashes('http://example.com')  # doctest: +SKIP
-        set()
-        """
         hashes: T.Set[str] = self.url_data.get(url, set())
         hashes.discard(EMPTY_HASH)
         if (hashes and from_hydrus == GhMode.ON_EMPTY) or GhMode.NEVER:
@@ -719,10 +768,15 @@ class MitmImage:
                 return
             if not self.mitmimage_cache:
                 return
-            hashes = self.get_hashes(url, GhMode.NEVER)
+            hash_data_res = get_hashes(url=url, from_hydrus=GhMode.NEVER, url_data=self.url_data, client=self.client)
+            if extra_ud := hash_data_res.get("url_data_extra"):  # extra url data
+                [self.url_data[k].update(v) for k, v in extra_ud.items()]
+            if h_data := hash_data_res.get("hash_data"):  # hash data
+                self.hash_data.update(h_data)
+            hashes = hash_data_res.get("hashes")
             if not hashes and not self.is_valid_content_type(mimetype=get_mimetype(url=url)):
                 return
-            if len(hashes) == 1:
+            if hashes and len(hashes) == 1:
                 hash_: str = next(iter(hashes))
                 status = self.hash_data.get(hash_, None)
                 if status is not None and status in [
@@ -796,7 +850,12 @@ class MitmImage:
             if self.check_response_flow(flow):
                 self.flow_remove_queue.put_nowait(flow)
                 return
-            hashes = self.get_hashes(url, GhMode.ON_EMPTY)
+            hash_data_res = get_hashes(url=url, from_hydrus=GhMode.ON_EMPTY, url_data=self.url_data, client=self.client)
+            if extra_ud := hash_data_res.get("url_data_extra"):  # extra url data
+                [self.url_data[k].update(v) for k, v in extra_ud.items()]
+            if h_data := hash_data_res.get("hash_data"):  # hash data
+                self.hash_data.update(h_data)
+            hashes = hash_data_res.get("hashes")
             single_hash_data = None
             if hashes and len(hashes) == 1:
                 single_hash_data = self.hash_data.get(next(iter(hashes)), None)
