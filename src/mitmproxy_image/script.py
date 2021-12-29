@@ -617,7 +617,7 @@ class MitmImage:
                                 "hashes": [
                                     upload_resp["hash"],
                                 ],
-                                "add": [url],
+                                "urls_to_add": [url],
                             },
                         )
                     )
