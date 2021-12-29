@@ -563,15 +563,10 @@ class MitmImage:
                 }
             )
             for (new_url, page_name) in url_sets:
-                kwargs = {"page_name": page_name, "url": new_url}
-                filename = self.get_url_filename(new_url)
-                if filename:
+                kwargs = {"destination_page_name": page_name, "url": new_url}
+                if filename := self.get_url_filename(new_url):
                     kwargs["service_names_to_additional_tags"] = {"my tags": ["filename:{}".format(filename)]}
-                args = (
-                    "add_url",
-                    kwargs,
-                )
-                self.client_queue.put_nowait(args)
+                self.client_queue.put_nowait(("add_url", kwargs))
 
     async def flow_remove_worker(self):  # pragma: no cover
         while True:
@@ -634,19 +629,19 @@ class MitmImage:
                     tags.append("filename:{}".format(url_filename))
                 if referer:
                     tags.append("referer:{}".format(referer))
-                kwargs: T.Dict[str, T.Any] = {"page_name": "mitmimage", "url": url}
+                if tags and hash_:
+                    self.client_queue.put_nowait(
+                        (
+                            "add_tags",
+                            {
+                                "hashes": [hash_],
+                                "service_names_to_actions_to_tags": {"my tags": {TagAction.ADD: tags}},
+                            },
+                        )
+                    )
+                kwargs = {"destination_page_name": "mitmimage", "urls_to_add": [url]}
                 if tags:
                     kwargs["service_names_to_additional_tags"] = {"my tags": tags}
-                    if hash_:
-                        self.client_queue.put_nowait(
-                            (
-                                "add_tags",
-                                {
-                                    "hashes": [hash_],
-                                    "service_to_action_to_tags": {"my tags": {TagAction.ADD: tags}},
-                                },
-                            )
-                        )
                 self.client_queue.put_nowait(("add_url", kwargs))
             except Exception as err:
                 self.logger.exception(str(err))
@@ -968,7 +963,7 @@ class MitmImage:
                 continue
             try:
                 resp = self.upload(flow)
-                self.client_queue.put_nowait(("add_url", {"url": url, "page_name": "mitmimage"}))
+                self.client_queue.put_nowait(("add_url", {"url": url, "destination_page_name": "mitmimage"}))
                 resp_history.append(resp)
                 if remove and resp is not None:
                     self.flow_remove_queue.put_nowait(flow)
