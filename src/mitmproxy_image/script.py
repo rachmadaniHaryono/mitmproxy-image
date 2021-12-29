@@ -687,14 +687,14 @@ class MitmImage:
                 referer = flow.request.headers.get("referer", None)
                 hash_: T.Optional[str] = upload_resp.get("hash", None)
                 if status in [
-                    ImportStatus.Exists,
-                    ImportStatus.PreviouslyDeleted,
-                    ImportStatus.Success,
+                    ImportStatus.EXISTS,
+                    ImportStatus.PREVIOUSLY_DELETED,
+                    ImportStatus.SUCCESS,
                 ]:
                     self.post_upload_queue.put_nowait(
                         (url, upload_resp, None if referer is None else get_readable_url(referer))
                     )
-                elif status in [ImportStatus.Failed, ImportStatus.Vetoed, 8] and hash_:
+                elif status in [ImportStatus.FAILED, ImportStatus.VETOED, 8] and hash_:
                     if url:
                         self.url_data[url].add(hash_)
                     self.hash_data[hash_] = status
@@ -706,7 +706,7 @@ class MitmImage:
                     log_msg.update({LogKey.HASH.value: hash_, "note": note})
                     self.logger.debug(log_msg)
                 else:
-                    if status not in [ImportStatus.Success, ImportStatus.Exists] and note:
+                    if status not in [ImportStatus.SUCCESS, ImportStatus.EXISTS] and note:
                         log_msg["note"] = note.splitlines()[-1]
                     self.logger.info(log_msg)
             except ConnectionError as err:
@@ -780,10 +780,10 @@ class MitmImage:
                 hash_: str = next(iter(hashes))
                 status = self.hash_data.get(hash_, None)
                 if status is not None and status in [
-                    ImportStatus.Failed,
-                    ImportStatus.Importable,
-                    ImportStatus.PreviouslyDeleted,
-                    ImportStatus.Vetoed,
+                    ImportStatus.FAILED,
+                    ImportStatus.IMPORTABLE,
+                    ImportStatus.PREVIOUSLYDELETED,
+                    ImportStatus.VETOED,
                     8,
                 ]:
                     return
@@ -859,12 +859,12 @@ class MitmImage:
             single_hash_data = None
             if hashes and len(hashes) == 1:
                 single_hash_data = self.hash_data.get(next(iter(hashes)), None)
-            if not hashes or single_hash_data == ImportStatus.Importable:
+            if not hashes or single_hash_data == ImportStatus.IMPORTABLE:
                 self.upload_queue.put_nowait(flow)
             elif single_hash_data in [
-                ImportStatus.Failed,
-                ImportStatus.PreviouslyDeleted,
-                ImportStatus.Vetoed,
+                ImportStatus.FAILED,
+                ImportStatus.PREVIOUSLYDELETED,
+                ImportStatus.VETOED,
             ]:
                 # NOTE: don't do anything to it
                 pass
