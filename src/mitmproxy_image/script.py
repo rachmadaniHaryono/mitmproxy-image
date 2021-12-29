@@ -643,7 +643,7 @@ class MitmImage:
                                 "add_tags",
                                 {
                                     "hashes": [hash_],
-                                    "service_to_action_to_tags": {"my tags": {TagAction.Add: tags}},
+                                    "service_to_action_to_tags": {"my tags": {TagAction.ADD: tags}},
                                 },
                             )
                         )
