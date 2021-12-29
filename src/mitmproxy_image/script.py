@@ -272,11 +272,11 @@ class MitmImage:
         ak: T.Optional[str] = None
         ctx_ak = None
         try:
-            ctx_ak = ctx.options.deferred["hydrus_access_key"]
+            ctx_ak = ctx.options.deferred.get("hydrus_access_key")
             if ctx_ak:
                 ak = ctx_ak[0]
         except Exception as err:
-            self.logger.error({LogKey.MESSAGE.value: "access_key error: {}".format(err), "ak": ctx_ak})
+            self.logger.error((str(err) + f", context access key: {ctx_ak}"), exc_info=True)
         self.client = Client(ak if isinstance(ak, str) and ak else None)
         # NOTE only match when self.client._api_url not changed
         api_url = get_api_url(self.client)
