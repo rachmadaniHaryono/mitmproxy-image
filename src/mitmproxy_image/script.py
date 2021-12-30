@@ -154,11 +154,11 @@ def get_redirect_url(hash_: str, client: Client) -> str:
     """Get redirect url.
     >>> from types import SimpleNamespace
     >>> get_redirect_url("1234", SimpleNamespace(
-    ...  _api_url="https://127.0.0.1", _FILE_ROUTE="/file", _access_key="5678"))
-    'https://127.0.0.1/file?hash=1234&Hydrus-Client-API-Access-Key=5678'
+    ...  _api_url="https://127.0.0.1", _GET_FILE_PATH="/get_files/file", _access_key="5678"))
+    'https://127.0.0.1/get_files/file?hash=1234&Hydrus-Client-API-Access-Key=5678'
     """
-    src_url = get_api_url(client) + client._FILE_ROUTE
-    params = {"hash": hash_, "Hydrus-Client-API-Access-Key": client._access_key}
+    src_url = get_api_url(client) + client._GET_FILE_PATH
+    params = {"hash": hash_, "Hydrus-Client-API-Access-Key": client.access_key}
     url_parts = list(urlparse(src_url))
     query = dict(parse_qsl(url_parts[4]))
     query.update(params)
@@ -859,7 +859,7 @@ class MitmImage:
                 self.upload_queue.put_nowait(flow)
             elif single_hash_data in [
                 ImportStatus.FAILED,
-                ImportStatus.PREVIOUSLYDELETED,
+                ImportStatus.PREVIOUSLY_DELETED,
                 ImportStatus.VETOED,
             ]:
                 # NOTE: don't do anything to it
