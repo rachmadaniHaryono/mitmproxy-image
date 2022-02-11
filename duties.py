@@ -296,6 +296,7 @@ def format(ctx):
     Arguments:
         ctx: The context instance (passed automatically).
     """
+    ctx.run(f"ssort {PY_SRC}", title="Ssort codebase", pty=PTY)
     ctx.run(
         f"autoflake -ir --exclude tests/fixtures --remove-all-unused-imports {PY_SRC}",
         title="Removing unused imports",
