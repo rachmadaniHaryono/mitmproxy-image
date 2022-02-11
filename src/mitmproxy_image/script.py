@@ -150,6 +150,10 @@ def get_mimetype(flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = 
     return p_header[0] if len(p_header) > 0 else None
 
 
+def get_api_url(client: Client) -> str:
+    return client._api_url if hasattr(client, "_api_url") else client.api_url
+
+
 def get_redirect_url(hash_: str, client: Client) -> str:
     """Get redirect url.
     >>> from types import SimpleNamespace
@@ -228,10 +232,6 @@ def get_hashes(
     return MULTI_HASH_DATA_TYPE(hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data)
 
 
-def get_api_url(client: Client) -> str:
-    return client._api_url if hasattr(client, "_api_url") else client.api_url
-
-
 class MitmImage:
     url_data: URL_DATA_TYPE
     hash_data: HASH_DATA_TYPE
@@ -244,6 +244,85 @@ class MitmImage:
     # page name
     page_name = "mitmimage"
     additional_page_name = "mitmimage_plus"
+
+    @property
+    def ctx_log(self):
+        return hasattr(ctx, "log")
+
+    def load_config(self, config_path):  # pragma: no cover
+        """Load config."""
+        try:
+            with open(config_path) as f:
+                self.config = yaml.safe_load(f)
+                view_filter = self.config.get("view_filter", None)
+                if view_filter and hasattr(ctx, "options"):
+                    ctx.options.view_filter = view_filter
+                if self.ctx_log:
+                    ctx.log.info("mitmimage: view filter: {}".format(view_filter))
+                BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
+                host_block_regex_old = self.host_block_regex.copy()
+                self.host_block_regex = [re.compile(x) for x in self.config.get("host_block_regex", [])]
+                self.block_regex = [
+                    BlockRegex(re.compile(x[0]), nth(x, 1, x[0]), nth(x, 2, False))
+                    for x in self.config.get("block_regex", [])
+                ]
+                if self.ctx_log:
+                    ctx.log.info(
+                        "mitmimage: host block regex old\n{}.".format("\n".join([str(x) for x in host_block_regex_old]))
+                    )
+                    ctx.log.info(
+                        "mitmimage: host block regex new\n{}.".format(
+                            "\n".join([str(x) for x in self.host_block_regex])
+                        )
+                    )
+                    ctx.log.info("mitmimage: load {} block regex.".format(len(self.block_regex)))
+                    ctx.log.info(
+                        "mitmimage: load {} url filename block regex.".format(
+                            len(self.config.get("block_url_filename_regex", []))
+                        )
+                    )
+                self.add_url_regex = self.config.get("add_url_regex", [])
+                self.add_url_regex = [
+                    AURegex(
+                        re.compile(item[0]),
+                        item[1],
+                        nth(item, 2, False),
+                        nth(item, 4, self.additional_page_name),
+                    )
+                    for item in self.add_url_regex
+                ]
+        except Exception as err:
+            self.logger.exception(str(err))
+            if self.ctx_log:
+                ctx.log.error("mitmimage: error loading config, {}".format(err))
+
+    def set_log_path(self, filename: str):
+        """Set log path."""
+        try:
+            filename = os.path.expanduser(filename)
+            for hdlr in self.logger.handlers:
+                self.logger.removeHandler(hdlr)
+            fh = logging.FileHandler(filename)
+            fh.setLevel(self.logger.getEffectiveLevel())
+            fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
+            self.logger.addHandler(fh)
+            if self.ctx_log:  # pragma: no cover
+                ctx.log.info("mitmimage: log path: {}.".format(filename))
+        except Exception as err:  # pragma: no cover
+            self.logger.exception(str(err))
+
+    @command.command("mitmimage.clear_data")
+    def clear_data(self) -> None:
+        self.url_data = defaultdict(set)
+        self.hash_data = {}
+        self.cached_urls = set()
+        log_msg = "mitmimage: data cleared"
+        try:
+            if self.ctx_log:  # pragma: no cover
+                ctx.log.info(log_msg)
+        except Exception as err:
+            logging.info(log_msg)
+            logging.exception(err)
 
     def __init__(self):
         self.clear_data()
@@ -363,53 +442,6 @@ class MitmImage:
         self.hash_data[upload_resp["hash"]] = upload_resp["status"]
         return upload_resp
 
-    def load_config(self, config_path):  # pragma: no cover
-        """Load config."""
-        try:
-            with open(config_path) as f:
-                self.config = yaml.safe_load(f)
-                view_filter = self.config.get("view_filter", None)
-                if view_filter and hasattr(ctx, "options"):
-                    ctx.options.view_filter = view_filter
-                if self.ctx_log:
-                    ctx.log.info("mitmimage: view filter: {}".format(view_filter))
-                BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
-                host_block_regex_old = self.host_block_regex.copy()
-                self.host_block_regex = [re.compile(x) for x in self.config.get("host_block_regex", [])]
-                self.block_regex = [
-                    BlockRegex(re.compile(x[0]), nth(x, 1, x[0]), nth(x, 2, False))
-                    for x in self.config.get("block_regex", [])
-                ]
-                if self.ctx_log:
-                    ctx.log.info(
-                        "mitmimage: host block regex old\n{}.".format("\n".join([str(x) for x in host_block_regex_old]))
-                    )
-                    ctx.log.info(
-                        "mitmimage: host block regex new\n{}.".format(
-                            "\n".join([str(x) for x in self.host_block_regex])
-                        )
-                    )
-                    ctx.log.info("mitmimage: load {} block regex.".format(len(self.block_regex)))
-                    ctx.log.info(
-                        "mitmimage: load {} url filename block regex.".format(
-                            len(self.config.get("block_url_filename_regex", []))
-                        )
-                    )
-                self.add_url_regex = self.config.get("add_url_regex", [])
-                self.add_url_regex = [
-                    AURegex(
-                        re.compile(item[0]),
-                        item[1],
-                        nth(item, 2, False),
-                        nth(item, 4, self.additional_page_name),
-                    )
-                    for item in self.add_url_regex
-                ]
-        except Exception as err:
-            self.logger.exception(str(err))
-            if self.ctx_log:
-                ctx.log.error("mitmimage: error loading config, {}".format(err))
-
     # mitmproxy add on class' method
 
     def load(self, loader):  # pragma: no cover
@@ -450,21 +482,6 @@ class MitmImage:
             default=self.default_log_path,
             help="Set mitmimage log file",
         )
-
-    def set_log_path(self, filename: str):
-        """Set log path."""
-        try:
-            filename = os.path.expanduser(filename)
-            for hdlr in self.logger.handlers:
-                self.logger.removeHandler(hdlr)
-            fh = logging.FileHandler(filename)
-            fh.setLevel(self.logger.getEffectiveLevel())
-            fh.setFormatter(CustomJsonFormatter("%(p)s %(message)s"))
-            self.logger.addHandler(fh)
-            if self.ctx_log:  # pragma: no cover
-                ctx.log.info("mitmimage: log path: {}.".format(filename))
-        except Exception as err:  # pragma: no cover
-            self.logger.exception(str(err))
 
     def configure(self, updates):  # pragma: no cover
         log_msg = []
@@ -902,28 +919,11 @@ class MitmImage:
         """
         self.flow_remove_queue.put_nowait(flow)  # pragma: no cover
 
-    @property
-    def ctx_log(self):
-        return hasattr(ctx, "log")
-
     # command
 
     @command.command("mitmimage.log_hello")
     def log_hello(self):  # pragma: no cover
         ctx.log.info("mitmimage: hello")
-
-    @command.command("mitmimage.clear_data")
-    def clear_data(self) -> None:
-        self.url_data = defaultdict(set)
-        self.hash_data = {}
-        self.cached_urls = set()
-        log_msg = "mitmimage: data cleared"
-        try:
-            if self.ctx_log:  # pragma: no cover
-                ctx.log.info(log_msg)
-        except Exception as err:
-            logging.info(log_msg)
-            logging.exception(err)
 
     @command.command("mitmimage.ipdb")
     def ipdb(self, flows: T.Sequence[Flow] = None) -> None:  # pragma: no cover

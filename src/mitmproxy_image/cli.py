@@ -26,23 +26,7 @@ from mitmproxy.utils import arg_check, debug
 
 from .script import MitmImage
 
-
-def mitmproxy(args=None) -> None:  # pragma: no cover
-    """run mitmproxy (custom).
-
-    this is based from
-    https://github.com/mitmproxy/mitmproxy/blob/1c10abef000ba2f112bc00119bcdb6707d6ff08e/mitmproxy/tools/main.py#L123
-    """
-    if os.name == "nt":
-        import urwid
-
-        urwid.set_encoding("utf8")
-    else:
-        assert_utf8_env()
-    from mitmproxy.tools import console
-
-    run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
-    return None
+__version__ = "1.2.0"
 
 
 def run(
@@ -139,6 +123,24 @@ def run(
     except (KeyboardInterrupt, RuntimeError):
         pass
     return master
+
+
+def mitmproxy(args=None) -> None:  # pragma: no cover
+    """run mitmproxy (custom).
+
+    this is based from
+    https://github.com/mitmproxy/mitmproxy/blob/1c10abef000ba2f112bc00119bcdb6707d6ff08e/mitmproxy/tools/main.py#L123
+    """
+    if os.name == "nt":
+        import urwid
+
+        urwid.set_encoding("utf8")
+    else:
+        assert_utf8_env()
+    from mitmproxy.tools import console
+
+    run(console.master.ConsoleMaster, cmdline.mitmproxy, args)
+    return None
 
 
 def main(args: Optional[List[str]] = None) -> int:
