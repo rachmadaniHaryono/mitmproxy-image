@@ -1,4 +1,3 @@
----
 host_block_regex:
 # description: regex rule to exclude url with matches host to be downloaded.
 # it consist of regex only

@@ -1,26 +1,25 @@
----
 # based https://github.com/python-poetry/poetry/issues/366
 language: python
 python:
-    - '3.8'    # current default Python on Travis CI
+- '3.8'        # current default Python on Travis CI
 stages:
-    - lint
-    - test
+- lint
+- test
 jobs:
-    include:
-        - stage: lint
-          install:
-              - pip install pre-commit
-              - pre-commit install-hooks
-          script:
-              - pre-commit run --all-files
-        - stage: test
-          install:
-              - pip install --upgrade pip
-              - pip install poetry
-              - poetry install -v
-          script:
+  include:
+  - stage: lint
+    install:
+    - pip install pre-commit
+    - pre-commit install-hooks
+    script:
+    - pre-commit run --all-files
+  - stage: test
+    install:
+    - pip install --upgrade pip
+    - pip install poetry
+    - poetry install -v
+    script:
               # command to run tests
-              - poetry run pytest --mypy --flake8 --cov=mitmproxy_image .
+    - poetry run pytest --mypy --flake8 --cov=mitmproxy_image .
 after_success:
-    - codecov
+- codecov
