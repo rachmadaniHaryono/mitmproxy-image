@@ -1,6 +1,7 @@
 """Macros and filters made available in Markdown pages."""
 
 import functools
+import typing as T
 from itertools import chain
 from pathlib import Path
 
@@ -38,6 +39,7 @@ def get_credits_data() -> dict:
     all_pkgs = poetry_dependencies.copy()
     all_pkgs.update(indirect_dependencies)
     for pkg in search_packages_info(list(all_pkgs)):
+        name: T.Optional[str]
         try:
             name = pkg.name
         except AttributeError:
