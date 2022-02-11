@@ -151,6 +151,7 @@ def get_mimetype(flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = 
 
 
 def get_api_url(client: Client) -> str:
+    """get api url."""
     return client._api_url if hasattr(client, "_api_url") else client.api_url
 
 
@@ -179,6 +180,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
 
 def init_view(logger) -> T.Optional[View]:
+    """init view."""
     try:
         if hasattr(ctx, "master"):
             return ctx.master.addons.get("view")
