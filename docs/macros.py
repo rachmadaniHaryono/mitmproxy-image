@@ -34,8 +34,10 @@ def get_credits_data() -> dict:
     all_pkgs = poetry_dependencies.copy()
     all_pkgs.update(indirect_dependencies)
     for pkg in search_packages_info(list(all_pkgs)):
-        # NOTE walrus can be used
-        name = getattr(pkg, "name")
+        try:
+            name = pkg.name
+        except AttributeError:
+            name = None
         if name:
             packages[name.lower()] = {key: getattr(pkg, key) for key in dir(pkg) if not key.startswith("_")}
 
