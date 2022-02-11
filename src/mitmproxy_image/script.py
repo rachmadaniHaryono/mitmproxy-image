@@ -34,7 +34,7 @@ URL_DATA_TYPE = defaultdict[str, T.Set[str]]
 HASH_DATA_TYPE = T.Dict[str, ImportStatus]
 
 
-class MULTI_HASH_DATA_TYPE(T.TypedDict, total=False):
+class MultiHashDataType(T.TypedDict, total=False):
     hashes: T.Set[str]
     url_data_extra: URL_DATA_TYPE
     hash_data: HASH_DATA_TYPE
@@ -197,7 +197,7 @@ def get_hashes(
     from_hydrus: GhMode = GhMode.NEVER,
     url_data: T.Optional[T.Dict[str, T.Set[str]]] = None,
     client: Client = None,
-) -> MULTI_HASH_DATA_TYPE:
+) -> MultiHashDataType:
     """get hashes based on url input.
 
     If `from_hydrus` is `always`, ask client everytime.
@@ -214,7 +214,7 @@ def get_hashes(
     if from_hydrus == GhMode.ALWAYS and client is not None:
         pass
     elif (hashes and from_hydrus == GhMode.ON_EMPTY) or GhMode.NEVER or client is None:
-        return MULTI_HASH_DATA_TYPE(hashes=hashes)
+        return MultiHashDataType(hashes=hashes)
     url_data_extra = defaultdict(set)
     hash_data = {}
     ufs: UFS_TYPE
@@ -229,7 +229,7 @@ def get_hashes(
     if new_url_data := url_data.get(url):
         hashes.update(new_url_data)
     hashes.discard(EMPTY_HASH)
-    return MULTI_HASH_DATA_TYPE(hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data)
+    return MultiHashDataType(hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data)
 
 
 class MitmImage:
