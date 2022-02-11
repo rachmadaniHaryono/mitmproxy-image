@@ -48,7 +48,9 @@ def get_au_regex_rules_test_data():
     obj = MitmImage()
     obj.load_config(config_path=obj.default_config_path)
     res = []
-    rules = filter(lambda arg: len(arg) > 3, getattr(obj, "config", {}).get("add_url_regex", []))
+    rules = filter(
+        lambda arg: len(arg) > 3, getattr(obj, "config", {}).get("add_url_regex", [])
+    )
     for rule in rules:
         page_name = rule[4] if len(rule) > 4 else "mitmimage_plus"
         for sub_data in rule[3]:
@@ -70,7 +72,9 @@ class MockQueue:
         self.history.append(args)
 
 
-@pytest.mark.parametrize(("url", "exp_url", "page_name"), get_au_regex_rules_test_data())
+@pytest.mark.parametrize(
+    ("url", "exp_url", "page_name"), get_au_regex_rules_test_data()
+)
 def test_add_additional_url(url, exp_url, page_name):
     """Test add_additional_url method.
 
@@ -85,7 +89,10 @@ def test_add_additional_url(url, exp_url, page_name):
         logging.info("No add_url_regex")
     obj.client_queue = MockQueue()  # type:ignore
     obj.add_additional_url(url)
-    history = [(item[0][1].get("url", None), item[0][1].get("page_name", None)) for item in obj.client_queue.history]
+    history = [
+        (item[0][1].get("url", None), item[0][1].get("page_name", None))
+        for item in obj.client_queue.history
+    ]
     assert (exp_url, page_name) in history
 
 
@@ -120,8 +127,18 @@ def test_get_mimetype(flow, url, exp_res):
     [
         (GhMode.ON_EMPTY, {}, [], ({"hashes": set()}, None)),
         (GhMode.ON_EMPTY, {}, [{"hash": "hash1"}], ({"hashes": set()}, None)),
-        (GhMode.ON_EMPTY, {"url": {"hash2"}}, [{"hash": "hash1"}], ({"hashes": {"hash2"}}, None)),
-        (GhMode.ON_EMPTY, {}, [{"hash": "hash1", "status": "s1"}], ({"hashes": set()}, None)),
+        (
+            GhMode.ON_EMPTY,
+            {"url": {"hash2"}},
+            [{"hash": "hash1"}],
+            ({"hashes": {"hash2"}}, None),
+        ),
+        (
+            GhMode.ON_EMPTY,
+            {},
+            [{"hash": "hash1", "status": "s1"}],
+            ({"hashes": set()}, None),
+        ),
         (
             GhMode.ALWAYS,
             {},
@@ -149,7 +166,9 @@ def test_get_hashes(mode, url_data, exp_res, ufss):
     client.get_url_files.return_value = {"url_file_statuses": ufss}
     url_data_arg = collections.defaultdict(set)
     url_data_arg.update(url_data)
-    res = get_hashes(url="url", from_hydrus=mode, client=client, url_data=url_data).copy()
+    res = get_hashes(
+        url="url", from_hydrus=mode, client=client, url_data=url_data
+    ).copy()
     url_data = None
     if "url_data_extra" in res:
         url_data = dict(res.pop("url_data_extra"))
@@ -169,7 +188,7 @@ def test_urls(golden):
     flow = mock.Mock()
     flow.request.method = "get"
     res = []
-    for url in (urls := sorted(golden.get("urls") if hasattr(golden, "get") else [])) :
+    for url in (urls := sorted(golden.get("urls") if hasattr(golden, "get") else [])):
         flow.request.pretty_url = url
         flow.request.pretty_host = urlparse(url).netloc
         obj.client_queue.put_nowait.reset_mock()

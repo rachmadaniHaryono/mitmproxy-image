@@ -110,7 +110,9 @@ def get_readable_url(url: str) -> str:
     return p_url.geturl()
 
 
-def get_mimetype(flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = None) -> T.Optional[str]:
+def get_mimetype(
+    flow: T.Optional[http.HTTPFlow] = None, url: T.Optional[str] = None
+) -> T.Optional[str]:
     """Get mimetype from flow or url.
 
     >>> from types import SimpleNamespace
@@ -174,7 +176,9 @@ def get_redirect_url(hash_: str, client: Client) -> str:
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):  # pragma: no cover
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
-        log_record["p"] = "{}:{}:{}".format(record.levelname[0], record.funcName, record.lineno)
+        log_record["p"] = "{}:{}:{}".format(
+            record.levelname[0], record.funcName, record.lineno
+        )
         if not log_record.get("message"):
             del log_record["message"]
 
@@ -231,7 +235,9 @@ def get_hashes(
     if new_url_data := url_data.get(url):
         hashes.update(new_url_data)
     hashes.discard(EMPTY_HASH)
-    return MultiHashDataType(hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data)
+    return MultiHashDataType(
+        hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data
+    )
 
 
 class MitmImage:  # noqa: WPS338
@@ -263,21 +269,27 @@ class MitmImage:  # noqa: WPS338
                     ctx.log.info("mitmimage: view filter: {}".format(view_filter))
                 BlockRegex = namedtuple("BlockRegex", ["cpatt", "name", "log_flag"])
                 host_block_regex_old = self.host_block_regex.copy()
-                self.host_block_regex = [re.compile(x) for x in self.config.get("host_block_regex", [])]
+                self.host_block_regex = [
+                    re.compile(x) for x in self.config.get("host_block_regex", [])
+                ]
                 self.block_regex = [
                     BlockRegex(re.compile(x[0]), nth(x, 1, x[0]), nth(x, 2, False))
                     for x in self.config.get("block_regex", [])
                 ]
                 if self.ctx_log:
                     ctx.log.info(
-                        "mitmimage: host block regex old\n{}.".format("\n".join([str(x) for x in host_block_regex_old]))
+                        "mitmimage: host block regex old\n{}.".format(
+                            "\n".join([str(x) for x in host_block_regex_old])
+                        )
                     )
                     ctx.log.info(
                         "mitmimage: host block regex new\n{}.".format(
                             "\n".join([str(x) for x in self.host_block_regex])
                         )
                     )
-                    ctx.log.info("mitmimage: load {} block regex.".format(len(self.block_regex)))
+                    ctx.log.info(
+                        "mitmimage: load {} block regex.".format(len(self.block_regex))
+                    )
                     ctx.log.info(
                         "mitmimage: load {} url filename block regex.".format(
                             len(self.config.get("block_url_filename_regex", []))
@@ -358,7 +370,9 @@ class MitmImage:  # noqa: WPS338
                 if ctx_ak:
                     ak = ctx_ak[0]
         except Exception as err:
-            self.logger.error((str(err) + f", context access key: {ctx_ak}"), exc_info=True)
+            self.logger.error(
+                (str(err) + f", context access key: {ctx_ak}"), exc_info=True
+            )
         self.client = Client(ak if isinstance(ak, str) and ak else None)
         # NOTE only match when self.client._api_url not changed
         api_url = get_api_url(self.client)
@@ -403,7 +417,9 @@ class MitmImage:  # noqa: WPS338
         if (hashes and from_hydrus == GhMode.ON_EMPTY) or GhMode.NEVER:
             return hashes
         ufs: UFS_TYPE
-        for ufs in self.client.get_url_files(url).get("url_file_statuses", []):  # type:ignore
+        for ufs in self.client.get_url_files(url).get(
+            "url_file_statuses", []
+        ):  # type:ignore
             ufs_hash = ufs.get("hash")
             if ufs and ufs_hash == EMPTY_HASH:
                 continue
@@ -419,15 +435,21 @@ class MitmImage:  # noqa: WPS338
         url: str = flow.request.pretty_url  # type: ignore
         response: T.Optional[T.Any] = flow.response  # type: ignore
         if response is None:
-            self.logger.debug({LogKey.MESSAGE.value: "no response", LogKey.URL.value: url})
+            self.logger.debug(
+                {LogKey.MESSAGE.value: "no response", LogKey.URL.value: url}
+            )
             return None
         content = response.get_content()
         if content is None:
-            self.logger.debug({LogKey.MESSAGE.value: "no content", LogKey.URL.value: url})
+            self.logger.debug(
+                {LogKey.MESSAGE.value: "no content", LogKey.URL.value: url}
+            )
             return None
         # upload file
         upload_resp: UFS_TYPE = self.client.add_file(io.BytesIO(content))  # type: ignore
-        self.logger.info({LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url})
+        self.logger.info(
+            {LogKey.STATUS.value: upload_resp["status"], LogKey.URL.value: url}
+        )
         self.client_queue.put_nowait(
             (
                 "associate_url",
@@ -494,7 +516,9 @@ class MitmImage:  # noqa: WPS338
             self.load_config(os.path.expanduser(ctx.options.mitmimage_config))
         if "mitmimage_remove_view" in updates:
             self.remove_view_enable = ctx.options.mitmimage_remove_view
-            log_msg.append("mitmimage: remove view: {}.".format(self.remove_view_enable))
+            log_msg.append(
+                "mitmimage: remove view: {}.".format(self.remove_view_enable)
+            )
         if "mitmimage_debug" in updates:
             if ctx.options.mitmimage_debug:
                 self.logger.setLevel(logging.DEBUG)
@@ -585,7 +609,9 @@ class MitmImage:  # noqa: WPS338
             for (new_url, page_name) in url_sets:
                 kwargs = {"destination_page_name": page_name, "url": new_url}
                 if filename := self.get_url_filename(new_url):
-                    kwargs["service_names_to_additional_tags"] = {"my tags": ["filename:{}".format(filename)]}
+                    kwargs["service_names_to_additional_tags"] = {
+                        "my tags": ["filename:{}".format(filename)]
+                    }
                 self.client_queue.put_nowait(("add_url", kwargs))
 
     async def flow_remove_worker(self):  # pragma: no cover
@@ -612,10 +638,18 @@ class MitmImage:  # noqa: WPS338
                 cmd, kwargs = await self.client_queue.get()
                 async with self.client_lock:
                     res = getattr(self.client, cmd)(**kwargs)
-                    self.logger.debug({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs, "res": res})
+                    self.logger.debug(
+                        {
+                            LogKey.MESSAGE.value: "cmd:{}".format(cmd),
+                            "kwargs": kwargs,
+                            "res": res,
+                        }
+                    )
             except ConnectionError as err:
                 self.logger.debug(str(err), exc_info=True)
-                self.logger.error({LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs})
+                self.logger.error(
+                    {LogKey.MESSAGE.value: "cmd:{}".format(cmd), "kwargs": kwargs}
+                )
             except Exception as err:
                 self.logger.exception(str(err))
             # Notify the queue that the "work item" has been processed.
@@ -655,7 +689,9 @@ class MitmImage:  # noqa: WPS338
                             "add_tags",
                             {
                                 "hashes": [hash_],
-                                "service_names_to_actions_to_tags": {"my tags": {TagAction.ADD: tags}},
+                                "service_names_to_actions_to_tags": {
+                                    "my tags": {TagAction.ADD: tags}
+                                },
                             },
                         )
                     )
@@ -707,7 +743,11 @@ class MitmImage:  # noqa: WPS338
                     ImportStatus.SUCCESS,
                 ]:
                     self.post_upload_queue.put_nowait(
-                        (url, upload_resp, None if referer is None else get_readable_url(referer))
+                        (
+                            url,
+                            upload_resp,
+                            None if referer is None else get_readable_url(referer),
+                        )
                     )
                 elif status in [ImportStatus.FAILED, ImportStatus.VETOED, 8] and hash_:
                     if url:
@@ -721,7 +761,10 @@ class MitmImage:  # noqa: WPS338
                     log_msg.update({LogKey.HASH.value: hash_, "note": note})
                     self.logger.debug(log_msg)
                 else:
-                    if status not in [ImportStatus.SUCCESS, ImportStatus.EXISTS] and note:
+                    if (
+                        status not in [ImportStatus.SUCCESS, ImportStatus.EXISTS]
+                        and note
+                    ):
                         log_msg["note"] = note.splitlines()[-1]
                     self.logger.info(log_msg)
             except ConnectionError as err:
@@ -740,7 +783,9 @@ class MitmImage:  # noqa: WPS338
         """Check request flow and determine if the flow need to be skipped."""
         url: str = flow.request.pretty_url
         if self.host_block_regex and (
-            match := first_true(self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host))
+            match := first_true(
+                self.host_block_regex, pred=lambda x: x.match(flow.request.pretty_host)
+            )
         ):
             self.logger.debug(
                 {
@@ -750,7 +795,9 @@ class MitmImage:  # noqa: WPS338
                 }
             )
             return True
-        if self.block_regex and (match := first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))):
+        if self.block_regex and (
+            match := first_true(self.block_regex, pred=lambda x: x.cpatt.match(url))
+        ):
             if match.log_flag:
                 self.logger.debug(
                     {
@@ -783,13 +830,20 @@ class MitmImage:  # noqa: WPS338
                 return
             if not self.mitmimage_cache:
                 return
-            hash_data_res = get_hashes(url=url, from_hydrus=GhMode.NEVER, url_data=self.url_data, client=self.client)
+            hash_data_res = get_hashes(
+                url=url,
+                from_hydrus=GhMode.NEVER,
+                url_data=self.url_data,
+                client=self.client,
+            )
             if extra_ud := hash_data_res.get("url_data_extra"):  # extra url data
                 [self.url_data[k].update(v) for k, v in extra_ud.items()]
             if h_data := hash_data_res.get("hash_data"):  # hash data
                 self.hash_data.update(h_data)
             hashes = hash_data_res.get("hashes")
-            if not hashes and not self.is_valid_content_type(mimetype=get_mimetype(url=url)):
+            if not hashes and not self.is_valid_content_type(
+                mimetype=get_mimetype(url=url)
+            ):
                 return
             if hashes and len(hashes) == 1:
                 hash_: str = next(iter(hashes))
@@ -808,8 +862,12 @@ class MitmImage:  # noqa: WPS338
                 if url not in self.cached_urls:
                     self.cached_urls.add(url)
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait((url, None, None if referer is None else get_readable_url(referer)))
-                self.logger.info({LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"})
+                self.post_upload_queue.put_nowait(
+                    (url, None, None if referer is None else get_readable_url(referer))
+                )
+                self.logger.info(
+                    {LogKey.URL.value: url, LogKey.MESSAGE.value: "add and cached"}
+                )
             else:
                 self.logger.debug(
                     {
@@ -858,14 +916,21 @@ class MitmImage:  # noqa: WPS338
         url: str = flow.request.pretty_url
         try:
             try:
-                if not flowfilter.match(self.base_filter + ' & ~ts "(audio|image|video)"', flow):
+                if not flowfilter.match(
+                    self.base_filter + ' & ~ts "(audio|image|video)"', flow
+                ):
                     return
             except ValueError as err:
                 raise ValueError(str(err) + f', filter:"{self.base_filter}"')
             if self.check_response_flow(flow):
                 self.flow_remove_queue.put_nowait(flow)
                 return
-            hash_data_res = get_hashes(url=url, from_hydrus=GhMode.ON_EMPTY, url_data=self.url_data, client=self.client)
+            hash_data_res = get_hashes(
+                url=url,
+                from_hydrus=GhMode.ON_EMPTY,
+                url_data=self.url_data,
+                client=self.client,
+            )
             if extra_ud := hash_data_res.get("url_data_extra"):  # extra url data
                 [self.url_data[k].update(v) for k, v in extra_ud.items()]
             if h_data := hash_data_res.get("hash_data"):  # hash data
@@ -886,7 +951,9 @@ class MitmImage:  # noqa: WPS338
             else:
                 # NOTE: add referer & url filename to url
                 referer = flow.request.headers.get("referer", None)
-                self.post_upload_queue.put_nowait((url, None, None if referer is None else get_readable_url(referer)))
+                self.post_upload_queue.put_nowait(
+                    (url, None, None if referer is None else get_readable_url(referer))
+                )
                 hashes_status = [(self.hash_data.get(x, None), x) for x in hashes]
                 msg = {
                     LogKey.KEY.value: "add",
@@ -966,7 +1033,9 @@ class MitmImage:  # noqa: WPS338
                 continue
             try:
                 resp = self.upload(flow)
-                self.client_queue.put_nowait(("add_url", {"url": url, "destination_page_name": "mitmimage"}))
+                self.client_queue.put_nowait(
+                    ("add_url", {"url": url, "destination_page_name": "mitmimage"})
+                )
                 resp_history.append(resp)
                 if remove and resp is not None:
                     self.flow_remove_queue.put_nowait(flow)
