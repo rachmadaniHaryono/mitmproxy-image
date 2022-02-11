@@ -5,7 +5,6 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-line-length = 120
 exclude = "tests/fixtures"
 
 [tool.commitizen]
@@ -15,13 +14,7 @@ tag_format = "v$version"
 version_files = ['pyproject.toml']
 
 [tool.isort]
-line_length = 120
-multi_line_output = 3
-force_single_line = false
-balanced_wrapping = true
-default_section = "THIRDPARTY"
-known_first_party = "mitmproxy_image"
-include_trailing_comma = true
+profile = 'black'
 
 [tool.poetry]
 name = "mitmproxy-image"
@@ -50,12 +43,10 @@ requests = ">=2.21.0"
 [tool.poetry.dev-dependencies]
 autoflake = "^1.4"
 better-exceptions = "^0.3.3"
-black = "^20.8b1"
+black = "^22.1.0"
 darglint = "^1.5.8"
 duty = "^0.6.0"
-flake8 = "^3.7.0"
 flake8-bandit = "^2.1.2"
-flake8-black = "^0.2.1"
 flake8-bugbear = "^22.1.11"
 flake8-builtins = "^1.5.3"
 flake8-comprehensions = "^3.3.1"
@@ -66,7 +57,7 @@ flake8-tidy-imports = "^4.2.1"
 flake8-variables-names = "^0.0.4"
 git-changelog = "^0.4.2"
 httpx = "^0.16.1"
-isort = "^5.7.0"
+isort = "^5.10.1"
 jinja2-cli = "^0.7.0"
 mkdocs = "^1.1.2"
 mkdocs-coverage = "^0.2.1"
@@ -74,6 +65,7 @@ mkdocs-macros-plugin = "^0.5.0"
 mkdocs-material = "^6.2.7"
 mkdocstrings = "^0.15.0"
 mypy = "^0.812"
+pdbpp = "^0.10.3"
 pep8-naming = "^0.11.1"
 pytest = "^6.2.2"
 pytest-cov = "^2.11.1"
@@ -81,12 +73,11 @@ pytest-golden = "^0.2.1"
 pytest-randomly = "^3.5.0"
 pytest-sugar = "^0.9.4"
 pytest-xdist = "^2.2.0"
+ssort = "^0.10.0"
 toml = "^0.10.2"
 types-PyYAML = "^6.0.1"
 types-toml = "^0.10.1"
-wps-light = "^0.15.2"
-pdbpp = "^0.10.3"
-ssort = "^0.10.0"
+wps-light = "^0.15.3"
 
 [tool.poetry.scripts]
 mitmproxy-image = "mitmproxy_image.cli:main"
