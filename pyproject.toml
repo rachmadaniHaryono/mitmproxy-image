@@ -8,6 +8,11 @@ build-backend = "poetry.core.masonry.api"
 line-length = 120
 exclude = "tests/fixtures"
 
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "1.2.0"
+tag_format = "v$version"
+
 [tool.isort]
 line_length = 120
 multi_line_output = 3
@@ -80,6 +85,7 @@ types-PyYAML = "^6.0.1"
 types-toml = "^0.10.1"
 wps-light = "^0.15.2"
 pdbpp = "^0.10.3"
+ssort = "^0.10.0"
 
 [tool.poetry.scripts]
 mitmproxy-image = "mitmproxy_image.cli:main"
