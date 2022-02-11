@@ -153,7 +153,7 @@ def test_get_hashes(mode, url_data, exp_res, ufss):
     url_data = None
     if "url_data_extra" in res:
         url_data = dict(res.pop("url_data_extra"))
-    assert (res, url_data) == exp_res
+    assert exp_res == (res, url_data)
 
 
 @pytest.mark.golden_test("data/url*.yaml")
