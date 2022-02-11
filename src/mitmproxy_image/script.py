@@ -70,7 +70,7 @@ def remove_from_view(flow: T.Union[http.HTTPFlow, Flow], view: View):
     But it will not kill the flow because it may still be needed to load the page.
 
     Raises:
-        ValueError: can happen when send signal to View.sig_view_remove
+        ValueError: can happen when send signal to View.sig_view_remove. # noqa: DAR402
 
     """
     # compatibility
