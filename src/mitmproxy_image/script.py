@@ -197,7 +197,7 @@ class HashesData(T.TypedDict, total=False):
 def get_hashes(
     url: str,
     from_hydrus: GhMode = GhMode.NEVER,
-    url_data: T.Optional[T.Dict[str, T.Set[str]]] = None,
+    url_data: T.Optional[URL_DATA_TYPE] = None,
     client: Client = None,
 ) -> MultiHashDataType:
     """get hashes based on url input.
