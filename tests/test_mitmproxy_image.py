@@ -105,7 +105,7 @@ def test_add_additional_url(url, exp_url, page_name):
         (
             None,
             "http://google.com",
-            ("application/x-msdos-program", "application/x-msdownload"),
+            ("application/x-msdos-program", "application/x-msdownload", None),
         ),
         (None, "http://google.com/1.jpg", "image/jpeg"),
         (Namespace(response=None), "http://example.com/index.html", None),
