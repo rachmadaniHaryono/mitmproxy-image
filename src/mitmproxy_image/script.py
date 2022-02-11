@@ -234,7 +234,7 @@ def get_hashes(
     return MultiHashDataType(hashes=hashes, url_data_extra=url_data_extra, hash_data=hash_data)
 
 
-class MitmImage:
+class MitmImage:  # noqa: WPS338
     url_data: URL_DATA_TYPE
     hash_data: HASH_DATA_TYPE
     config: T.Dict[str, T.Any]
