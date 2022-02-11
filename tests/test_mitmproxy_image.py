@@ -102,7 +102,11 @@ def test_add_additional_url(url, exp_url, page_name):
         (Namespace(response=None), None, None),
         (None, "http://example.com/index.html", "text/html"),
         (None, "http://example.com/index.random", None),
-        (None, "http://google.com", "application/x-msdos-program"),
+        (
+            None,
+            "http://google.com",
+            ("application/x-msdos-program", "application/x-msdownload"),
+        ),
         (None, "http://google.com/1.jpg", "image/jpeg"),
         (Namespace(response=None), "http://example.com/index.html", None),
     ],
@@ -118,6 +122,8 @@ def test_get_mimetype(flow, url, exp_res):
     if all([flow, url]):
         with pytest.raises(ValueError, match="Only require flow or url"):
             get_mimetype(flow, url)
+    elif isinstance(exp_res, tuple):
+        assert get_mimetype(flow, url) in exp_res
     else:
         assert get_mimetype(flow, url) == exp_res
 
