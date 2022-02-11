@@ -1,9 +1,7 @@
----
 extends: default
 ignore: |
-    tests/data/
-
+  tests/data/
 rules:
-    line-length:
-        max: 105
-        allow-non-breakable-inline-mappings: true
+  line-length: disabled
+  document-start: disabled
+  indentation: disabled
