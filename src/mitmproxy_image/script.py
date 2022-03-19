@@ -361,18 +361,17 @@ class MitmImage:  # noqa: WPS338
         self.remove_view_enable = True
         self.mitmimage_cache = True
         self.skip_flow = set()
-        ak: T.Optional[str] = None
-        ctx_ak = None
+        access_key: T.Optional[str] = None
         try:
-            if hasattr(ctx, "options"):
-                ctx_ak = ctx.options.deferred.get("hydrus_access_key")
-                if ctx_ak:
-                    ak = ctx_ak[0]
+            if opt := ctx.options.deferred.get("hydrus_access_key"):
+                access_key = opt.val[0]
         except Exception as err:
             self.logger.error(
-                (str(err) + f", context access key: {ctx_ak}"), exc_info=True
+                (str(err) + f", context access key: {access_key}"), exc_info=True
             )
-        self.client = Client(ak if isinstance(ak, str) and ak else None)
+        self.client = Client(
+            access_key if isinstance(access_key, str) and access_key else None
+        )
         # NOTE only match when self.client._api_url not changed
         api_url = get_api_url(self.client)
         self.base_filter = f"~m GET & !(~websocket | ~d '{api_url}')"
