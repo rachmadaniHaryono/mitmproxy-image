@@ -25,7 +25,6 @@ from hydrus_api import Client, ConnectionError, ImportStatus, TagAction
 from mitmproxy import command, ctx, flowfilter, http
 from mitmproxy.addons.view import View
 from mitmproxy.flow import Flow
-from mitmproxy.script import concurrent
 from more_itertools import first_true, nth
 from pythonjsonlogger import jsonlogger
 
@@ -809,8 +808,7 @@ class MitmImage:  # noqa: WPS338
             return True
         return False
 
-    @concurrent
-    def request(self, flow: http.HTTPFlow):
+    async def request(self, flow: http.HTTPFlow):
         url: str = flow.request.pretty_url
         try:
             self.add_additional_url(url)
@@ -910,8 +908,7 @@ class MitmImage:  # noqa: WPS338
             return True
         return False
 
-    @concurrent
-    def response(self, flow: http.HTTPFlow) -> None:
+    async def response(self, flow: http.HTTPFlow) -> None:
         """Handle response."""
         url: str = flow.request.pretty_url
         try:
