@@ -17,7 +17,6 @@ import os
 import signal
 import sys
 import typing
-from importlib.metadata import version
 from typing import List, Optional
 
 from mitmproxy import exceptions, master, options, optmanager
@@ -79,7 +78,7 @@ def run(
                     "\n".join(
                         [
                             debug.dump_system_info(),
-                            "Mitmproxy-image: {}".format(version("mitmproxy-image")),
+                            f"Mitmproxy-image: {__version__}",
                         ]
                     )
                 )
