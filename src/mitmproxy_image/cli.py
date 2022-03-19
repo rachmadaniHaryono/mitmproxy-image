@@ -27,13 +27,15 @@ from mitmproxy.utils import arg_check, debug
 
 from .script import MitmImage
 
+T = typing.TypeVar("T", bound=master.Master)
+
 
 def run(
-    master_cls: typing.Type[master.Master],
+    master_cls: typing.Type[T],
     make_parser: typing.Callable[[options.Options], argparse.ArgumentParser],
     arguments: typing.Sequence[str],
     extra: typing.Callable[[typing.Any], dict] = None,
-) -> master.Master:  # pragma: no cover
+) -> T:  # pragma: no cover
     """
     run program.
 
@@ -43,92 +45,94 @@ def run(
     extra: Extra argument processing callable which returns a dict of
     options.
     """
-    debug.register_info_dumpers()
 
-    opts = options.Options()
-    master = master_cls(opts)
+    async def main() -> T:
+        debug.register_info_dumpers()
 
-    parser = make_parser(opts)
+        opts = options.Options()
+        master = master_cls(opts)
 
-    # To make migration from 2.x to 3.0 bearable.
-    if "-R" in sys.argv and sys.argv[sys.argv.index("-R") + 1].startswith("http"):
-        print("To use mitmproxy in reverse mode please use --mode reverse:SPEC instead")
+        parser = make_parser(opts)
 
-    try:
-        args = parser.parse_args(arguments)
-    except SystemExit:
-        arg_check.check()
-        sys.exit(1)
-
-    try:
-        opts.set(*args.setoptions, defer=True)
-        optmanager.load_paths(
-            opts,
-            os.path.join(opts.confdir, "config.yaml"),
-            os.path.join(opts.confdir, "config.yml"),
-        )
-        # NOTE add mitmproxy_image version
-        if args.version:
+        # To make migration from 2.x to 3.0 bearable.
+        if "-R" in sys.argv and sys.argv[sys.argv.index("-R") + 1].startswith("http"):
             print(
-                "\n".join(
-                    [
-                        debug.dump_system_info(),
-                        "Mitmproxy-image: {}".format(version("mitmproxy-image")),
-                    ]
-                )
+                "To use mitmproxy in reverse mode please use --mode reverse:SPEC instead"
             )
-            sys.exit(0)
-        process_options(parser, opts, args)
 
-        if args.options:
-            print(optmanager.dump_defaults(opts, sys.stdout))
-            sys.exit(0)
-        if args.commands:
-            master.commands.dump()
-            sys.exit(0)
-        if extra:
-            if args.filter_args:
-                master.log.info(
-                    f"Only processing flows that match \"{' & '.join(args.filter_args)}\""
+        try:
+            args = parser.parse_args(arguments)
+        except SystemExit:
+            arg_check.check()
+            sys.exit(1)
+
+        try:
+            opts.set(*args.setoptions, defer=True)
+            optmanager.load_paths(
+                opts,
+                os.path.join(opts.confdir, "config.yaml"),
+                os.path.join(opts.confdir, "config.yml"),
+            )
+            # NOTE add mitmproxy_image version
+            if args.version:
+                print(
+                    "\n".join(
+                        [
+                            debug.dump_system_info(),
+                            "Mitmproxy-image: {}".format(version("mitmproxy-image")),
+                        ]
+                    )
                 )
-            opts.update(**extra(args))
+                sys.exit(0)
+            process_options(parser, opts, args)
+
+            if args.options:
+                print(optmanager.dump_defaults(opts, sys.stdout))
+                sys.exit(0)
+            if args.commands:
+                master.commands.dump()
+                sys.exit(0)
+            if extra:
+                if args.filter_args:
+                    master.log.info(
+                        f"Only processing flows that match \"{' & '.join(args.filter_args)}\""
+                    )
+                opts.update(**extra(args))
+
+        except exceptions.OptionsError as e:
+            print("{}: {}".format(sys.argv[0], e), file=sys.stderr)
+            sys.exit(1)
 
         loop = asyncio.get_event_loop()
+
+        def _sigint(*_):
+            loop.call_soon_threadsafe(
+                getattr(master, "prompt_for_exit", master.shutdown)
+            )
+
+        def _sigterm(*_):
+            loop.call_soon_threadsafe(master.shutdown)
+
+        # We can't use loop.add_signal_handler because that's not available on Windows' Proactorloop,
+        # but signal.signal just works fine for our purposes.
+        signal.signal(signal.SIGINT, _sigint)
+        signal.signal(signal.SIGTERM, _sigterm)
+
+        # initiate MitmImage
         ao_obj = MitmImage()
         master.addons.add(ao_obj)
         loop.create_task(ao_obj.upload_worker())
         loop.create_task(ao_obj.post_upload_worker())
         loop.create_task(ao_obj.flow_remove_worker())
         loop.create_task(ao_obj.client_worker())
-        try:
-            loop.add_signal_handler(
-                signal.SIGINT, getattr(master, "prompt_for_exit", master.shutdown)
-            )
-            loop.add_signal_handler(signal.SIGTERM, master.shutdown)
-        except NotImplementedError:
-            # Not supported on Windows
-            pass
 
-        # Make sure that we catch KeyboardInterrupts on Windows.
-        # https://stackoverflow.com/a/36925722/934719
-        if os.name == "nt":
+        await master.run()
+        return master
 
-            async def wakeup():
-                while True:
-                    await asyncio.sleep(0.2)
-
-            asyncio.ensure_future(wakeup())
-
-        master.run()
-    except exceptions.OptionsError as e:
-        print("{}: {}".format(sys.argv[0], e), file=sys.stderr)
-        sys.exit(1)
-    except (KeyboardInterrupt, RuntimeError):
-        pass
-    return master
+    return asyncio.run(main())
 
 
-def mitmproxy(args=None) -> None:  # pragma: no cover
+def mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
     """run mitmproxy (custom).
 
     this is based from
