@@ -11,7 +11,10 @@ exclude = "tests/fixtures"
 name = "cz_conventional_commits"
 version = "1.4.0"
 tag_format = "v$version"
-version_files = ['pyproject.toml']
+version_files = [
+  'pyproject.toml',
+  'src/mitmproxy_image/cli.py'
+]
 
 [tool.isort]
 profile = 'black'
