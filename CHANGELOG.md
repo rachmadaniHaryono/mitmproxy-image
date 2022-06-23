@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## v1.5.0 (2022-06-23)
+
+### Fix
+
+- **cli**: handle error on assert_utf8_env
+
+### Refactor
+
+- **cli**: use manual version
+
 ## v1.4.0 (2022-03-20)
 
 ### Refactor
