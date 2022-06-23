@@ -21,7 +21,7 @@ from typing import List, Optional
 
 from mitmproxy import exceptions, master, options, optmanager
 from mitmproxy.tools import cmdline
-from mitmproxy.tools.main import assert_utf8_env, process_options
+from mitmproxy.tools.main import process_options
 from mitmproxy.utils import arg_check, debug
 
 from .script import MitmImage
