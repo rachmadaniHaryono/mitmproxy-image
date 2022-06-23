@@ -26,6 +26,11 @@ from mitmproxy.utils import arg_check, debug
 
 from .script import MitmImage
 
+try:
+    from mitmproxy.tools.main import assert_utf8_env
+except Exception:
+    assert_utf8_env = None
+
 T = typing.TypeVar("T", bound=master.Master)
 
 
@@ -141,7 +146,7 @@ def mitmproxy(args=None) -> typing.Optional[int]:  # pragma: no cover
         import urwid
 
         urwid.set_encoding("utf8")
-    else:
+    elif assert_utf8_env:
         assert_utf8_env()
     from mitmproxy.tools import console
 
