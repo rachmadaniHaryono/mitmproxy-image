@@ -225,7 +225,7 @@ def check_docs(ctx):
     """
     Path("build/coverage").mkdir(parents=True, exist_ok=True)
     Path("build/coverage/index.html").touch(exist_ok=True)
-    ctx.run("mkdocs build -s", title="Building documentation", pty=PTY)
+    ctx.run("poetry run mkdocs build -s", title="Building documentation", pty=PTY)
 
 
 @duty
