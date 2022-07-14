@@ -32,6 +32,7 @@ except Exception:
     assert_utf8_env = None
 
 T = typing.TypeVar("T", bound=master.Master)
+__version__ = "1.5.1"
 
 
 def run(
