@@ -41,16 +41,10 @@ repos:
     - config/mypy.ini
     exclude: ^(docs/|example-plugin/|tests/fixtures)
     id: mypy
+    additional_dependencies: [types-all]
   repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v0.941
+  rev: v0.902
 - hooks:
-  - entry: poetry run duty test
-    id: pytest
-    language: system
-    name: Check pytest unit tests pass
-    pass_filenames: false
-    types:
-    - python
   - entry: poetry run duty format
     id: format
     language: system
