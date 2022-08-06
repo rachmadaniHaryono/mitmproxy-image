@@ -229,6 +229,10 @@ class MitmImage:
                                 )
                         for upload_resp in resp:
                             note = upload_resp.pop("note", None)
+                            if (lines := note.splitlines()) and lines[-1].startswith(
+                                "hydrus.core.HydrusExceptions.UnsupportedFileException"
+                            ):
+                                note = lines[-1]
                             ctx.log.info(
                                 "\n".join(
                                     [
