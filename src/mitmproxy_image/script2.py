@@ -21,6 +21,7 @@ from threading import Thread
 from urllib.parse import parse_qsl, unquote_plus, urlencode, urlparse, urlunparse
 
 import hydrus_api
+import PIL
 import yaml
 from mitmproxy import command, ctx, flowfilter
 from mitmproxy.flow import Flow
@@ -389,13 +390,23 @@ class MitmImage:
         ):
             add_and_tag_files = False
         bytes_io = io.BytesIO(flow.response.get_content())
+        error_log = ""
         try:
-            size = Image.open(copy.copy(bytes_io)).size
-            if size[0] < 150 or size[1] < 150:
+            if (size := Image.open(copy.copy(bytes_io)).size) and (
+                size[0] < 150 or size[1] < 150
+            ):
                 add_and_tag_files = False
                 ctx.log.debug(f"failed size check {size}: {url}")
+        except PIL.UnidentifiedImageError as err:
+            log_text = f"client: {err}\n{err}\nurl: {url}"
+            if ext := Path(urlparse(url).path).suffix == ".svg":
+                add_and_tag_files = False
+            elif ext == ".webm":
+                error_log = ""
         except Exception as err:
-            ctx.log.error(f"client: {err}\n{traceback.format_exc()}\nurl: {url}")
+            error_log = f"client: {err}\n{traceback.format_exc()}\nurl: {url}"
+        if error_log:
+            ctx.log.error(error_log)
         if not add_and_tag_files:
             return
         self.client_queue.put(
