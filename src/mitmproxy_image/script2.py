@@ -8,6 +8,7 @@ resources:
 - queue https://github.com/mitmproxy/mitmproxy/blob/af5be0b92817eebb534e05fa0cc45127a70fa113/examples/contrib/jsondump.py
 """
 import collections
+import copy
 import io
 import os
 import re
@@ -24,6 +25,7 @@ import yaml
 from mitmproxy import command, ctx, flowfilter
 from mitmproxy.flow import Flow
 from more_itertools import first_true, nth
+from PIL import Image
 
 
 def get_referer_tag(flow) -> str:
@@ -371,13 +373,21 @@ class MitmImage:
             self.config.get("block_regex", []), pred=lambda x: x[0].match(url)
         ):
             add_and_tag_files = False
+        bytes_io = io.BytesIO(flow.response.get_content())
+        try:
+            size = Image.open(copy.copy(bytes_io)).size
+            if size[0] < 150 or size[1] < 150:
+                add_and_tag_files = False
+                ctx.log.debug(f"failed size check {size}: {url}")
+        except Exception as err:
+            ctx.log.error(f"client: {err}\n{traceback.format_exc()}\nurl: {url}")
         if not add_and_tag_files:
             return
         self.client_queue.put(
             {
                 "action": "add_and_tag_files",
                 "paths_or_files": [
-                    io.BytesIO(flow.response.get_content()),
+                    copy.copy(bytes_io),
                 ],
                 "urls": [url],
                 "tags": tags if tags else [],
