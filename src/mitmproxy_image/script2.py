@@ -266,7 +266,22 @@ class MitmImage:
                                     item["tags"]
                                 )
                     elif resp:
-                        ctx.log.info(f"{action}: {resp}")
+                        log_info = None
+                        try:
+                            if "human_result_text" in resp:
+                                log_info = "\n".join(
+                                    [
+                                        f'{action}: {resp["human_result_text"]}',
+                                    ]
+                                    + [
+                                        f"{key}: {value}"
+                                        for key, value in resp.items()
+                                        if key != "human_result_text"
+                                    ]
+                                )
+                        except Exception as err:
+                            ctx.log.error(f"{err}")
+                        ctx.log.info(log_info if log_info else f"{action}: {resp}")
                     if action == "add_tags":
                         for hash_ in item.get("hashes", []):
                             if sn_tags := item.get("service_names_to_tags"):
