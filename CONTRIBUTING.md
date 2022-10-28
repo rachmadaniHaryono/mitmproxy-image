@@ -17,7 +17,7 @@ Fork and clone the repository, then:
 ```console
 cd mitmproxy-image
 poetry install
-pre-commit install
+pre-commit install --hook-type commit-msg --hook-type pre
 ```
 
 !!! note If it fails for some reason, you'll need to install [Poetry](https://github.com/python-poetry/poetry) manually.
