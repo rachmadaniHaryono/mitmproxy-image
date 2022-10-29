@@ -10,7 +10,6 @@ command available:
 - `make test`, to run the test suite
 - `make check`, to check if everything is OK
 - `make changelog`, to update the changelog
-- `make release version=x.y.z`, to release a version
 
 ## Environment setup
 
@@ -128,11 +127,17 @@ If this seems all too complicated, you can push or force-push each new commit,
 and we will squash them ourselves if needed, before merging.
 
 
-## update package
+## Update package
 
-run the following commands and create commit for each file
+Run the following commands and create commit for each file
 
 ```console
 pre-commit autoupdate
 poetry run poetryup --latest
 ```
+
+## Release new version
+
+Run `cz bump --increment MAJOR --prerelease rc --check-consistency --changelog`
+
+Edit increment flag and prerelease flag as needed.
