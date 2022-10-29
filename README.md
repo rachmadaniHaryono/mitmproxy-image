@@ -66,6 +66,17 @@ With `pip`:
 python3 -m pip install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
 ```
 
+## Creating desktop file
+
+Edit `$HOME/.local/share/applications/mitmproxy-image.desktop`
+
+```desktop
+[Desktop Entry]
+Type=Application
+Name=mitmproxy-image
+Exec=xterm -e mitmproxy -s "$(mitmproxy-image print-path)" --listen-host 127.0.0.1 --listen-port 5007 --view-filter '~m GET & ~t "(image|video)/(?!svg.xml|x-icon|vnd.microsoft.icon)" & !~websocket' --set mitmimage_config='~/mitmimage.yaml' --set view_order=size
+```
+
 ## Development environment and release process
 
 see CONTRIBUTING.md
