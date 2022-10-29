@@ -18,6 +18,7 @@ __version__ = "1.5.1"
 
 
 @click.group()
+@click.version_option(version=__version__)
 def main():
     """
     Run the main program.
