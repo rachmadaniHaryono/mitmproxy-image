@@ -67,7 +67,7 @@ def read_changelog(filepath: str) -> List[str]:
     Returns:
         The changelog lines.
     """
-    with open(filepath, "r") as changelog_file:
+    with open(filepath) as changelog_file:
         return changelog_file.read().splitlines()
 
 
@@ -370,7 +370,7 @@ def test(ctx, match: str = ""):
     py_version = f"{sys.version_info.major}{sys.version_info.minor}"
     os.environ["COVERAGE_FILE"] = f".coverage-{py_version}"
     ctx.run(
-        ["pytest", "-n", "auto", "-k", match, "tests"],
+        "poetry run pytest -n auto -k".split() + [match, "tests"],
         title="Running tests",
         pty=PTY,
     )
