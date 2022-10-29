@@ -3,6 +3,15 @@
 Contributions are welcome, and they are greatly appreciated!
 Every little bit helps, and credit will always be given.
 
+command available:
+
+- `poetry install`, setup project with poetry
+- `make format`, to auto-format the code
+- `make test`, to run the test suite
+- `make check`, to check if everything is OK
+- `make changelog`, to update the changelog
+- `make release version=x.y.z`, to release a version
+
 ## Environment setup
 
 Nothing easier!
@@ -16,7 +25,7 @@ Fork and clone the repository, then:
 
 ```console
 cd mitmproxy-image
-poetry install
+poetry install --with=dev
 pre-commit install --hook-type commit-msg --hook-type pre
 ```
 
