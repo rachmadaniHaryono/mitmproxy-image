@@ -9,6 +9,7 @@ resources:
 import collections
 import copy
 import io
+import logging
 import os
 import re
 import traceback
@@ -45,7 +46,7 @@ def get_url_filename(url: str) -> str:
     try:
         url_filename = unquote_plus(Path(urlparse(url).path).stem)
     except Exception as err:
-        ctx.log.error(f"client: {err}\n{traceback.format_exc()}")
+        logging.error(f"client: {err}\n{traceback.format_exc()}")
     if url_filename:
         return f"filename:{url_filename}"
     return ""
@@ -132,14 +133,14 @@ class MitmImage:
             action = item.get("action")
             try:
                 if action == "upload":
-                    ctx.log.warn("unmaintained upload action is executed")
+                    logging.warn("unmaintained upload action is executed")
                     upload_resp = self.client.add_file(item["content"])
                     url = item["url"]
                     hash_ = upload_resp["hash"]
                     status = upload_resp["status"]
                     self.hash_status_dict[hash_] = status
                     note = upload_resp.pop("note", None)
-                    ctx.log.info(
+                    logging.info(
                         "\n".join(
                             [
                                 f"upload: {url}",
@@ -220,7 +221,7 @@ class MitmImage:
                                 for url in urls:
                                     self.url_hash_dict[url] = resp[0]["hash"]
                             else:
-                                ctx.log.warn(
+                                logging.warn(
                                     "unknown condition when updating url hash dict: "
                                     "urls {} / resp {}\nurls:\n{}\nresp:\n{}".format(
                                         len(urls),
@@ -235,7 +236,7 @@ class MitmImage:
                                 "hydrus.core.HydrusExceptions.UnsupportedFileException"
                             ):
                                 note = lines[-1]
-                            ctx.log.info(
+                            logging.info(
                                 "\n".join(
                                     [
                                         "add_and_tag_files:\n{}".format(
@@ -280,8 +281,8 @@ class MitmImage:
                                     ]
                                 )
                         except Exception as err:
-                            ctx.log.error(f"{err}")
-                        ctx.log.info(log_info if log_info else f"{action}: {resp}")
+                            logging.error(f"{err}")
+                        logging.info(log_info if log_info else f"{action}: {resp}")
                     if action == "add_tags":
                         for hash_ in item.get("hashes", []):
                             if sn_tags := item.get("service_names_to_tags"):
@@ -290,8 +291,8 @@ class MitmImage:
                 else:
                     raise ValueError(f"Unknown action: {action}")
             except Exception as err:
-                ctx.log.error(f"client: {err}\n{traceback.format_exc()}")
-                ctx.log.error(f"item: {item}")
+                logging.error(f"client: {err}\n{traceback.format_exc()}")
+                logging.error(f"item: {item}")
             self.client_queue.task_done()
 
     def load(self, loader):
@@ -326,7 +327,7 @@ class MitmImage:
                         "destination_page_name": nth(item, 4, "mitmimage_plus"),
                     }
                 )
-                ctx.log.debug(f"add_url_regex: {new_url}")
+                logging.debug(f"add_url_regex: {new_url}")
         if not flowfilter.match(self.base_filter, flow):
             return
         if (hash_ := self.url_hash_dict.get(url)) and self.hash_status_dict.get(
@@ -350,7 +351,7 @@ class MitmImage:
                 pred=lambda x: x[0].match(url),
             ):
                 url_filename = ""
-                ctx.log.info(f"url_filename blocked: {url}")
+                logging.info(f"url_filename blocked: {url}")
         tags = list(
             {
                 x
@@ -383,7 +384,7 @@ class MitmImage:
             ):
                 add_and_tag_files = False
             else:
-                ctx.log.error(f"response import status, url: {url}\nhash: {hash_}")
+                logging.error(f"response import status, url: {url}\nhash: {hash_}")
         if add_and_tag_files and first_true(
             self.config.get("block_regex", []), pred=lambda x: x[0].match(url)
         ):
@@ -395,7 +396,7 @@ class MitmImage:
                 size[0] < 150 or size[1] < 150
             ):
                 add_and_tag_files = False
-                ctx.log.debug(f"failed size check {size}: {url}")
+                logging.debug(f"failed size check {size}: {url}")
         except PIL.UnidentifiedImageError as err:
             log_text = f"client: {err}\n{err}\nurl: {url}"
             if ext := Path(urlparse(url).path).suffix == ".svg":
@@ -405,7 +406,7 @@ class MitmImage:
         except Exception as err:
             error_log = f"client: {err}\n{traceback.format_exc()}\nurl: {url}"
         if error_log:
-            ctx.log.error(error_log)
+            logging.error(error_log)
         if not add_and_tag_files:
             return
         self.client_queue.put(
