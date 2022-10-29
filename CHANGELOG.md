@@ -12,11 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - **duties**: deprecate 'make release'
 - **cli**: add version flag
 - **script**: use logging instead of ctx.log
-- **main**: update main
 - **script**: rename script2 to script
 - **script2**: better log_info_text
 - **script2**: image size check
-- **script2**: update
 - new basic version of script
 
 ### Fix
