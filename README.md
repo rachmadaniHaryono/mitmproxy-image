@@ -16,13 +16,13 @@ use extension such as [SwitchyOmega](https://github.com/FelisCatus/SwitchyOmega)
 - Run the application
 
 ```console
-$ mitmproxy-image
-$ # another example
-$ mitmproxy-image \
+mitmproxy \
 --listen-host 127.0.0.1 \
 --listen-port 5007 \
---set hydrus_access_key=$HYDRUS_ACCESS_KEY \
---view-filter '~m GET & ~t "(audio|image|video)" & !~websocket'
+--set mitmimage_config='~/mitmimage.yaml' \
+--set view_order=size \
+--view-filter '~m GET & ~t "(image|video)/(?!svg.xml|x-icon|vnd.microsoft.icon)" & !~websocket' \
+-s "$(mitmproxy-image print-path)"
 ```
 
 If configuration is succesful,
@@ -48,50 +48,27 @@ but the workflow is as shown on the gif.
 
 ## Requirements
 
-mitmproxy-image requires Python 3.8 or above.
+mitmproxy-image requires Python 3.9 or above.
 
-<details>
-<summary>To install Python 3.8, I recommend using <a href="https://github.com/pyenv/pyenv"><code>pyenv</code></a>.</summary>
-
-```bash
-# install pyenv
-git clone https://github.com/pyenv/pyenv ~/.pyenv
-
-# setup pyenv (you should also put these three lines in .bashrc or similar)
-export PATH="${HOME}/.pyenv/bin:${PATH}"
-export PYENV_ROOT="${HOME}/.pyenv"
-eval "$(pyenv init -)"
-
-# install Python 3.8
-pyenv install 3.8
-
-# make it available globally
-pyenv global system 3.8
-```
-</details>
+To install Python , I recommend using [pyenv](https://github.com/pyenv/pyenv)
 
 ## Installation
 
 With [`pipx`](https://github.com/pipxproject/pipx) (recommended):
 ```bash
-python3.8 -m pip install --user pipx
-
-pipx install --python python3.8 https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
+python3 -m pip install --user pipx
+pipx install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
+pipx inject --include-apps mitmproxy-image mitmproxy
 ```
 
 With `pip`:
 ```bash
-python3.8 -m pip install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
+python3 -m pip install https://github.com/rachmadaniHaryono/mitmproxy-image/archive/refs/heads/master.zip
 ```
 
 ## Development environment and release process
 
-- `poetry install`, setup project with poetry
-- `make format`, to auto-format the code
-- `make test`, to run the test suite
-- `make check`, to check if everything is OK
-- `make changelog`, to update the changelog
-- `make release version=x.y.z`, to release a version
+see CONTRIBUTING.md
 
 This project use modified version of [copier-poetry](https://github.com/pawamoy/copier-poetry/)
 
