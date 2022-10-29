@@ -325,24 +325,7 @@ def release(ctx, version):
         ctx: The context instance (passed automatically).
         version: The new version number to use.
     """
-    ctx.run(
-        f"poetry version {version}",
-        title=f"Bumping version in pyproject.toml to {version}",
-        pty=PTY,
-    )
-    ctx.run("git add pyproject.toml CHANGELOG.md", title="Staging files", pty=PTY)
-    ctx.run(
-        ["git", "commit", "-m", f"chore: Prepare release {version}"],
-        title="Committing changes",
-        pty=PTY,
-    )
-    ctx.run(f"git tag {version}", title="Tagging commit", pty=PTY)
-    if not TESTING:
-        ctx.run("git push", title="Pushing commits", pty=False)
-        ctx.run("git push --tags", title="Pushing tags", pty=False)
-        ctx.run("poetry build", title="Building dist/wheel", pty=PTY)
-        ctx.run("poetry publish", title="Publishing version", pty=PTY)
-        docs_deploy.run()  # type: ignore
+    raise DeprecationWarning("This duty command is deprecated. See CONTRIBUTING.md")
 
 
 @duty(silent=True)
