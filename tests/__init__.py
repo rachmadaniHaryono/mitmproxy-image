@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Tests suite for `mitmproxy-image`."""
 
 from pathlib import Path
