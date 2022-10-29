@@ -11,7 +11,8 @@
 
 """Module that contains the command line application."""
 import click
-import script
+
+from . import script
 
 __version__ = "1.5.1"
 
